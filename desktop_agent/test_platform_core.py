@@ -21,6 +21,7 @@ class PlatformCoreTest(unittest.TestCase):
             os.environ.pop("SARA_DATA_DIR", None)
         else:
             os.environ["SARA_DATA_DIR"] = self.old_data_dir
+        self.platform_core.close_all_services()
         self.tmp.cleanup()
 
     def test_memory_search(self) -> None:
@@ -118,6 +119,26 @@ class PlatformCoreTest(unittest.TestCase):
         latest = self.platform_core.RECOVERY.latest_incomplete_for_goal("Build an app")
         self.assertIsNotNone(latest)
         self.assertEqual(latest["id"], checkpoint["id"])
+
+    def test_session_independent_project_recall(self) -> None:
+        memory = self.platform_core.MemoryManager()
+        memory.remember(
+            "decision",
+            "Native Electron screen capture should be used instead of browser getDisplayMedia.",
+            {
+                "project_id": "screen_capture",
+                "topic": "screen_capture",
+                "session_id": "session-a",
+                "memory_type": "DECISION",
+                "importance": 0.9,
+                "confidence": 0.95,
+            },
+        )
+        memory.checkpoint("screen_capture", "Native Electron capture selected", {"current_state": "Electron capture ready"})
+
+        restored = memory.restore_session_context(project_id="screen_capture", topic="screen_capture", limit=5)
+        self.assertTrue(restored)
+        self.assertTrue(any(item.get("project_id") == "screen_capture" or item.get("topic") == "screen_capture" for item in restored))
 
     def test_experience_evolution_and_knowledge_pipeline(self) -> None:
         exp = self.platform_core.EXPERIENCES.record(

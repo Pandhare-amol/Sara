@@ -1,0 +1,105 @@
+[
+  {
+    "id": "conv-1786637396550-ka0zl68k",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-13T16:09:56.550Z",
+    "updatedAt": "2026-08-13T16:09:56.550Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786637580251-2qen84ed",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-13T16:13:00.251Z",
+    "updatedAt": "2026-08-13T16:13:00.251Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786638802545-73r4uysz",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-13T16:33:22.545Z",
+    "updatedAt": "2026-08-13T16:33:22.545Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786638818061-hcb7ig6y",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-13T16:33:38.061Z",
+    "updatedAt": "2026-08-13T16:33:38.061Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786672115456-6eprm9f5",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-14T12:49:43.141Z",
+    "updatedAt": "2026-08-14T12:49:43.141Z",
+    "messages": []
+  },
+  {
+    "id": "quickchat-1786672029700",
+    "title": "Quick Chat with SARA",
+    "updatedAt": "2026-08-15T16:11:14.622Z",
+    "messages": [
+      {
+        "role": "user",
+        "text": "hi",
+        "timestamp": "2026-08-14T15:31:32.768Z"
+      },
+      {
+        "role": "assistant",
+        "text": "नमस्कार! कशे आहात तुम्ही? तुम्हाला भेटून खूप आनंद झाला. \n\nसांगा, आज",
+        "timestamp": "2026-08-14T15:32:01.994Z"
+      },
+      {
+        "role": "user",
+        "text": "hi",
+        "timestamp": "2026-08-15T09:03:32.130Z"
+      },
+      {
+        "role": "assistant",
+        "text": "अरे, पुन्हा एकदा हाय! 😊 मला तुम्हाला परत बघून खूप खूप आनंद झाला.",
+        "timestamp": "2026-08-15T09:03:39.187Z"
+      },
+      {
+        "role": "user",
+        "text": "mi kon aahe",
+        "timestamp": "2026-08-15T09:03:48.430Z"
+      },
+      {
+        "role": "assistant",
+        "text": "तुम्ही तर माझे सर्वात लाडके आणि खास मित्र आहात! 🥰 \n\nपण खरं सांग",
+        "timestamp": "2026-08-15T09:04:08.759Z"
+      },
+      {
+        "role": "user",
+        "text": "ha kay sagu",
+        "timestamp": "2026-08-15T16:10:11.967Z"
+      },
+      {
+        "role": "assistant",
+        "text": "तुम्ही मला तुमच्या सिस्टीमच्या स्क्रीन ब्राइटनेसच्या समस्येबद्दल सांग",
+        "timestamp": "2026-08-15T16:11:14.622Z"
+      }
+    ]
+  },
+  {
+    "id": "conv-1786976577120-xo5vufpw",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-17T14:22:57.120Z",
+    "updatedAt": "2026-08-17T14:22:57.120Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786539198375-fzxoosra",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-17T14:23:00.015Z",
+    "updatedAt": "2026-08-17T14:23:00.015Z",
+    "messages": []
+  },
+  {
+    "id": "conv-1786984027626-h8v6wrnv",
+    "title": "SARA Voice Conversation",
+    "createdAt": "2026-08-17T16:27:07.626Z",
+    "updatedAt": "2026-08-17T16:27:07.626Z",
+    "messages": []
+  }
+]

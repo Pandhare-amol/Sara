@@ -1,0 +1,30 @@
+[
+  {
+    "created_at": 1786934795.0643554,
+    "issues": [],
+    "project_root": "D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant",
+    "summary": {
+      "files_scanned": 106,
+      "issue_count": 0,
+      "warning_count": 4
+    },
+    "warnings": [
+      {
+        "path": "D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\agents.py",
+        "type": "placeholder"
+      },
+      {
+        "path": "D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\platform_core.py",
+        "type": "placeholder"
+      },
+      {
+        "path": "D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\stt.py",
+        "type": "placeholder"
+      },
+      {
+        "path": "D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\scripts\\audit_scan.py",
+        "type": "placeholder"
+      }
+    ]
+  }
+]

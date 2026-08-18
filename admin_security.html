@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SARA Admin Security Dashboard</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.4;margin:20px}
+      .box{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:6px}
+      pre{white-space:pre-wrap;background:#f7f7f7;padding:8px;border-radius:4px}
+      button{margin-right:8px}
+    </style>
+  </head>
+  <body>
+    <h1>SARA Admin — Security Dashboard</h1>
+    <div class="box">
+      <label>Admin token: <input id="token" type="password" placeholder="x-admin-token" style="width:320px"/></label>
+      <button id="btnStatus">Get Status</button>
+      <button id="btnVerify">Run Verify</button>
+      <button id="btnApprove">Approve Baseline</button>
+    </div>
+
+    <div class="box">
+      <h3>Build / Integrity Status</h3>
+      <div id="status">(no data)</div>
+    </div>
+
+    <div class="box">
+      <h3>Recent Audit Events</h3>
+      <div id="audit">(no data)</div>
+    </div>
+
+    <div class="box">
+      <h3>Raw Results</h3>
+      <pre id="raw">(idle)</pre>
+    </div>
+
+    <script src="/admin_security.js"></script>
+  </body>
+</html>

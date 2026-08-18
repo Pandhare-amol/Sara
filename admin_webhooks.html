@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SARA Webhooks Admin</title>
+  <style>body{font-family:Arial;margin:20px}input,button{padding:8px;margin:4px}</style>
+</head>
+<body>
+  <h1>Webhooks</h1>
+  <div>
+    <input id="url" placeholder="Webhook URL" size="60" />
+    <input id="events" placeholder="Events (comma)" />
+    <input id="secret" placeholder="Secret (optional)" />
+    <button id="create">Create</button>
+  </div>
+  <h2>Registered</h2>
+  <ul id="list"></ul>
+<script>
+async function load(){
+  const headers = {};
+  if (window.ADMIN_KEY) headers['x-admin-token'] = window.ADMIN_KEY;
+  const r = await fetch('/api/webhooks',{headers});
+  const d = await r.json();
+  const list = document.getElementById('list'); list.innerHTML='';
+  (d.webhooks||d).forEach(w=>{
+    const li = document.createElement('li');
+    li.textContent = w.id + ' - ' + w.url + ' events:' + (w.events||[]).join(',');
+    const edit = document.createElement('button'); edit.textContent='Edit'; edit.onclick=async()=>{
+      const newEvents = prompt('Edit events (comma separated) for webhook ' + w.id, (w.events||[]).join(','));
+      if (newEvents === null) return;
+      const body = { events: newEvents.split(',').map(s=>s.trim()).filter(Boolean) };
+      const h = {'Content-Type':'application/json'}; if (window.ADMIN_KEY) h['x-admin-token'] = window.ADMIN_KEY;
+      await fetch('/api/webhooks/'+w.id,{method:'PUT', headers: h, body: JSON.stringify(body)});
+      load();
+    };
+    const del = document.createElement('button'); del.textContent='Delete'; del.onclick=async()=>{ await fetch('/api/webhooks/'+w.id,{method:'DELETE', headers: headers}); load(); };
+    li.appendChild(del);
+    li.appendChild(edit);
+    list.appendChild(li);
+  });
+}
+document.getElementById('create').onclick=async ()=>{
+  const url=document.getElementById('url').value; const events=document.getElementById('events').value.split(',').map(s=>s.trim()).filter(Boolean); const secret=document.getElementById('secret').value||undefined;
+  const headers = {'Content-Type':'application/json'}; if (window.ADMIN_KEY) headers['x-admin-token'] = window.ADMIN_KEY;
+  await fetch('/api/webhooks',{method:'POST',headers,body:JSON.stringify({url,events,secret})});
+  load();
+};
+load();
+</script>
+</body>
+</html>

@@ -7,6 +7,11 @@ color 0B
 set "PROJECT_DIR=%~dp0"
 set "PYTHON_EXE="
 
+REM Prefer a project-local virtualenv if present
+if exist "%PROJECT_DIR%\.venv-1\Scripts\python.exe" (
+    set "PYTHON_EXE=%PROJECT_DIR%\.venv-1\Scripts\python.exe"
+)
+
 for %%P in ("C:\Users\k8673\AppData\Local\Microsoft\WindowsApps\python3.13.exe" "C:\Users\k8673\AppData\Local\Programs\Python\Python311\python.exe" "python" "python3") do (
     if not defined PYTHON_EXE (
         if exist %%~fP (
@@ -86,7 +91,7 @@ echo   ^(Desktop Agent runs in its own minimized window.\)
 echo.
 
 cd /d "%PROJECT_DIR%"
-npm run dev
+npm run electron
 
 echo.
 echo SARA has stopped. Cleaning up Desktop Agent...

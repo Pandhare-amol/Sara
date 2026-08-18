@@ -1,0 +1,92 @@
+{
+  "Build Project": {
+    "description": "Run a local coding or build task.",
+    "id": "03b20af7d81248a29fd14d20f96b41d8",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Build Project",
+    "steps": [
+      {
+        "action": "run_python_script",
+        "agent": "coding_agent"
+      }
+    ],
+    "updated_at": 1786934784.457052
+  },
+  "Download File": {
+    "description": "Download or save a web file through browser automation.",
+    "id": "b590023fa1ab4e47856910f6355852c0",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Download File",
+    "steps": [
+      {
+        "action": "click",
+        "agent": "browser_agent"
+      }
+    ],
+    "updated_at": 1786934784.453038
+  },
+  "Open Browser": {
+    "description": "Open a website in the browser agent.",
+    "id": "927ac4d2c6644666800fe2c4d7f52e71",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Open Browser",
+    "steps": [
+      {
+        "action": "open",
+        "agent": "browser_agent"
+      }
+    ],
+    "updated_at": 1786934784.453038
+  },
+  "Organize Downloads": {
+    "description": "Inspect Downloads and organize files.",
+    "id": "e426e14bd47641a2ba16a6152eb00101",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Organize Downloads",
+    "steps": [
+      {
+        "action": "list_files",
+        "agent": "os_agent"
+      }
+    ],
+    "updated_at": 1786934784.4611278
+  },
+  "Run Tests": {
+    "description": "Run project tests through the coding agent.",
+    "id": "ce8e257c784d4daf887e9dff704642a0",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Run Tests",
+    "steps": [
+      {
+        "action": "run_python_script",
+        "agent": "coding_agent"
+      }
+    ],
+    "updated_at": 1786934784.457052
+  },
+  "Search Folder": {
+    "description": "Search local files and folders.",
+    "id": "d2920b7fe9324f2caca4bfd7aba600fe",
+    "metadata": {
+      "builtin": true
+    },
+    "name": "Search Folder",
+    "steps": [
+      {
+        "action": "search_files",
+        "agent": "os_agent"
+      }
+    ],
+    "updated_at": 1786934784.453038
+  }
+}

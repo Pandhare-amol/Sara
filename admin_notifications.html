@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SARA Admin — Notifications</title>
+    <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:20px}label{display:block;margin-top:8px}input[type=text]{width:420px}</style>
+  </head>
+  <body>
+    <h1>Notifications Settings</h1>
+    <div>
+      <label>Admin token: <input id="token" type="password" placeholder="x-admin-token"/></label>
+      <button id="btnLoad">Load</button>
+      <button id="btnSave">Save</button>
+      <button id="btnTest">Send Test</button>
+    </div>
+    <hr/>
+    <div>
+      <h3>Webhook Notifications</h3>
+      <div>
+        <label>Webhook URL: <input id="wh_url" type="text"/></label>
+        <label>Events (comma separated): <input id="wh_events" type="text" placeholder="* or CODE_INTEGRITY_CHECK,SECURITY_ALERT"/></label>
+        <label>Secret (HMAC): <input id="wh_secret" type="text"/></label>
+      </div>
+    </div>
+    <div>
+      <h3>Local/Desktop Notification</h3>
+      <label><input id="desktop_notify" type="checkbox"/> Enable desktop notification (local)</label>
+    </div>
+    <div>
+      <h3>Email (optional)</h3>
+      <label>Addresses (comma separated): <input id="emails" type="text"/></label>
+    </div>
+    <div>
+      <h3>SMTP (optional, stored securely)</h3>
+      <p style="margin:0;color:#666;font-size:0.9em">Secret is stored in the OS credential store when available (keytar); only host/user/from are saved in settings.</p>
+      <label>SMTP URL (eg smtp://user:pass@smtp.example.com:587) or leave blank to use object below: <input id="smtp_url" type="text"/></label>
+      <label>SMTP Host: <input id="smtp_host" type="text"/></label>
+      <label>SMTP Port: <input id="smtp_port" type="text"/></label>
+      <label>SMTP User: <input id="smtp_user" type="text"/></label>
+      <label>SMTP From: <input id="smtp_from" type="text" placeholder="Sara <sara@example.com>"/></label>
+      <label>SMTP Secret (will be stored securely): <input id="smtp_secret" type="password"/></label>
+      <div style="margin-top:8px">
+        <button id="btnSaveSmtp">Save SMTP</button>
+        <button id="btnTestSmtp">Test SMTP</button>
+      </div>
+    </div>
+    <pre id="raw">(idle)</pre>
+    <script src="/admin_notifications.js"></script>
+  </body>
+</html>

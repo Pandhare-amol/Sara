@@ -1,0 +1,38 @@
+[
+  {
+    "sessionId": "sess-1786711783144-vt6fuycv",
+    "conversationId": "conv-1786672115456-6eprm9f5",
+    "device": "browser",
+    "connectionStatus": "online",
+    "createdAt": "2026-08-14T12:49:43.141Z",
+    "lastSeen": "2026-08-17T08:27:05.089Z",
+    "reconnectAttempts": 30
+  },
+  {
+    "sessionId": "sess-1786976580488-mmigjrlf",
+    "conversationId": "conv-1786976577120-xo5vufpw",
+    "device": "browser",
+    "connectionStatus": "online",
+    "createdAt": "2026-08-17T14:23:00.488Z",
+    "lastSeen": "2026-08-17T14:23:00.488Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786976609092-i5x8tir8",
+    "conversationId": "conv-1786539198375-fzxoosra",
+    "device": "browser",
+    "connectionStatus": "online",
+    "createdAt": "2026-08-17T14:23:29.092Z",
+    "lastSeen": "2026-08-17T14:23:29.092Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786984027632-u0258v6i",
+    "conversationId": "conv-1786984027626-h8v6wrnv",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-17T16:27:07.626Z",
+    "lastSeen": "2026-08-17T16:27:34.677Z",
+    "reconnectAttempts": 0
+  }
+]

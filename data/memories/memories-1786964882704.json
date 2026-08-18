@@ -1,0 +1,53 @@
+{
+  "timestamp": 1786964882704,
+  "version": "1.0.0",
+  "episodic": [
+    {
+      "id": "mem-ep-1786964882704-yio6b",
+      "type": "episodic",
+      "timestamp": 1786964882704,
+      "confidence": 0.8,
+      "tags": [],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [
+          "Test"
+        ],
+        "verified": false
+      },
+      "metadata": {},
+      "event": {
+        "description": "event",
+        "timestamp": 1786964882704,
+        "participants": [
+          "sara"
+        ],
+        "context": {},
+        "outcome": "success",
+        "details": "Test"
+      }
+    }
+  ],
+  "semantic": [],
+  "procedural": [],
+  "preference": [],
+  "failure": [],
+  "achievement": [],
+  "autobiographical": [],
+  "metadata": {
+    "totalMemories": 1,
+    "averageConfidence": 0.8,
+    "memoryTypes": {
+      "episodic": 1,
+      "semantic": 0,
+      "procedural": 0,
+      "preference": 0,
+      "failure": 0,
+      "achievement": 0,
+      "autobiographical": 0
+    },
+    "lastUpdateTime": 1786964882704
+  }
+}

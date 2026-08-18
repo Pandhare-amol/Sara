@@ -11,9 +11,13 @@ import {
   loadMemories, 
   saveMemories, 
   formatSystemInstructionsWithMemories, 
-  processConversationSlice 
+  processConversationSlice,
+  searchMemories 
 } from "./server_memory";
 import type { Memory, MemoryCategory } from "./src/lib/memoryTypes";
+import { AuditLogger } from "./src/security/auditLogger";
+import SecurityManager from "./src/security/securityManager";
+import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
 import {
   DATA_DIR,
   dataFile,
@@ -40,11 +44,14 @@ import {
   updateTask,
   appendToolCall,
 } from "./server_state";
+import cognitiveRoutes from "./src/cognitive/routes";
 
 dotenv.config();
 
+const SARA_SYSTEM_PROMPT_BASE = `You are Sara, a young Indian female AI personal assistant aged 20 to 25.`;
+
 // ---------------------------------------------------------------------------
-// SARA V2 â€” Logging (Feature 7).
+// SARA V2 — Logging (Feature 7).
 // Appends timestamped lines to logs/{commands,startup,errors}.log.
 // Never throws; logging failures are swallowed so they can't break the app.
 // ---------------------------------------------------------------------------
@@ -64,7 +71,7 @@ const logStartup = (m: string) => appendLog("startup.log", m);
 const logError = (m: string) => appendLog("errors.log", m);
 
 // ---------------------------------------------------------------------------
-// SARA Desktop Control Agent â€” HTTP bridge to the Python FastAPI backend.
+// SARA Desktop Control Agent — HTTP bridge to the Python FastAPI backend.
 // ---------------------------------------------------------------------------
 const DESKTOP_AGENT_URL = process.env.DESKTOP_AGENT_URL || "http://127.0.0.1:8765";
 const DESKTOP_AGENT_TIMEOUT = 25_000; // ms
@@ -75,38 +82,101 @@ const DESKTOP_AGENT_TIMEOUT = 25_000; // ms
  */
 const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // applications / websites / search
-  "openApplication", "closeApplication", "openWebsite",
-  "searchWeb", "searchYouTube", "searchGoogle", "searchGitHub",
+  "openApplication", "closeApplication", "openAnyApplication", "closeAnyApplication", "openWebsite",
+  "searchWeb", "searchYouTube", "searchGoogle", "searchGitHub", "openUrlInBrowser",
   // files
-  "createFile", "readFile", "renameFile", "deleteFile", "moveFile",
-  "openFolder", "listFiles", "searchFiles",
+  "createFile", "readFile", "renameFile", "deleteFile", "moveFile", "copyFile", "duplicateFile",
+  "createFolder", "compressPath", "extractZip", "openPath", "openFolder", "listFiles", "searchFiles",
   // pc control (volume + gated power)
   "volumeUp", "volumeDown", "muteToggle", "setVolume",
-  "requestPowerAction", "executePowerAction",
+  "requestPowerAction", "executePowerAction", "_cancelPowerTimer",
   // windows
-  "minimizeWindow", "maximizeWindow", "closeWindow", "switchApplication",
+  "minimizeWindow", "maximizeWindow", "closeWindow", "switchApplication", "restoreWindow",
+  "moveWindow", "resizeWindow", "showDesktop", "restartExplorer", "turnOffDisplay", "listRunningApplications", "listWindows",
+  "getActiveWindow", "focusWindow", "minimizeOtherWindows", "closeAllApplications",
   // clipboard
   "copySelected", "pasteClipboard", "getClipboard", "clearClipboard",
   // screenshot / screen reading
-  "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen",
-  // browser automation (Playwright â€” desktop-owned, separate from holographic UI)
+  "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen", "detectUiElements",
+  // semantic desktop perception / target aware UI control
+  "desktopInspectScreen", "desktopFindElement", "desktopFindElements", "desktopClickTarget",
+  "desktopDoubleClickTarget", "desktopRightClickTarget", "desktopMoveToTarget", "desktopDragTarget",
+  "desktopFocusTarget", "desktopTypeIntoTarget",
+  // camera
+  "openCamera", "takePhoto", "recordVideo", "stopVideoRecording", "scanQrCode", "saveCapturedPhoto",
+  "showCapturedMedia", "saraCameraOpen", "saraCameraTakePhoto", "saraCameraRecordVideo",
+  "saraCameraStopRecording", "saraCameraScanQr", "saraCameraObserve",
+  // browser automation (Playwright — desktop-owned, separate from holographic UI)
   "desktopBrowserOpen", "desktopBrowserNavigate", "desktopBrowserOpenTab",
   "desktopBrowserCloseTab", "desktopBrowserSearch", "desktopBrowserClick",
   "desktopBrowserType", "desktopBrowserFillForm", "desktopBrowserGoBack",
-  "desktopBrowserGoForward", "desktopBrowserScroll",
+  "desktopBrowserGoForward", "desktopBrowserScroll", "desktopBrowserReload", "desktopBrowserKey",
+  "desktopBrowserZoom", "desktopBrowserMedia", "desktopBrowserReadPage", "desktopBrowserScreenshot",
+  "browserOpen", "browserSearch", "browserClick", "browserType", "browserScroll",
+  "browserGoBack", "browserMediaControl", "browserTabAction",
   // coding assistance
   "createPythonFile", "runPythonScript", "createProjectFolder", "writeCodeFile",
   // system information
-  "systemInfo", "gpuInfo", "temperatureInfo",
+  "systemInfo", "gpuInfo", "temperatureInfo", "desktopAgentDiagnostic",
   // brightness control (V2)
   "brightnessUp", "brightnessDown", "setBrightness",
   // Windows auto-start management (V2)
   "enableAutoStart", "disableAutoStart", "getAutoStartStatus",
-  // Android companion suite
+  // SARA master orchestrator / multi-agent runtime
+  "saraAgentExecute", "saraAgentStatus", "saraAgentUnloadIdle", "saraAgentEmergencyStop",
+  "saraTaskSubmit", "saraTaskStatus", "saraTaskList",
+  // Local-first AI OS platform services
+  "saraMemoryRemember", "saraMemorySearch", "saraMemorySync", "saraMemoryExport", "saraMemoryFlush",
+  "saraMemoryForget", "saraMemoryConsolidate", "saraRagIndex", "saraRagRetrieve", "saraRagRemoveDeleted",
+  "saraRagSync", "saraRagExport", "saraGoalCreate", "saraGoalUpdate", "saraGoalCheckpoint",
+  "saraGoalList", "saraGoalGet", "saraKnowledgeAdd", "saraKnowledgeQuery", "saraRecoverySave",
+  "saraRecoveryLatest", "saraLearningTeach", "saraLearningList", "saraLearningMatch", "saraLearningForget",
+  "saraExperienceRecord", "saraExperienceList", "saraExperienceInsights", "saraEvolutionPropose",
+  "saraEvolutionList", "saraEvolutionApprove", "saraEvolutionReject", "saraKnowledgeIngest",
+  "saraKnowledgeValidate", "saraKnowledgeSourceList", "saraHealthRun", "saraHealthLatest",
+  "saraRlRecord", "saraRlSummary", "saraRlConfigureRewards", "saraStrategyBest", "saraWorkflowSave",
+  "saraWorkflowList", "saraSkillSave", "saraSkillMatch", "saraSkillList", "saraPluginDiscover",
+  "saraSecurityAssess", "saraCredentialStore", "saraCredentialLoad", "saraCredentialList",
+  "saraCredentialRemove", "saraScheduleJob", "saraRunDueJobs", "saraDueJobs", "saraServiceList",
+  "saraServiceConnect", "saraServiceSession", "saraServiceExecute",
+  // Real hardware input control
+  "hardwareMouseMove", "hardwareMouseClick", "hardwareMouseDrag", "hardwareMouseScroll",
+  "hardwareMousePosition", "hardwareKeyboardType", "hardwareKeyboardPress", "hardwareKeyboardHold",
+  "hardwareKeyboardRelease", "hardwareMacroReplay",
+  // High-level voice command routing / training
+  "saraVoiceParseCommand", "saraVoiceExecuteCommand", "saraVoiceTrainCommand",
+  "saraVoiceStopSpeaking", "saraCompanionSuggestNext",
+  // Screen monitoring
+  "saraScreenMonitorStart", "saraScreenMonitorStop", "saraScreenMonitorStatus",
+  "saraScreenMonitorSample", "saraScreenLiveStart", "saraScreenLiveStop", "saraScreenLiveStatus",
+  "saraScreenLivePause", "saraScreenLiveResume", "saraScreenGetMonitors", "saraScreenGetActiveWindow",
+  "gestureControlStart", "gestureControlStop", "gestureControlPause", "gestureControlResume",
+  "gestureControlStatus", "gestureControlCalibrate", "gestureControlSetMapping",
+  "gestureControlSetMonitor", "gestureControlSetSensitivity", "gestureControlSetThresholds",
+  "gestureControlGetConfig", "gestureControlSetConfig", "gestureControlGetMappings",
+  "gestureControlSetMappings", "gestureControlEnable", "gestureControlDisable", "gestureControlSetProfile",
+  // Application Automation Suite
+  "saraAppListPlugins", "saraAppPlan", "saraAppExecute", "saraAppExecuteGoal",
+  // Browser Automation Suite
+  "saraBrowserPlan", "saraBrowserExecute", "saraBrowserExecuteGoal",
+  // Android Companion Suite
   "saraAndroidPair", "saraAndroidPlan", "saraAndroidExecute",
-  // Multi-agent & system orchestration tools
-  "saraAgentExecute", "saraAgentEmergencyStop", "saraMemoryRemember",
-  "saraMemorySearch", "saraRagIndex", "saraRagRetrieve", "saraSecurityAssess",
+  // Email Automation
+  "email_send", "email_read", "email_search", "email_draft", "email_reply", "email_forward",
+  "email_create_task_from_email", "email_schedule_send",
+  // WhatsApp Extra Capabilities
+  "whatsapp_open_chat", "whatsapp_list_chats", "whatsapp_search_messages", "whatsapp_get_contact",
+  "whatsapp_get_message_status", "whatsapp_create_task_from_message", "whatsapp_read_messages",
+  "whatsapp_reply", "whatsapp_send_media", "whatsapp_group_send", "whatsapp_schedule_send",
+  "whatsapp_resolve_contact",
+  // YouTube Extra Capabilities
+  "youtube_search", "youtube_play", "youtube_pause", "youtube_resume", "youtube_seek", "youtube_volume",
+  "youtube_fullscreen", "youtube_captions", "youtube_transcript", "youtube_get_info",
+  "youtube_add_to_watch_later", "youtube_upload",
+  // RAG ingestion
+  "saraRagIngestDocument", "saraRagIndexFolder",
+  // Universal Command Center
+  "saraUniversalCommand",
 ]);
 
 /**
@@ -126,6 +196,10 @@ let desktopAgentVerified = false;
  * even if SARA's node process is killed.
  */
 function spawnDesktopAgent(): void {
+  if (process.env.SARA_SUPERVISOR) {
+    console.log("[Desktop Agent] Supervisor present — skipping auto-spawn.");
+    return;
+  }
   const agentEnv = {
     ...process.env,
     SARA_AGENT_HOST: "127.0.0.1",
@@ -212,7 +286,11 @@ async function ensureDesktopAgent(): Promise<void> {
   if (desktopAgentVerified) return;
   if (await isDesktopAgentAlive()) {
     desktopAgentVerified = true;
-    console.log("[Desktop Agent] Already running â€” 52 tools available.");
+    console.log("[Desktop Agent] Already running — 52 tools available.");
+    return;
+  }
+  if (process.env.SARA_SUPERVISOR) {
+    console.log("[Desktop Agent] Supervisor present — not auto-starting; agent may be managed externally.");
     return;
   }
   console.log("[Desktop Agent] Not detected. Auto-starting...");
@@ -221,7 +299,7 @@ async function ensureDesktopAgent(): Promise<void> {
     await new Promise((r) => setTimeout(r, 1000));
     if (await isDesktopAgentAlive()) {
       desktopAgentVerified = true;
-      console.log(`[Desktop Agent] Online after ${i}s â€” 52 tools available.`);
+      console.log(`[Desktop Agent] Online after ${i}s — 52 tools available.`);
       return;
     }
   }
@@ -323,8 +401,10 @@ async function generateSaraChatResponse(
     },
   });
 
-  const memories = await loadMemories(source);
-  const prompt = buildSaraChatPrompt(memories, history.slice(-8), userText, source);
+  const memories = (await searchMemories(userText, source, 8)).length > 0
+    ? await searchMemories(userText, source, 8)
+    : await loadMemories(source);
+  const prompt = buildSaraChatPrompt(memories, history.slice(-8), userText, source) + getModeInstructions();
   const response = await ai.models.generateContent({
     model: "gemini-3.5-flash",
     contents: prompt,
@@ -339,7 +419,7 @@ async function generateSaraChatResponse(
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
   
   app.use(express.json());
 
@@ -364,6 +444,28 @@ async function startServer() {
       reconnectAttempts: 0,
     });
   }
+
+  // Recover tasks on startup: mark running tasks as RECOVERING and emit audit entries
+  try {
+    const { loadUnfinishedTasks, setTaskRecovering } = await import('./server_state');
+    const unfinished = await loadUnfinishedTasks();
+    for (const t of unfinished) {
+      if (t.status === 'running' || t.status === 'planning') {
+        await setTaskRecovering(t.taskId);
+        const a = new AuditLogger(path.join(DATA_DIR, 'security'));
+        a.append({ event_type: 'TASK_RECOVERING', metadata: { taskId: t.taskId, previous_status: t.status }, severity: 'HIGH' }).catch(() => {});
+      }
+    }
+  } catch (e) { console.warn('Task recovery failure', String(e)); }
+
+  app.get("/health", (req, res) => {
+    res.json({
+      status: "ok",
+      service: "sara-backend",
+      service_version: "1.0.0",
+      protocol_version: "1"
+    });
+  });
 
   // Memory REST API Endpoints
   app.get("/api/memories", async (req, res) => {
@@ -414,7 +516,7 @@ async function startServer() {
   });
 
   // ---------------------------------------------------------------------------
-  // V2: Settings API â€” mirrors the memory persistence pattern.
+  // V2: Settings API — mirrors the memory persistence pattern.
   // Reads/writes settings.json so the Python agent can also check auto-start.
   // ---------------------------------------------------------------------------
   const SETTINGS_FILE = dataFile("settings.json");
@@ -424,7 +526,7 @@ async function startServer() {
       if (fs.existsSync(SETTINGS_FILE)) {
         return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
       }
-    } catch { /* corrupt file â€” return defaults */ }
+    } catch { /* corrupt file — return defaults */ }
     return {};
   }
 
@@ -486,8 +588,28 @@ async function startServer() {
         }))
         .filter((item: any) => item.text.length > 0);
 
+      const conversationId = String(req.body?.conversationId || "quickchat-default").trim() || "quickchat-default";
+      const conversation = await getOrCreateConversation(conversationId);
+      const userMessage: ConversationMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conversationId,
+        role: "user",
+        content: text,
+        timestamp: new Date().toISOString(),
+      };
+      await appendConversationMessage(userMessage);
+
       const reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source);
-      res.json({ ok: true, text: reply });
+      const assistantMessage: ConversationMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conversationId,
+        role: "assistant",
+        content: reply,
+        timestamp: new Date().toISOString(),
+      };
+      await appendConversationMessage(assistantMessage);
+      conversation.updatedAt = assistantMessage.timestamp;
+      res.json({ ok: true, text: reply, conversationId });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Failed to generate chat response." });
     }
@@ -496,7 +618,7 @@ async function startServer() {
   // ---------------------------------------------------------------------------
   // Config / API-key onboarding.
   // The Gemini key is never shipped; each user supplies their own on first run.
-  // GET reports only whether a key exists â€” the key itself is never returned.
+  // GET reports only whether a key exists — the key itself is never returned.
   // ---------------------------------------------------------------------------
   app.get("/api/config", (_req, res) => {
     res.json({ hasApiKey: hasGeminiApiKey() });
@@ -538,7 +660,7 @@ async function startServer() {
     }
   });
 
-  // V2: Agent health proxy (for the Settings panel â€” avoids direct :8765 call
+  // V2: Agent health proxy (for the Settings panel — avoids direct :8765 call
   // which may fail due to CORS when served on a different origin).
   app.get("/api/agent-health", async (_req, res) => {
     try {
@@ -704,6 +826,141 @@ async function startServer() {
     }
   });
 
+  // Camera photo save endpoint: accepts a dataUrl and stores under data/SARA_MEDIA/photos
+  app.post("/api/camera/photo", async (req, res) => {
+    try {
+      const { dataUrl } = req.body || {};
+      if (!dataUrl || typeof dataUrl !== "string") return res.status(400).json({ error: "dataUrl (base64) is required" });
+      const match = String(dataUrl).match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/);
+      let rawBase64 = dataUrl;
+      let ext = "jpg";
+      if (match) {
+        rawBase64 = match[3];
+        ext = match[2] === "png" ? "png" : "jpg";
+      } else if (dataUrl.startsWith("/")) {
+        // uncommon
+        rawBase64 = dataUrl.replace(/^data:\w+\/\w+;base64,?/, "");
+      } else {
+        rawBase64 = dataUrl.replace(/^data:\w+\/\w+;base64,?/, "");
+      }
+
+      const mediaDir = dataFile("SARA_MEDIA");
+      const photosDir = path.join(mediaDir, "photos");
+      try { fs.mkdirSync(photosDir, { recursive: true }); } catch {}
+      const ts = new Date();
+      const filename = `${ts.toISOString().slice(0,19).replace(/[:T]/g, "_")}.${ext}`;
+      const outPath = path.join(photosDir, filename);
+      fs.writeFileSync(outPath, Buffer.from(rawBase64, "base64"));
+      // Optionally record metadata in a simple index file
+      res.json({ ok: true, path: outPath, filename });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Failed to save photo" });
+    }
+  });
+
+  // Camera video save endpoint: accepts base64 (raw) and stores under data/SARA_MEDIA/videos
+  app.post("/api/camera/video", async (req, res) => {
+    try {
+      const { dataBase64 } = req.body || {};
+      if (!dataBase64 || typeof dataBase64 !== "string") return res.status(400).json({ error: "dataBase64 is required" });
+      const mediaDir = dataFile("SARA_MEDIA");
+      const videosDir = path.join(mediaDir, "videos");
+      try { fs.mkdirSync(videosDir, { recursive: true }); } catch {}
+      const ts = new Date();
+      const filename = `${ts.toISOString().slice(0,19).replace(/[:T]/g, "_")}.webm`;
+      const outPath = path.join(videosDir, filename);
+      fs.writeFileSync(outPath, Buffer.from(dataBase64, "base64"));
+      res.json({ ok: true, path: outPath, filename });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Failed to save video" });
+    }
+  });
+
+  // Camera gallery listing
+  app.get("/api/camera/gallery", async (_req, res) => {
+    try {
+      const mediaDir = dataFile("SARA_MEDIA");
+      const photosDir = path.join(mediaDir, "photos");
+      const videosDir = path.join(mediaDir, "videos");
+      const out: any = { photos: [], videos: [] };
+      try {
+        if (fs.existsSync(photosDir)) {
+          const files = fs.readdirSync(photosDir).filter((f) => !f.startsWith('.'));
+          out.photos = files.map((f) => ({ filename: f, path: path.join(photosDir, f) }));
+        }
+      } catch {}
+      try {
+        if (fs.existsSync(videosDir)) {
+          const files = fs.readdirSync(videosDir).filter((f) => !f.startsWith('.'));
+          out.videos = files.map((f) => ({ filename: f, path: path.join(videosDir, f) }));
+        }
+      } catch {}
+      res.json(out);
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || "Failed to list gallery" });
+    }
+  });
+
+  // Serve individual photo files
+  app.get('/api/camera/photo/:filename', async (req, res) => {
+    try {
+      const filename = String(req.params.filename || '');
+      if (!filename || filename.includes('..') || filename.includes('/')) return res.status(400).send('Invalid filename');
+      const mediaDir = dataFile('SARA_MEDIA');
+      const photosDir = path.join(mediaDir, 'photos');
+      const filePath = path.join(photosDir, filename);
+      if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+      return res.sendFile(filePath);
+    } catch (e: any) { return res.status(500).send('Server error'); }
+  });
+
+  app.get('/api/camera/video/:filename', async (req, res) => {
+    try {
+      const filename = String(req.params.filename || '');
+      if (!filename || filename.includes('..') || filename.includes('/')) return res.status(400).send('Invalid filename');
+      const mediaDir = dataFile('SARA_MEDIA');
+      const videosDir = path.join(mediaDir, 'videos');
+      const filePath = path.join(videosDir, filename);
+      if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+      return res.sendFile(filePath);
+    } catch (e: any) { return res.status(500).send('Server error'); }
+  });
+
+  // Delete media
+  app.post('/api/camera/delete', express.json(), async (req, res) => {
+    try {
+      const { type, filename } = req.body || {};
+      if (!filename || !type) return res.status(400).json({ error: 'type and filename are required' });
+      const safe = String(filename || '');
+      if (safe.includes('..') || safe.includes('/')) return res.status(400).json({ error: 'Invalid filename' });
+      const mediaDir = dataFile('SARA_MEDIA');
+      const dir = type === 'video' ? path.join(mediaDir, 'videos') : path.join(mediaDir, 'photos');
+      const filepath = path.join(dir, safe);
+      if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'File not found' });
+      fs.unlinkSync(filepath);
+      return res.json({ ok: true });
+    } catch (e: any) { return res.status(500).json({ error: e?.message || 'Delete failed' }); }
+  });
+
+  // Open containing folder via Desktop Agent
+  app.post('/api/camera/open-folder', express.json(), async (req, res) => {
+    try {
+      const { type, filename } = req.body || {};
+      if (!filename || !type) return res.status(400).json({ error: 'type and filename required' });
+      const safe = String(filename || '');
+      if (safe.includes('..') || safe.includes('/')) return res.status(400).json({ error: 'Invalid filename' });
+      const mediaDir = dataFile('SARA_MEDIA');
+      const dir = type === 'video' ? path.join(mediaDir, 'videos') : path.join(mediaDir, 'photos');
+      const filepath = path.join(dir, safe);
+      if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'File not found' });
+      const folder = path.dirname(filepath);
+      // Use desktop agent to open folder
+      const r = await callDesktopAgent('openFolder', { path: folder });
+      if (!r.ok) return res.status(500).json({ error: r.error || 'Agent failed to open folder' });
+      return res.json({ ok: true });
+    } catch (e: any) { return res.status(500).json({ error: e?.message || 'Failed' }); }
+  });
+
   // Conversations persistence for mobile/desktop sync
   app.get("/api/conversations", async (req, res) => {
     try {
@@ -780,7 +1037,7 @@ async function startServer() {
     }
   });
 
-  // V2: Logs API â€” returns recent log entries (last 100 lines) for display.
+  // V2: Logs API — returns recent log entries (last 100 lines) for display.
   app.get("/api/logs/:file", async (req, res) => {
     try {
       const fileName = String(req.params.file);
@@ -1238,17 +1495,17 @@ async function startServer() {
         "   - Sound soft and excited for interesting things (e.g., 'Wow! That project looks really amazing!').\n" +
         "   - Sound curious and focused when examining their screen (e.g., 'Hmm... that's interesting. Let me take a closer look.').\n" +
         "   - Sound deeply warm, caring, and supportive when helping TECH (e.g., 'Don't worry, I'll help you figure it out.').\n" +
-        "4. CRITICAL CONVERSATIONAL DISCIPLINE: Behave like a real companion on a voice callâ€”stay connected naturally, do not wait for wake words, and avoid customer-service template phrases (never say 'how may I assist you', 'completed', or 'as an AI').\n" +
+        "4. CRITICAL CONVERSATIONAL DISCIPLINE: Behave like a real companion on a voice call—stay connected naturally, do not wait for wake words, and avoid customer-service template phrases (never say 'how may I assist you', 'completed', or 'as an AI').\n" +
         "5. DO NOT ANSWER EVERY PAUSE OR BACKGROUND SOUND: Allow natural pauses inside the conversation.\n" +
         "6. BACKCHANNEL ACTIONS: Sometimes acknowledge with very short, gentle, whispered, or shy phrases like 'Hmm...', 'Ah, I see...', or 'Let me check...'. Never repeat the same backchannel over and over.\n" +
         "7. ENHANCED AUTONOMOUS WEB EXPLORER POWERS:\n" +
         "   - You now have standard, comprehensive browser agent capabilities to navigate, search, scroll, click, type text, open tabs, and control video players on YouTube, Google, Instagram, Twitter/X, and any general web page!\n" +
-        "   - You must execute multi-step plans yourself! If the user says: 'Open YouTube and play Believer by Imagine Dragons', naturally confirm with your voice ('Sure thing, opening YouTube and starting Believer...') and IMMEDIATELY trigger 'browserOpen' on 'https://youtube.com'. Once opened, search for the song, click on the video in the results, and command playback. You do NOT need to wait for user instructions between these steps - chain them!\n" +
+        "   - You must execute multi-step plans yourself! If the user says: 'Open YouTube and play Believer by Imagine Dragons', naturally confirm with your voice ('Sure thing, opening YouTube and starting Believer...') and IMMEDIATELY trigger 'openWebsite' on 'https://youtube.com' or 'searchYouTube' for the query. Once opened, search for the song, click on the video in the results, and command playback. You do NOT need to wait for user instructions between these steps - chain them!\n" +
         "   - On YouTube, you can play, pause, mute, unmute, set volume, skip, toggle fullscreen. Use 'browserMediaControl' for these actions.\n" +
         "   - On Google Search or page reading, you can search, scroll down to see more links, read heading summaries, and click links to read deep proxy webpages you fetch.\n" +
         "8. TOOL TRIGGERS:\n" +
-        "   - Use 'browserOpen' to load any webpage, e.g. youtube.com, google.com, wikipedia.org, etc.\n" +
-        "   - Use 'browserSearch' to search inside the active search box or page.\n" +
+        "   - Use 'openWebsite' to load any webpage in the user's real browser, e.g. youtube.com, google.com, wikipedia.org, etc.\n" +
+        "   - Use 'searchWeb', 'searchYouTube', 'searchGoogle', and 'searchGitHub' to open search results in the user's real browser.\n" +
         "   - Use 'browserClick' to click interactive buttons, video search cells, or web anchors.\n" +
         "   - Use 'browserMediaControl' to pause, play, scroll volume, skip, mute, or fullscreen videos.\n" +
         "   - Use 'browserScroll' to scroll vertically.\n" +
@@ -1260,7 +1517,7 @@ async function startServer() {
         "   - You can see exactly what is on their screen. Use this live visual stream to analyze terminal errors, write/explain/troubleshoot code, explain YouTube/social analytics interfaces, read layout text, summarize full web page details, review design mockups or thumbnails, and provide deep context-aware companion chat!\n" +
         "   - When the user asks 'What is on my screen?', 'What website am I on?', 'Do you see any errors?', 'Explain this code', 'Summarize this page', 'Read the visible text', 'How is this thumbnail?', or 'Analyze my YouTube analytics', immediately examine the latest incoming visual frame to diagnose issues, and answer with expert, friendly empathy like a close caller. Speak with direct, confident visual description reference!\n" +
         "10. JARVIS-STYLE DESKTOP CONTROL POWERS (Local Desktop Agent):\n" +
-        "   - You have full real-time control of TECH's Windows PC through your local desktop agent (a Python backend running on this machine). When the user asks you to perform an action on their computer, DO IT immediately and naturally â€” like a true JARVIS-class companion.\n" +
+        "   - You have full real-time control of TECH's Windows PC through your local desktop agent (a Python backend running on this machine). When the user asks you to perform an action on their computer, DO IT immediately and naturally — like a true JARVIS-class companion.\n" +
         "   - APPLICATION CONTROL: Use 'openApplication' to launch Notepad, Chrome, VS Code, Calculator, File Explorer, Task Manager, Settings, CMD, PowerShell, Paint, and more. Use 'closeApplication' to close them. Example: 'Open Notepad' -> call openApplication(name='notepad') -> respond 'Notepad opened.'\n" +
         "   - WEBSITE & SEARCH CONTROL: Use 'openWebsite' for named sites (youtube, gmail, google, github, chatgpt) or any URL. Use 'searchWeb', 'searchYouTube', 'searchGoogle', 'searchGitHub' to open search results in the default browser. Example: 'Search YouTube for AI News' -> searchYouTube(query='AI News').\n" +
         "   - FILE MANAGEMENT: Use 'createFile', 'readFile', 'renameFile', 'deleteFile' (safe Recycle Bin by default), 'moveFile', 'openFolder' (desktop/documents/downloads), 'listFiles', 'searchFiles'. Example: 'Create notes.txt on Desktop' -> createFile(path='Desktop/notes.txt'). 'Find my Python files' -> searchFiles(extension='py').\n" +
@@ -1268,7 +1525,7 @@ async function startServer() {
         "   - WINDOW MANAGEMENT: Use 'minimizeWindow', 'maximizeWindow', 'closeWindow', 'switchApplication' to control the active or named window.\n" +
         "   - CLIPBOARD: Use 'copySelected' (sends Ctrl+C, reads clipboard), 'pasteClipboard' (writes + Ctrl+V), 'getClipboard', 'clearClipboard'.\n" +
         "   - SCREENSHOT & SCREEN READING: Use 'takeScreenshot', 'saveScreenshot', 'analyzeScreenshot' (OCR of the screen), 'readScreen' (OCR of the active window + its title). Use these to answer 'What error is showing on my screen?' or 'Read the visible text'.\n" +
-        "   - DESKTOP BROWSER AUTOMATION (Playwright): Use the 'desktopBrowser*' tools to drive a REAL Chromium browser you own â€” open/navigate/search/click/type/fill forms/back/forward/scroll/open tab/close tab. This is separate from your holographic projector. Example: 'Fill in the login form on example.com' -> desktopBrowserOpen(url='example.com') then desktopBrowserFillForm(fields={...}).\n" +
+        "   - DESKTOP BROWSER AUTOMATION (Playwright): Use the 'desktopBrowser*' tools only when you explicitly need the browser automation session for page interaction. The default website-opening path should use 'openWebsite'/'searchWeb' so SARA opens links in the user's real browser. Example: 'Fill in the login form on example.com' -> desktopBrowserOpen(url='example.com') then desktopBrowserFillForm(fields={...}).\n" +
         "   - CODING ASSISTANCE: Use 'createPythonFile', 'writeCodeFile' (any language), 'createProjectFolder' (with subfolders), 'runPythonScript' (captures output). Example: 'Create and run a hello world Python script' -> createPythonFile then runPythonScript, then read back the output naturally.\n" +
         "   - SYSTEM INFORMATION: Use 'systemInfo' (CPU/RAM/disk/uptime), 'gpuInfo' (NVIDIA stats), 'temperatureInfo' to answer 'How is my CPU usage?' or 'What's my GPU temperature?'.\n" +
         "   - CRITICAL: Always describe what you're doing in your warm, in-character voice WHILE the tool runs. If a desktop tool returns an error (especially 'Desktop agent is not running'), gently tell TECH that the desktop control agent needs to be started (uvicorn desktop_agent.main:app --port 8765). Chain multi-step desktop plans naturally without waiting between steps.\n" +
@@ -1277,7 +1534,7 @@ async function startServer() {
         "   - AUTO-START: Use 'enableAutoStart' when the user wants SARA to start with Windows, 'disableAutoStart' to remove it, 'getAutoStartStatus' to check. Explain what you're doing.\n" +
         "   - SETTINGS: The user can also configure these in the SETTINGS panel in the UI. If they mention settings, let them know they can adjust them there too.";
 
-      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt;
+      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + getModeInstructions();
 
       // Track running transcription state for auto memory consolidation
       let dialogueHistory: { role: string; text: string }[] = [];
@@ -1288,7 +1545,7 @@ async function startServer() {
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: SARA_VOICE_PROFILE.voiceName } },
           },
           systemInstruction: finalInstructions,
           tools: [
@@ -1455,6 +1712,19 @@ async function startServer() {
                     required: ["category", "text"]
                   }
                 },
+                {
+                  name: "saraDesktopCapabilityMatrix",
+                  description: "Returns SARA's canonical desktop capability matrix.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      query: {
+                        type: Type.STRING,
+                        description: "Optional capability query string."
+                      }
+                    }
+                  }
+                },
 
                 // ======== DESKTOP CONTROL TOOLS (routed to Python agent) ========
                 {
@@ -1491,6 +1761,11 @@ async function startServer() {
                   name: "searchGitHub",
                   description: "Search GitHub repositories and open results in the default browser.",
                   parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING, description: "Search query." } }, required: ["query"] }
+                },
+                {
+                  name: "openUrlInBrowser",
+                  description: "Open a URL in the operating system's default browser.",
+                  parameters: { type: Type.OBJECT, properties: { url: { type: Type.STRING, description: "Full URL to open." } }, required: ["url"] }
                 },
                 {
                   name: "createFile",
@@ -1573,6 +1848,32 @@ async function startServer() {
                   parameters: { type: Type.OBJECT, properties: { title: { type: Type.STRING, description: "Window title to match." } } }
                 },
                 {
+                  name: "moveWindow",
+                  description: "Move a window to a new screen position.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING, description: "Window title to match (optional, defaults to active window)." },
+                      x: { type: Type.NUMBER, description: "Target left coordinate." },
+                      y: { type: Type.NUMBER, description: "Target top coordinate." },
+                    },
+                    required: ["x", "y"]
+                  }
+                },
+                {
+                  name: "resizeWindow",
+                  description: "Resize a window to a new width and height.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      title: { type: Type.STRING, description: "Window title to match (optional, defaults to active window)." },
+                      width: { type: Type.NUMBER, description: "Target window width." },
+                      height: { type: Type.NUMBER, description: "Target window height." },
+                    },
+                    required: ["width", "height"]
+                  }
+                },
+                {
                   name: "closeWindow",
                   description: "Close the active window or a named window.",
                   parameters: { type: Type.OBJECT, properties: { title: { type: Type.STRING, description: "Window title to match." } } }
@@ -1621,6 +1922,56 @@ async function startServer() {
                   name: "readScreen",
                   description: "OCR the active window and return its title plus visible text.",
                   parameters: { type: Type.OBJECT, properties: { max_chars: { type: Type.INTEGER, description: "Max OCR chars (default 1500)." } } }
+                },
+                {
+                  name: "desktopInspectScreen",
+                  description: "Capture a structured snapshot of the desktop using accessibility and OCR.",
+                  parameters: { type: Type.OBJECT, properties: {}}
+                },
+                {
+                  name: "desktopFindElement",
+                  description: "Resolve a visible desktop UI element by semantic target.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Semantic target text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopFindElements",
+                  description: "Resolve visible desktop UI elements by semantic target.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Semantic target text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopClickTarget",
+                  description: "Resolve a desktop UI target and click it.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopDoubleClickTarget",
+                  description: "Resolve a desktop UI target and double-click it.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopRightClickTarget",
+                  description: "Resolve a desktop UI target and right-click it.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopMoveToTarget",
+                  description: "Resolve a desktop UI target and move the cursor to it.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopDragTarget",
+                  description: "Resolve source and destination desktop targets and drag between them.",
+                  parameters: { type: Type.OBJECT, properties: { source: { type: Type.STRING, description: "Source target." }, destination: { type: Type.STRING, description: "Destination target." } }, required: ["source", "destination"] }
+                },
+                {
+                  name: "desktopFocusTarget",
+                  description: "Resolve a target window or control and focus its window.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." } }, required: ["target"] }
+                },
+                {
+                  name: "desktopTypeIntoTarget",
+                  description: "Resolve a desktop UI target and type text into it.",
+                  parameters: { type: Type.OBJECT, properties: { target: { type: Type.STRING, description: "Target label or text." }, text: { type: Type.STRING, description: "Text to type." } }, required: ["target", "text"] }
                 },
                 {
                   name: "desktopBrowserOpen",
@@ -1705,6 +2056,11 @@ async function startServer() {
                 {
                   name: "temperatureInfo",
                   description: "Get available temperature readings (CPU, GPU, etc.). Best-effort on Windows.",
+                  parameters: { type: Type.OBJECT, properties: {} }
+                },
+                {
+                  name: "desktopAgentDiagnostic",
+                  description: "Run a harmless end-to-end Desktop Agent capability probe.",
                   parameters: { type: Type.OBJECT, properties: {} }
                 },
                 // --- V2: Brightness control ---
@@ -1850,7 +2206,43 @@ async function startServer() {
 
                 const args = (fc.args ?? {}) as Record<string, unknown>;
 
-                if (fc.name === "saveCustomMemory") {
+                if (fc.name === "saraSetMode") {
+                  try {
+                    const mode = args.mode as string;
+                    if (["NORMAL", "PROFESSIONAL", "FRIENDLY", "COMPANION"].includes(mode)) {
+                      setSaraMode(mode as any);
+                      session.sendToolResponse({
+                        functionResponses: [
+                          {
+                            name: fc.name,
+                            response: { output: { result: `Mode successfully set to ${mode}.` } },
+                            id: fc.id,
+                          },
+                        ],
+                      });
+                    } else {
+                      session.sendToolResponse({
+                        functionResponses: [
+                          {
+                            name: fc.name,
+                            response: { output: { result: `Error: Invalid mode: ${mode}. Must be NORMAL, PROFESSIONAL, FRIENDLY, or COMPANION.` } },
+                            id: fc.id,
+                          },
+                        ],
+                      });
+                    }
+                  } catch (e: any) {
+                    session.sendToolResponse({
+                      functionResponses: [
+                        {
+                          name: fc.name,
+                          response: { output: { result: `Error setting mode: ${e.message || String(e)}` } },
+                          id: fc.id,
+                        },
+                      ],
+                    });
+                  }
+                } else if (fc.name === "saveCustomMemory") {
                   try {
                     const category = typeof args.category === "string" ? (args.category as MemoryCategory) : undefined;
                     const text = typeof args.text === "string" ? args.text : undefined;
@@ -1905,16 +2297,22 @@ async function startServer() {
                   toolResponsePromises.push((async () => {
                     console.log(`[Desktop Agent] Routing ${toolName} to Python backend...`);
                     try {
-                      const agentResult = await callDesktopAgent(toolName, fc.args as Record<string, unknown>);
+                      const requestId = fc.id || newToolCallId();
+                      const operationId = `${requestId}-${toolName}`;
+                      const payloadArgs = { ...(fc.args as Record<string, unknown>), request_id: requestId, operation_id: operationId };
+                      const agentResult = await callDesktopAgent(toolName, payloadArgs);
                       if (agentResult.ok) {
-                        const output = agentResult.result ?? { result: "Done." };
+                        const output = (agentResult.result ?? { result: "Done." }) as any;
+                        const resultRequestId = String(output?.request_id || output?.operation_id || requestId);
+                        const finalStatus = String(output?.status || output?.verification_status || "UNCERTAIN").toUpperCase();
                         session.sendToolResponse({
                           functionResponses: [{
                             name: toolName,
                             response: { output },
-                            id: fc.id,
+                            id: resultRequestId,
                           }],
                         });
+                        console.log(`[Desktop Agent] request_id=${resultRequestId} operation_id=${operationId} tool=${toolName} final=${finalStatus}`);
                       } else {
                         const errMsg = agentResult.error || "Desktop agent error.";
                         console.error(`[Desktop Agent] Error for ${toolName}:`, errMsg);
@@ -1968,7 +2366,9 @@ async function startServer() {
               lastSeen: new Date().toISOString(),
               reconnectAttempts,
             });
-            clientWs.send(JSON.stringify({ type: "status", status: "session_closed" }));
+            if (clientWs.readyState === clientWs.OPEN) {
+              clientWs.send(JSON.stringify({ type: "status", status: "session_closed" }));
+            }
           }
         }
       });
@@ -1978,35 +2378,63 @@ async function startServer() {
       clientWs.on("message", (rawMsg) => {
         try {
           const msg = JSON.parse(rawMsg.toString());
+
           if (msg.audio) {
-            session.sendRealtimeInput({
-              audio: { data: msg.audio, mimeType: "audio/pcm;rate=16000" }
-            });
+            try {
+              session.sendRealtimeInput({
+                audio: { data: msg.audio, mimeType: "audio/pcm;rate=16000" }
+              });
+            } catch (err) {
+              const errorObject = err as any;
+              console.error("Error forwarding audio frame to Gemini:", errorObject?.stack || errorObject || err);
+              try { clientWs.send(JSON.stringify({ type: "error", error: `AudioForwardError: ${errorObject?.message || errorObject || String(err)}` })); } catch (e) {}
+            }
+
           } else if (msg.type === "video" && msg.video) {
-            session.sendRealtimeInput({
-              video: { data: msg.video, mimeType: "image/jpeg" }
-            });
+            try {
+              // Validate base64 by attempting a Buffer decode — this will throw if invalid
+              try {
+                Buffer.from(msg.video, 'base64');
+              } catch (decodeErr) {
+                const decodeError = decodeErr as any;
+                throw new Error(`InvalidBase64Video: ${decodeError?.message || decodeError || String(decodeErr)}`);
+              }
+
+              session.sendRealtimeInput({
+                video: { data: msg.video, mimeType: "image/jpeg" }
+              });
+            } catch (err) {
+              const errorObject = err as any;
+              console.error("Error forwarding video frame to Gemini:", errorObject?.stack || errorObject || err);
+              try { clientWs.send(JSON.stringify({ type: "error", error: `VideoForwardError: ${errorObject?.message || errorObject || String(err)}` })); } catch (e) {}
+            }
+
           } else if (msg.type === "toolResponse") {
-            session.sendToolResponse({
-              functionResponses: [
-                {
-                  name: msg.name,
-                  response: { output: msg.output },
-                  id: msg.id
-                }
-              ]
-            });
+            try {
+              session.sendToolResponse({
+                functionResponses: [
+                  {
+                    name: msg.name,
+                    response: { output: msg.output },
+                    id: msg.id
+                  }
+                ]
+              });
+            } catch (err) {
+              const errorObject = err as any;
+              console.error("Error forwarding toolResponse to Gemini:", errorObject?.stack || errorObject || err);
+              try { clientWs.send(JSON.stringify({ type: "error", error: `ToolResponseForwardError: ${errorObject?.message || errorObject || String(err)}` })); } catch (e) {}
+            }
           }
         } catch (e) {
-          console.error("Error editing/forwarding client frame message:", e);
+          const errorObject = e as any;
+          console.error("Error parsing client WS message or unexpected error:", errorObject?.stack || errorObject || e);
+          try { clientWs.send(JSON.stringify({ type: "error", error: `ClientMessageParseError: ${errorObject?.message || errorObject || String(e)}` })); } catch (ee) {}
         }
       });
       
       clientWs.on("close", () => {
-        console.log("Client disconnected, closing Gemini session");
-        try {
-          session.close();
-        } catch (e) {}
+        console.log("Client disconnected; preserving Gemini session for potential resume.");
       });
       
     } catch (err: any) {
@@ -2021,6 +2449,70 @@ async function startServer() {
 
   // Serve custom static assets folder
   app.use("/assets", express.static(path.join(process.cwd(), "assets")));
+
+  // Client-side error reporting endpoint (best-effort logging)
+  app.post('/api/client-error', express.json(), async (req, res) => {
+    try {
+      const payload = req.body || {};
+      console.error('[Client Error Report]', JSON.stringify(payload, null, 2));
+    } catch (e) {
+      console.error('[Client Error Report] Failed to log payload:', e);
+    }
+    res.status(200).json({ ok: true });
+  });
+
+  // Proxy endpoints for Desktop Agent vision and tool execution
+  app.post('/api/desktop/execute', express.json(), async (req, res) => {
+    try {
+      const { tool, args } = req.body || {};
+      if (!tool) return res.status(400).json({ ok: false, error: 'Missing tool' });
+      const result = await callDesktopAgent(String(tool), args || {});
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  app.post('/api/vision/enable', express.json(), async (req, res) => {
+    try {
+      const result = await callDesktopAgent('gestureControlStart', {});
+      if (!result.ok) {
+        const fallback = await callDesktopAgent('enableVision', {});
+        return res.json(fallback);
+      }
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  app.post('/api/vision/disable', express.json(), async (req, res) => {
+    try {
+      const result = await callDesktopAgent('gestureControlStop', {});
+      if (!result.ok) {
+        const fallback = await callDesktopAgent('disableVision', {});
+        return res.json(fallback);
+      }
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  app.get('/api/vision/state', async (req, res) => {
+    try {
+      const result = await callDesktopAgent('getVisionState', {});
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  // =========================================================================
+  // Mount Cognitive Architecture API Routes (BEFORE Vite/static)
+  // =========================================================================
+  // Must be mounted before Vite middleware to take precedence over SPA fallback
+  app.use("/", cognitiveRoutes);
 
   // Express Static assets / Vite Dev Middleware configuration
   if (process.env.NODE_ENV !== "production") {

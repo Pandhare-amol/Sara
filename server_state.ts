@@ -1,11 +1,18 @@
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { dataFile } from "./server_paths";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let resolvedFilename = "";
+try {
+  resolvedFilename = __filename;
+} catch {
+  resolvedFilename = fileURLToPath(import.meta.url);
+}
+const resolvedDirname = path.dirname(resolvedFilename);
+const __dirname = resolvedDirname;
 
 export type ConversationRole = "user" | "assistant" | "system" | "agent" | "tool";
 
@@ -35,7 +42,39 @@ export type TaskStatus =
   | "retrying"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "RECOVERING"
+  | "awaiting_confirmation"
+  | "partial"
+  | "timed_out"
+  | "blocked"
+  | "succeeded";
+
+export const FINAL_TASK_STATES = new Set<TaskStatus>([
+  "completed",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "partial",
+  "timed_out",
+  "blocked",
+]);
+
+export function normalizeTaskStatus(status?: string | null): TaskStatus | undefined {
+  const value = String(status || "").trim();
+  if (!value) return undefined;
+  const normalized = value.toLowerCase();
+  if (normalized === "succeeded") return "completed";
+  if (normalized === "timedout") return "timed_out";
+  if (normalized === "blocked") return "blocked";
+  if (normalized === "partial") return "partial";
+  if (normalized === "awaiting_confirmation") return "awaiting_confirmation";
+  return (normalized as TaskStatus);
+}
+
+export function isFinalTaskState(status?: string | null): boolean {
+  return FINAL_TASK_STATES.has(normalizeTaskStatus(status) as TaskStatus);
+}
 
 export interface TaskRecord {
   taskId: string;
@@ -48,7 +87,19 @@ export interface TaskRecord {
   updatedAt: string;
   startedAt?: string;
   completedAt?: string;
-  checkpoint?: Record<string, unknown> | null;
+  checkpoint?: {
+    current_goal?: string;
+    current_task?: string;
+    task_progress?: number;
+    completed_steps?: string[];
+    failed_steps?: string[];
+    pending_steps?: string[];
+    active_agents?: string[];
+    last_action?: string;
+    last_verified_result?: string;
+    recent_summary?: string;
+    [key: string]: unknown;
+  } | null;
   result?: string;
   error?: string;
   retryCount: number;
@@ -87,38 +138,71 @@ const SESSIONS_FILE = dataFile("sessions.json");
 const TOOL_CALLS_FILE = dataFile("tool_calls.json");
 const DB_FILE = dataFile("data.db");
 
-// Lazy SQL.js bridge. If `data.db` exists we will attempt to load it and
-// use it as the authoritative store. If loading fails, we gracefully fall
-// back to the existing JSON file-based store.
 let sqlInitPromise: Promise<{ SQL: any; db: any; persist: () => void } | null> | null = null;
 const CURRENT_SCHEMA_VERSION = 1;
-
-// Named migrations to be applied when upgrading from older schema versions.
-const MIGRATIONS: Record<number, string> = {
-  // future migrations go here, keyed by the version they apply to
-  // e.g. 2: `ALTER TABLE messages ADD COLUMN newColumn TEXT;`
-};
-
+const MIGRATIONS: Record<number, string> = {};
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT, createdAt TEXT, updatedAt TEXT);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, conversationId TEXT, role TEXT, content TEXT, timestamp TEXT, metadata TEXT);
 CREATE TABLE IF NOT EXISTS tasks (taskId TEXT PRIMARY KEY, conversationId TEXT, description TEXT, status TEXT, priority INTEGER, assignedAgent TEXT, createdAt TEXT, updatedAt TEXT, startedAt TEXT, completedAt TEXT, checkpoint TEXT, result TEXT, error TEXT, retryCount INTEGER, metadata TEXT);
+# Extended task fields for recovery and progress
+CREATE TABLE IF NOT EXISTS task_steps (id TEXT PRIMARY KEY, taskId TEXT, step_index INTEGER, description TEXT, status TEXT, result TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS tasks_extra (taskId TEXT PRIMARY KEY, current_step TEXT, progress INTEGER, verification TEXT);
 CREATE TABLE IF NOT EXISTS sessions (sessionId TEXT PRIMARY KEY, conversationId TEXT, device TEXT, connectionStatus TEXT, createdAt TEXT, lastSeen TEXT, lastMessageId TEXT, lastTaskId TEXT, reconnectAttempts INTEGER);
 CREATE TABLE IF NOT EXISTS tool_calls (id TEXT PRIMARY KEY, sessionId TEXT, conversationId TEXT, toolName TEXT, args TEXT, result TEXT, error TEXT, taskId TEXT, timestamp TEXT);
 CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, category TEXT, text TEXT, createdAt TEXT, updatedAt TEXT);
+
+-- Audit and integrity provenance tables
+CREATE TABLE IF NOT EXISTS audit_events (
+  event_id TEXT PRIMARY KEY,
+  previous_event_hash TEXT,
+  event_hash TEXT,
+  timestamp TEXT,
+  session_id TEXT,
+  task_id TEXT,
+  agent_id TEXT,
+  event_type TEXT,
+  status TEXT,
+  duration_ms INTEGER,
+  metadata TEXT,
+  severity TEXT
+);
+
+CREATE TABLE IF NOT EXISTS build_integrity (
+  id TEXT PRIMARY KEY,
+  build_manifest TEXT,
+  generated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  events TEXT,
+  secret TEXT,
+  created_at TEXT
+);
+
+-- Idempotency store for deduplication of outgoing messages and tool calls
+CREATE TABLE IF NOT EXISTS idempotency (
+  id TEXT PRIMARY KEY,
+  toolName TEXT,
+  args TEXT,
+  result TEXT,
+  status TEXT,
+  created_at TEXT
+);
 `;
 
 async function initSqlBridge() {
   if (sqlInitPromise) return sqlInitPromise;
   sqlInitPromise = (async () => {
     try {
-      // dynamic import so environments without sql.js still run
-      const initSqlJs = (await import('sql.js')).default ?? (await import('sql.js'));
+      const initSqlJs = (await import("sql.js")).default ?? (await import("sql.js"));
       const locateFile = (file: string) => {
         const candidates = [
-          path.join(__dirname, 'node_modules', 'sql.js', 'dist', file),
-          path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
-          path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file),
+          path.join(__dirname, "node_modules", "sql.js", "dist", file),
+          path.join(process.cwd(), "node_modules", "sql.js", "dist", file),
+          path.join(__dirname, "..", "node_modules", "sql.js", "dist", file),
         ];
         for (const c of candidates) {
           try { if (fsSync.existsSync(c)) return c; } catch {}
@@ -126,7 +210,6 @@ async function initSqlBridge() {
         return file;
       };
       const SQL = await initSqlJs({ locateFile });
-
       let db: any;
       if (fsSync.existsSync(DB_FILE)) {
         const bin = fsSync.readFileSync(DB_FILE);
@@ -134,56 +217,36 @@ async function initSqlBridge() {
       } else {
         db = new SQL.Database();
         db.run(SCHEMA_SQL);
-        // initialize schema version marker
-        db.run('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER);');
-        const stmtInit = db.prepare('INSERT INTO schema_version (version) VALUES (?)');
+        db.run("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER);");
+        const stmtInit = db.prepare("INSERT INTO schema_version (version) VALUES (?)");
         stmtInit.run([CURRENT_SCHEMA_VERSION]);
         stmtInit.free && stmtInit.free();
         fsSync.writeFileSync(DB_FILE, Buffer.from(db.export()));
       }
-
       function persist() {
-        try {
-          fsSync.writeFileSync(DB_FILE, Buffer.from(db.export()));
-        } catch (e) {
-          console.warn('Failed to persist data.db:', e?.message || e);
-        }
+        try { fsSync.writeFileSync(DB_FILE, Buffer.from(db.export())); } catch {}
       }
-
-      // Ensure schema exists
       db.run(SCHEMA_SQL);
-      // Ensure schema_version table exists and apply migrations if needed
       try {
-        db.run('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER);');
-        const verRes = db.exec('SELECT version FROM schema_version LIMIT 1;');
+        db.run("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER);");
+        const verRes = db.exec("SELECT version FROM schema_version LIMIT 1;");
         let dbVersion = null as number | null;
-        if (verRes && verRes[0] && verRes[0].values && verRes[0].values.length) {
-          dbVersion = Number(verRes[0].values[0][0]);
-        }
+        if (verRes && verRes[0] && verRes[0].values && verRes[0].values.length) dbVersion = Number(verRes[0].values[0][0]);
         if (!dbVersion) {
-          const s = db.prepare('INSERT INTO schema_version (version) VALUES (?)');
+          const s = db.prepare("INSERT INTO schema_version (version) VALUES (?)");
           s.run([CURRENT_SCHEMA_VERSION]);
           s.free && s.free();
           dbVersion = CURRENT_SCHEMA_VERSION;
         }
-
         if (dbVersion < CURRENT_SCHEMA_VERSION) {
-          for (let v = dbVersion + 1; v <= CURRENT_SCHEMA_VERSION; v++) {
-            const mig = MIGRATIONS[v];
-            if (mig) {
-              db.run(mig);
-            }
-          }
-          const upd = db.prepare('UPDATE schema_version SET version = ?');
+          for (let v = dbVersion + 1; v <= CURRENT_SCHEMA_VERSION; v++) if (MIGRATIONS[v]) db.run(MIGRATIONS[v]);
+          const upd = db.prepare("UPDATE schema_version SET version = ?");
           upd.run([CURRENT_SCHEMA_VERSION]);
           upd.free && upd.free();
         }
-      } catch (e) {
-        console.warn('Schema version detection/migration failed:', e?.message || e);
-      }
+      } catch {}
       return { SQL, db, persist };
-    } catch (e) {
-      console.warn('sql.js init failed, falling back to JSON store:', e?.message || e);
+    } catch {
       return null;
     }
   })();
@@ -191,285 +254,20 @@ async function initSqlBridge() {
 }
 
 async function readJson<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    const raw = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(raw) as T;
-  } catch (err: any) {
-    if (err?.code === "ENOENT") {
-      return fallback;
-    }
-    console.error(`[Persistence] Error reading ${filePath}:`, err?.message || err);
-    return fallback;
-  }
+  try { return JSON.parse(await fs.readFile(filePath, "utf-8")) as T; } catch (err: any) { if (err?.code === "ENOENT") return fallback; return fallback; }
 }
+async function writeJson(filePath: string, data: unknown): Promise<void> { await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8"); }
+function createId(prefix = ""): string { return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
 
-async function writeJson(filePath: string, data: unknown): Promise<void> {
-  try {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-  } catch (err: any) {
-    console.error(`[Persistence] Error writing ${filePath}:`, err?.message || err);
-  }
-}
-
-function createId(prefix = ""): string {
-  return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-export async function loadConversations(): Promise<ConversationRecord[]> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const res = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;");
-      if (!res || !res[0]) return [];
-      const vals = res[0].values;
-      const convs: ConversationRecord[] = [];
-      for (const row of vals) {
-        const [id, title, createdAt, updatedAt] = row;
-        // Load messages for conversation
-        const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
-        const msgs: ConversationMessage[] = [];
-        if (mres && mres[0]) {
-          for (const mrow of mres[0].values) {
-            const [mid, role, content, timestamp, metadata] = mrow;
-            let meta = null;
-            try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
-            msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta });
-          }
-        }
-        convs.push({ id, title, createdAt, updatedAt, messages: msgs });
-      }
-      return convs;
-    } catch (e) {
-      console.warn('DB loadConversations failed, falling back to JSON:', e?.message || e);
-      return await readJson<ConversationRecord[]>(CONVERSATIONS_FILE, []);
-    }
-  }
-  return await readJson<ConversationRecord[]>(CONVERSATIONS_FILE, []);
-}
-
-export async function saveConversations(conversations: ConversationRecord[]): Promise<void> {
-  await writeJson(CONVERSATIONS_FILE, conversations);
-  const bridge = await initSqlBridge();
-  if (!bridge || !bridge.db) return;
-  try {
-    const db = bridge.db;
-    db.run('BEGIN');
-    for (const c of conversations) {
-      const stmt = db.prepare('INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)');
-      stmt.run([c.id, c.title, c.createdAt, c.updatedAt]);
-      for (const m of c.messages || []) {
-        const mstmt = db.prepare('INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)');
-        mstmt.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]);
-      }
-    }
-    db.run('COMMIT');
-    bridge.persist();
-  } catch (e) {
-    console.warn('DB saveConversations failed:', e?.message || e);
-  }
-}
-
-export async function getConversation(conversationId: string): Promise<ConversationRecord | null> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const db = bridge.db;
-      const cres = db.exec(`SELECT id,title,createdAt,updatedAt FROM conversations WHERE id='${conversationId}' LIMIT 1;`);
-      if (!cres || !cres[0] || !cres[0].values.length) return null;
-      const [id, title, createdAt, updatedAt] = cres[0].values[0];
-      const mres = db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
-      const msgs: ConversationMessage[] = [];
-      if (mres && mres[0]) {
-        for (const mrow of mres[0].values) {
-          const [mid, role, content, timestamp, metadata] = mrow;
-          let meta = null;
-          try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
-          msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta });
-        }
-      }
-      return { id, title, createdAt, updatedAt, messages: msgs };
-    } catch (e) {
-      return (await loadConversations()).find((item) => item.id === conversationId) ?? null;
-    }
-  }
-  const conversations = await loadConversations();
-  return conversations.find((item) => item.id === conversationId) ?? null;
-}
-
-export async function getOrCreateConversation(conversationId?: string): Promise<ConversationRecord> {
-  // First try DB
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    const db = bridge.db;
-    if (conversationId) {
-      const c = await getConversation(conversationId);
-      if (c) return c;
-    }
-    const id = conversationId || createId("conv-");
-    const timestamp = new Date().toISOString();
-    try {
-      const stmt = db.prepare('INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)');
-      stmt.run([id, 'SARA Voice Conversation', timestamp, timestamp]);
-      bridge.persist();
-      return { id, title: 'SARA Voice Conversation', createdAt: timestamp, updatedAt: timestamp, messages: [] };
-    } catch (e) {
-      console.warn('DB getOrCreateConversation failed:', e?.message || e);
-    }
-  }
-  const conversations = await loadConversations();
-  if (conversationId) {
-    const existing = conversations.find((item) => item.id === conversationId);
-    if (existing) return existing;
-  }
-  const id = conversationId || createId("conv-");
-  const timestamp = new Date().toISOString();
-  const record: ConversationRecord = {
-    id,
-    title: "SARA Voice Conversation",
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    messages: [],
-  };
-  conversations.push(record);
-  await saveConversations(conversations);
-  return record;
-}
-
-export async function appendConversationMessage(message: ConversationMessage): Promise<void> {
-  const conversations = await loadConversations();
-  const conversation = conversations.find((item) => item.id === message.conversationId);
-  if (!conversation) {
-    const record: ConversationRecord = {
-      id: message.conversationId,
-      title: "SARA Voice Conversation",
-      createdAt: message.timestamp,
-      updatedAt: message.timestamp,
-      messages: [message],
-    };
-    conversations.push(record);
-  } else {
-    conversation.messages.push(message);
-    conversation.updatedAt = message.timestamp;
-  }
-  await saveConversations(conversations);
-
-  // Also persist to DB when available
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const db = bridge.db;
-      const mstmt = db.prepare('INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)');
-      mstmt.run([message.id, message.conversationId, message.role, message.content, message.timestamp, JSON.stringify(message.metadata || null)]);
-      const ustmt = db.prepare('UPDATE conversations SET updatedAt = ? WHERE id = ?');
-      ustmt.run([message.timestamp, message.conversationId]);
-      bridge.persist();
-    } catch (e) {
-      console.warn('DB appendConversationMessage failed:', e?.message || e);
-    }
-  }
-}
-
-export async function getRecentConversationMessages(conversationId: string, limit = 20): Promise<ConversationMessage[]> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const res = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${conversationId}' ORDER BY timestamp DESC LIMIT ${limit};`);
-      if (!res || !res[0]) return [];
-      const rows = res[0].values;
-      const msgs: ConversationMessage[] = [];
-      for (const r of rows) {
-        const [id, role, content, timestamp, metadata] = r;
-        let meta = null;
-        try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
-        msgs.push({ id, conversationId, role: role as ConversationRole, content, timestamp, metadata: meta });
-      }
-      return msgs.reverse();
-    } catch (e) {
-      return (await getConversation(conversationId))?.messages.slice(-limit) ?? [];
-    }
-  }
-  const conversation = await getConversation(conversationId);
-  if (!conversation) return [];
-  return conversation.messages.slice(-limit);
-}
-
-export async function loadTasks(): Promise<TaskRecord[]> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const res = bridge.db.exec('SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;');
-      if (!res || !res[0]) return [];
-      return res[0].values.map((r: any[]) => {
-        const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r;
-        let cp: Record<string, unknown> | null = null;
-        let md: Record<string, unknown> | undefined = undefined;
-        try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {}
-        try { md = metadata ? JSON.parse(metadata) : undefined; } catch {}
-        return {
-          taskId,
-          conversationId,
-          description,
-          status: status as TaskStatus,
-          priority: Number(priority || 0),
-          assignedAgent: assignedAgent || undefined,
-          createdAt,
-          updatedAt,
-          startedAt: startedAt || undefined,
-          completedAt: completedAt || undefined,
-          checkpoint: cp,
-          result: result || undefined,
-          error: error || undefined,
-          retryCount: Number(retryCount || 0),
-          metadata: md,
-        } as TaskRecord;
-      });
-    } catch (e) {
-      console.warn('DB loadTasks failed:', e?.message || e);
-    }
-  }
-  return await readJson<TaskRecord[]>(TASKS_FILE, []);
-}
-
-export async function saveTasks(tasks: TaskRecord[]): Promise<void> {
-  await writeJson(TASKS_FILE, tasks);
-  const bridge = await initSqlBridge();
-  if (!bridge || !bridge.db) return;
-  try {
-    const db = bridge.db;
-    db.run('BEGIN');
-    for (const t of tasks) {
-      const stmt = db.prepare('INSERT OR REPLACE INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-      stmt.run([
-        t.taskId,
-        t.conversationId,
-        t.description,
-        t.status,
-        t.priority,
-        t.assignedAgent || null,
-        t.createdAt,
-        t.updatedAt,
-        t.startedAt || null,
-        t.completedAt || null,
-        t.checkpoint ? JSON.stringify(t.checkpoint) : null,
-        t.result || null,
-        t.error || null,
-        t.retryCount || 0,
-        t.metadata ? JSON.stringify(t.metadata) : null,
-      ]);
-    }
-    db.run('COMMIT');
-    bridge.persist();
-  } catch (e) {
-    console.warn('DB saveTasks failed:', e?.message || e);
-  }
-}
-
-export async function createTask(data: {
-  conversationId: string;
-  description: string;
-  priority?: number;
-  assignedAgent?: string;
-}): Promise<TaskRecord> {
+export async function loadConversations(): Promise<ConversationRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((row: any[]) => { const [id, title, createdAt, updatedAt] = row; const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`); const msgs: ConversationMessage[] = []; if (mres?.[0]) for (const mrow of mres[0].values) { const [mid, role, content, timestamp, metadata] = mrow; let meta = null; try { meta = metadata ? JSON.parse(metadata) : null; } catch {} msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta }); } return { id, title, createdAt, updatedAt, messages: msgs }; }); } catch {} } return await readJson<ConversationRecord[]>(CONVERSATIONS_FILE, []); }
+export async function saveConversations(conversations: ConversationRecord[]): Promise<void> { await writeJson(CONVERSATIONS_FILE, conversations); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const c of conversations) { const stmt = db.prepare("INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)"); stmt.run([c.id, c.title, c.createdAt, c.updatedAt]); for (const m of c.messages || []) { const mstmt = db.prepare("INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)"); mstmt.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]); } } db.run("COMMIT"); bridge.persist(); } catch {} }
+export async function getConversation(conversationId: string): Promise<ConversationRecord | null> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const cres = bridge.db.exec(`SELECT id,title,createdAt,updatedAt FROM conversations WHERE id='${conversationId}' LIMIT 1;`); if (!cres?.[0]?.values.length) return null; const [id, title, createdAt, updatedAt] = cres[0].values[0]; const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`); const msgs: ConversationMessage[] = []; if (mres?.[0]) for (const mrow of mres[0].values) { const [mid, role, content, timestamp, metadata] = mrow; let meta = null; try { meta = metadata ? JSON.parse(metadata) : null; } catch {} msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta }); } return { id, title, createdAt, updatedAt, messages: msgs }; } catch { return (await loadConversations()).find((item) => item.id === conversationId) ?? null; } } const conversations = await loadConversations(); return conversations.find((item) => item.id === conversationId) ?? null; }
+export async function getOrCreateConversation(conversationId?: string): Promise<ConversationRecord> { const existing = conversationId ? await getConversation(conversationId) : null; if (existing) return existing; const conversations = await loadConversations(); const id = conversationId || createId("conv-"); const timestamp = new Date().toISOString(); const record: ConversationRecord = { id, title: "SARA Voice Conversation", createdAt: timestamp, updatedAt: timestamp, messages: [] }; conversations.push(record); await saveConversations(conversations); return record; }
+export async function appendConversationMessage(message: ConversationMessage): Promise<void> { const conversations = await loadConversations(); const conversation = conversations.find((item) => item.id === message.conversationId); if (!conversation) conversations.push({ id: message.conversationId, title: "SARA Voice Conversation", createdAt: message.timestamp, updatedAt: message.timestamp, messages: [message] }); else { conversation.messages.push(message); conversation.updatedAt = message.timestamp; } await saveConversations(conversations); }
+export async function getRecentConversationMessages(conversationId: string, limit = 20): Promise<ConversationMessage[]> { const conversation = await getConversation(conversationId); if (!conversation) return []; return conversation.messages.slice(-limit); }
+export async function loadTasks(): Promise<TaskRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((r: any[]) => { const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r; let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined; try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {} try { md = metadata ? JSON.parse(metadata) : undefined; } catch {} return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord; }); } catch {} } return await readJson<TaskRecord[]>(TASKS_FILE, []); }
+export async function saveTasks(tasks: TaskRecord[]): Promise<void> { await writeJson(TASKS_FILE, tasks); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const t of tasks) { const stmt = db.prepare("INSERT OR REPLACE INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"); stmt.run([t.taskId, t.conversationId, t.description, t.status, t.priority, t.assignedAgent || null, t.createdAt, t.updatedAt, t.startedAt || null, t.completedAt || null, t.checkpoint ? JSON.stringify(t.checkpoint) : null, t.result || null, t.error || null, t.retryCount || 0, t.metadata ? JSON.stringify(t.metadata) : null]); } db.run("COMMIT"); bridge.persist(); } catch {} }
+export async function createTask(data: { conversationId: string; description: string; priority?: number; assignedAgent?: string; metadata?: Record<string, unknown>; }): Promise<TaskRecord> {
   const tasks = await loadTasks();
   const timestamp = new Date().toISOString();
   const task: TaskRecord = {
@@ -483,69 +281,88 @@ export async function createTask(data: {
     updatedAt: timestamp,
     retryCount: 0,
     checkpoint: null,
+    metadata: data.metadata,
   };
   tasks.push(task);
   await saveTasks(tasks);
   return task;
 }
 
+export async function loadUnfinishedTasks(): Promise<TaskRecord[]> {
+  const bridge = await initSqlBridge();
+  if (bridge?.db) {
+    try {
+      const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks WHERE status NOT IN ('completed','cancelled') ORDER BY createdAt ASC;");
+      if (!res?.[0]) return [];
+      return res[0].values.map((r: any[]) => {
+        const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r;
+        let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined;
+        try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {}
+        try { md = metadata ? JSON.parse(metadata) : undefined; } catch {}
+        return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord;
+      });
+    } catch {}
+  }
+  const tasks = await loadTasks();
+  return tasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+}
+
+export async function setTaskRecovering(taskId: string): Promise<void> {
+  const tasks = await loadTasks();
+  const t = tasks.find(x => x.taskId === taskId);
+  if (!t) return;
+  t.status = 'RECOVERING' as TaskStatus;
+  t.updatedAt = new Date().toISOString();
+  await saveTasks(tasks);
+}
 export async function updateTask(taskId: string, patch: Partial<TaskRecord>): Promise<TaskRecord | null> {
   const tasks = await loadTasks();
   const task = tasks.find((item) => item.taskId === taskId);
   if (!task) return null;
+
+  const currentStatus = normalizeTaskStatus(task.status);
+  const nextStatus = normalizeTaskStatus((patch as any).status ?? task.status);
+
+  if (isFinalTaskState(currentStatus) && nextStatus && nextStatus !== currentStatus) {
+    const safePatch = { ...patch };
+    delete (safePatch as any).status;
+    Object.assign(task, safePatch);
+    task.updatedAt = new Date().toISOString();
+    await saveTasks(tasks);
+    return task;
+  }
+
+  if (patch.status) {
+    (task as any).status = nextStatus ?? task.status;
+  }
   Object.assign(task, patch);
+
+  if ((patch as any).status) {
+    task.status = nextStatus ?? task.status;
+  }
+
   task.updatedAt = new Date().toISOString();
   await saveTasks(tasks);
   return task;
 }
 
-export async function getTask(taskId: string): Promise<TaskRecord | null> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const res = bridge.db.exec('SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks WHERE taskId=? LIMIT 1;', );
-      // sql.js doesn't support parameterized exec; use prepare
-      const stmt = bridge.db.prepare('SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks WHERE taskId=? LIMIT 1');
-      stmt.bind([taskId]);
-      if (!stmt.step()) { stmt.free && stmt.free(); return null; }
-      const r = stmt.get();
-      stmt.free && stmt.free();
-      const [tId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r as any[];
-      let cp: Record<string, unknown> | null = null;
-      let md: Record<string, unknown> | undefined = undefined;
-      try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {}
-      try { md = metadata ? JSON.parse(metadata) : undefined; } catch {}
-      return {
-        taskId: tId,
-        conversationId,
-        description,
-        status: status as TaskStatus,
-        priority: Number(priority || 0),
-        assignedAgent: assignedAgent || undefined,
-        createdAt,
-        updatedAt,
-        startedAt: startedAt || undefined,
-        completedAt: completedAt || undefined,
-        checkpoint: cp,
-        result: result || undefined,
-        error: error || undefined,
-        retryCount: Number(retryCount || 0),
-        metadata: md,
-      } as TaskRecord;
-    } catch (e) {
-      console.warn('DB getTask failed:', e?.message || e);
-    }
-  }
+export async function saveTaskCheckpoint(taskId: string, checkpoint: TaskRecord['checkpoint']): Promise<void> {
   const tasks = await loadTasks();
-  return tasks.find((item) => item.taskId === taskId) ?? null;
+  const task = tasks.find((item) => item.taskId === taskId);
+  if (!task) return;
+  task.checkpoint = { ...(task.checkpoint || {}), ...(checkpoint || {}) };
+  task.updatedAt = new Date().toISOString();
+  await saveTasks(tasks);
 }
+
+export async function deleteTask(taskId: string): Promise<boolean> { const tasks = await loadTasks(); const next = tasks.filter((item) => item.taskId !== taskId); if (next.length === tasks.length) return false; await saveTasks(next); return true; }
 
 export async function loadSessions(): Promise<SessionRecord[]> {
   const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
+  if (bridge?.db) {
     try {
-      const res = bridge.db.exec('SELECT sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts FROM sessions ORDER BY lastSeen ASC;');
-      if (!res || !res[0]) return [];
+      const res = bridge.db.exec("SELECT sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts FROM sessions ORDER BY lastSeen ASC;");
+      if (!res?.[0]) return [];
       return res[0].values.map((r: any[]) => ({
         sessionId: r[0],
         conversationId: r[1],
@@ -557,9 +374,7 @@ export async function loadSessions(): Promise<SessionRecord[]> {
         lastTaskId: r[7] || undefined,
         reconnectAttempts: Number(r[8] || 0),
       } as SessionRecord));
-    } catch (e) {
-      console.warn('DB loadSessions failed:', e?.message || e);
-    }
+    } catch {}
   }
   return await readJson<SessionRecord[]>(SESSIONS_FILE, []);
 }
@@ -567,88 +382,31 @@ export async function loadSessions(): Promise<SessionRecord[]> {
 export async function saveSessions(sessions: SessionRecord[]): Promise<void> {
   await writeJson(SESSIONS_FILE, sessions);
   const bridge = await initSqlBridge();
-  if (!bridge || !bridge.db) return;
+  if (!bridge?.db) return;
   try {
     const db = bridge.db;
-    db.run('BEGIN');
+    db.run("BEGIN");
     for (const s of sessions) {
-      const stmt = db.prepare('INSERT OR REPLACE INTO sessions (sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts) VALUES (?,?,?,?,?,?,?,?,?)');
+      const stmt = db.prepare("INSERT OR REPLACE INTO sessions (sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts) VALUES (?,?,?,?,?,?,?,?,?)");
       stmt.run([s.sessionId, s.conversationId, s.device || null, s.connectionStatus || null, s.createdAt || new Date().toISOString(), s.lastSeen || new Date().toISOString(), s.lastMessageId || null, s.lastTaskId || null, s.reconnectAttempts || 0]);
     }
-    db.run('COMMIT');
+    db.run("COMMIT");
     bridge.persist();
-  } catch (e) {
-    console.warn('DB saveSessions failed:', e?.message || e);
-  }
+  } catch {}
 }
 
 export async function upsertSession(session: SessionRecord): Promise<void> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const db = bridge.db;
-        // get previous reconnectAttempts and createdAt if present
-        const stmtSel = db.prepare('SELECT reconnectAttempts, createdAt FROM sessions WHERE sessionId=? LIMIT 1');
-        stmtSel.bind([session.sessionId]);
-        let prev = 0;
-        let existingCreatedAt: string | null = null;
-        if (stmtSel.step()) {
-          const row = stmtSel.get();
-          prev = Number(row[0] || 0);
-          existingCreatedAt = row[1] || null;
-        }
-        stmtSel.free && stmtSel.free();
-        // Determine reconnect attempts without accidentally resetting it to 0.
-        const attempts = typeof session.reconnectAttempts === 'number' ? Math.max(prev, session.reconnectAttempts) : prev;
-        const createdAtToUse = existingCreatedAt || session.createdAt || new Date().toISOString();
-      const stmt = db.prepare('INSERT OR REPLACE INTO sessions (sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts) VALUES (?,?,?,?,?,?,?,?,?)');
-      stmt.run([session.sessionId, session.conversationId, session.device || null, session.connectionStatus || null, createdAtToUse, session.lastSeen || new Date().toISOString(), session.lastMessageId || null, session.lastTaskId || null, attempts]);
-      bridge.persist();
-
-      // Mirror DB changes back to JSON store so both persistence layers stay in sync.
-      const sessions = await loadSessions();
-      const existing = sessions.find((item) => item.sessionId === session.sessionId);
-      const merged = { ...(existing || {}), ...session, reconnectAttempts: attempts, createdAt: createdAtToUse };
-      if (existing) {
-        Object.assign(existing, merged);
-      } else {
-        sessions.push(merged as any);
-      }
-      await writeJson(SESSIONS_FILE, sessions);
-      return;
-    } catch (e) {
-      console.warn('DB upsertSession failed:', e?.message || e);
-    }
-  }
-
   const sessions = await loadSessions();
   const existing = sessions.find((item) => item.sessionId === session.sessionId);
-  if (existing) {
-    Object.assign(existing, session);
-  } else {
-    sessions.push(session);
-  }
+  if (existing) Object.assign(existing, session);
+  else sessions.push(session);
   await saveSessions(sessions);
+  try {
+    await appendAuditEvent({ event_type: existing ? 'SESSION_UPDATED' : 'SESSION_CREATED', session_id: session.sessionId, metadata: { conversationId: session.conversationId, device: session.device, connectionStatus: session.connectionStatus } });
+  } catch {}
 }
 
 export async function getLastSession(conversationId: string): Promise<SessionRecord | null> {
-  const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
-    try {
-      const res = bridge.db.exec('SELECT sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts FROM sessions WHERE conversationId=? ORDER BY lastSeen DESC LIMIT 1;');
-      // use prepare to bind parameter
-      const stmt = bridge.db.prepare('SELECT sessionId,conversationId,device,connectionStatus,createdAt,lastSeen,lastMessageId,lastTaskId,reconnectAttempts FROM sessions WHERE conversationId=? ORDER BY lastSeen DESC LIMIT 1');
-      stmt.bind([conversationId]);
-      if (!stmt.step()) { stmt.free && stmt.free(); return null; }
-      const r = stmt.get();
-      stmt.free && stmt.free();
-      return {
-        sessionId: r[0], conversationId: r[1], device: r[2], connectionStatus: r[3], createdAt: r[4], lastSeen: r[5], lastMessageId: r[6] || undefined, lastTaskId: r[7] || undefined, reconnectAttempts: Number(r[8] || 0),
-      } as SessionRecord;
-    } catch (e) {
-      console.warn('DB getLastSession failed:', e?.message || e);
-    }
-  }
   const sessions = await loadSessions();
   const matches = sessions.filter((s) => s.conversationId === conversationId);
   if (matches.length === 0) return null;
@@ -658,10 +416,10 @@ export async function getLastSession(conversationId: string): Promise<SessionRec
 
 export async function loadToolCalls(): Promise<ToolCallRecord[]> {
   const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
+  if (bridge?.db) {
     try {
-      const res = bridge.db.exec('SELECT id,sessionId,conversationId,toolName,args,result,error,taskId,timestamp FROM tool_calls ORDER BY timestamp ASC;');
-      if (!res || !res[0]) return [];
+      const res = bridge.db.exec("SELECT id,sessionId,conversationId,toolName,args,result,error,taskId,timestamp FROM tool_calls ORDER BY timestamp ASC;");
+      if (!res?.[0]) return [];
       return res[0].values.map((r: any[]) => {
         const [id, sessionId, conversationId, toolName, args, result, error, taskId, timestamp] = r;
         let a: Record<string, unknown> = {};
@@ -670,9 +428,7 @@ export async function loadToolCalls(): Promise<ToolCallRecord[]> {
         try { resv = result ? JSON.parse(result) : result; } catch {}
         return { id, sessionId, conversationId, toolName, args: a, result: resv, error: error || undefined, taskId: taskId || undefined, timestamp } as ToolCallRecord;
       });
-    } catch (e) {
-      console.warn('DB loadToolCalls failed:', e?.message || e);
-    }
+    } catch {}
   }
   return await readJson<ToolCallRecord[]>(TOOL_CALLS_FILE, []);
 }
@@ -682,30 +438,344 @@ export async function appendToolCall(call: ToolCallRecord): Promise<void> {
   calls.push(call);
   await writeJson(TOOL_CALLS_FILE, calls);
   const bridge = await initSqlBridge();
-  if (bridge && bridge.db) {
+  if (bridge?.db) {
     try {
       const db = bridge.db;
-      const stmt = db.prepare('INSERT OR REPLACE INTO tool_calls (id,sessionId,conversationId,toolName,args,result,error,taskId,timestamp) VALUES (?,?,?,?,?,?,?,?,?)');
+      const stmt = db.prepare("INSERT OR REPLACE INTO tool_calls (id,sessionId,conversationId,toolName,args,result,error,taskId,timestamp) VALUES (?,?,?,?,?,?,?,?,?)");
       stmt.run([call.id, call.sessionId, call.conversationId, call.toolName, JSON.stringify(call.args || {}), JSON.stringify(call.result || null), call.error || null, call.taskId || null, call.timestamp]);
       bridge.persist();
-    } catch (e) {
-      console.warn('DB appendToolCall failed:', e?.message || e);
+    } catch {}
+  }
+  try {
+    // Emit audit event for tool call
+    await appendAuditEvent({ event_type: 'TOOL_CALL', session_id: call.sessionId, task_id: call.taskId, agent_id: undefined, metadata: { tool: call.toolName, args: call.args, result: call.result, error: call.error }, timestamp: call.timestamp });
+  } catch {}
+}
+
+export interface AuditEventRecord {
+  event_id: string;
+  previous_event_hash?: string | null;
+  event_hash: string;
+  timestamp: string;
+  session_id?: string | null;
+  task_id?: string | null;
+  agent_id?: string | null;
+  event_type: string;
+  status?: string | null;
+  duration_ms?: number | null;
+  metadata?: Record<string, unknown> | null;
+  severity?: string | null;
+}
+
+export async function appendAuditEvent(event: Omit<Partial<AuditEventRecord>, 'event_id'|'event_hash'|'timestamp'> & { event_type: string, timestamp?: string }): Promise<AuditEventRecord> {
+  const now = event.timestamp || new Date().toISOString();
+  const id = createId('audit-');
+  const prevHash = null; // we'll attempt to load last event hash from DB
+  const bridge = await initSqlBridge();
+  let lastHash: string | null = null;
+  try {
+    if (bridge?.db) {
+      const res = bridge.db.exec("SELECT event_hash FROM audit_events ORDER BY timestamp DESC LIMIT 1;");
+      if (res?.[0] && res[0].values && res[0].values.length) lastHash = res[0].values[0][0];
     }
+  } catch {}
+
+  const payload: AuditEventRecord = {
+    event_id: id,
+    previous_event_hash: lastHash || null,
+    event_hash: '',
+    timestamp: now,
+    session_id: event.session_id || null,
+    task_id: event.task_id || null,
+    agent_id: event.agent_id || null,
+    event_type: event.event_type,
+    status: event.status || null,
+    duration_ms: event.duration_ms ?? null,
+    metadata: event.metadata ?? null,
+    severity: event.severity || null,
+  };
+  const toHash = JSON.stringify({ event_id: payload.event_id, previous_event_hash: payload.previous_event_hash, timestamp: payload.timestamp, event_type: payload.event_type, metadata: payload.metadata || {} });
+  payload.event_hash = crypto.createHash('sha256').update(toHash, 'utf8').digest('hex');
+
+  // Persist to DB if available, else fall back to append file in data/logs
+  try {
+    if (bridge?.db) {
+      const db = bridge.db;
+      const stmt = db.prepare("INSERT OR REPLACE INTO audit_events (event_id,previous_event_hash,event_hash,timestamp,session_id,task_id,agent_id,event_type,status,duration_ms,metadata,severity) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+      stmt.run([payload.event_id, payload.previous_event_hash, payload.event_hash, payload.timestamp, payload.session_id, payload.task_id, payload.agent_id, payload.event_type, payload.status, payload.duration_ms, payload.metadata ? JSON.stringify(payload.metadata) : null, payload.severity]);
+      stmt.free && stmt.free();
+      bridge.persist();
+      return payload;
+    }
+  } catch (e) {
+    // fall back
+  }
+
+  // Fallback: append to logs/sara_audit_log.json (array)
+  try {
+    const f = dataFile('logs/sara_audit_log.json');
+    let arr: any[] = [];
+    try { arr = JSON.parse(fsSync.readFileSync(f, 'utf8')); } catch {}
+    arr.push(payload);
+    try { fsSync.mkdirSync(path.dirname(f), { recursive: true }); } catch {}
+    fsSync.writeFileSync(f, JSON.stringify(arr, null, 2), 'utf8');
+  } catch {}
+  return payload;
+}
+
+export async function loadRecentAuditEvents(limit = 200): Promise<AuditEventRecord[]> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const res = bridge.db.exec(`SELECT event_id,previous_event_hash,event_hash,timestamp,session_id,task_id,agent_id,event_type,status,duration_ms,metadata,severity FROM audit_events ORDER BY timestamp DESC LIMIT ${limit};`);
+      if (!res?.[0]) return [];
+      return res[0].values.map((r: any[]) => {
+        const [event_id, previous_event_hash, event_hash, timestamp, session_id, task_id, agent_id, event_type, status, duration_ms, metadata, severity] = r;
+        let md: any = null;
+        try { md = metadata ? JSON.parse(metadata) : null; } catch {}
+        return { event_id, previous_event_hash, event_hash, timestamp, session_id, task_id, agent_id, event_type, status, duration_ms, metadata: md, severity } as AuditEventRecord;
+      });
+    }
+  } catch {}
+  // fallback to logs
+  try {
+    const f = dataFile('logs/sara_audit_log.json');
+    const arr = JSON.parse(fsSync.readFileSync(f, 'utf8')) as AuditEventRecord[];
+    return (arr || []).slice(-limit).reverse();
+  } catch {}
+  return [];
+}
+
+// Idempotency helpers
+export interface IdempotencyRecord {
+  id: string;
+  toolName?: string | null;
+  args?: Record<string, unknown> | null;
+  result?: unknown;
+  status?: string | null;
+  created_at?: string | null;
+}
+
+export async function getIdempotencyEntry(id: string): Promise<IdempotencyRecord | null> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const res = bridge.db.exec(`SELECT id,toolName,args,result,status,created_at FROM idempotency WHERE id='${id}' LIMIT 1;`);
+      if (!res?.[0] || !res[0].values.length) return null;
+      const [rid, toolName, args, result, status, created_at] = res[0].values[0];
+      let a: Record<string, unknown> | null = null;
+      let r: any = null;
+      try { a = args ? JSON.parse(args) : null; } catch {}
+      try { r = result ? JSON.parse(result) : result; } catch { r = result; }
+      return { id: rid, toolName: toolName || null, args: a, result: r, status: status || null, created_at: created_at || null } as IdempotencyRecord;
+    }
+  } catch {}
+  // fallback: file based idempotency store
+  try {
+    const f = dataFile('idempotency.json');
+    const arr = JSON.parse(await fs.readFile(f, 'utf8')) as IdempotencyRecord[];
+    const found = arr.find((x) => x.id === id);
+    return found || null;
+  } catch {}
+  return null;
+}
+
+export async function upsertIdempotencyEntry(entry: IdempotencyRecord): Promise<void> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const db = bridge.db;
+      const stmt = db.prepare("INSERT OR REPLACE INTO idempotency (id,toolName,args,result,status,created_at) VALUES (?,?,?,?,?,?)");
+      stmt.run([entry.id, entry.toolName || null, entry.args ? JSON.stringify(entry.args) : null, entry.result ? JSON.stringify(entry.result) : null, entry.status || null, entry.created_at || new Date().toISOString()]);
+      stmt.free && stmt.free();
+      bridge.persist();
+      return;
+    }
+  } catch (e) {}
+  // fallback: append to file
+  try {
+    const f = dataFile('idempotency.json');
+    let arr: IdempotencyRecord[] = [];
+    try { arr = JSON.parse(await fs.readFile(f, 'utf8')) as IdempotencyRecord[]; } catch {}
+    const idx = arr.findIndex(x => x.id === entry.id);
+    if (idx >= 0) arr[idx] = entry; else arr.push(entry);
+    try { await fs.writeFile(f, JSON.stringify(arr, null, 2), 'utf8'); } catch {}
+  } catch {}
+}
+
+export async function saveBuildManifest(manifest: Record<string, unknown>): Promise<void> {
+  const bridge = await initSqlBridge();
+  try {
+    if (!bridge?.db) return;
+    const db = bridge.db;
+    const id = createId('build-');
+    const stmt = db.prepare("INSERT OR REPLACE INTO build_integrity (id, build_manifest, generated_at) VALUES (?,?,?)");
+    stmt.run([id, JSON.stringify(manifest), new Date().toISOString()]);
+    stmt.free && stmt.free();
+    bridge.persist();
+  } catch (e) {
+    // ignore
   }
 }
 
-export function newMessageId(): string {
-  return createId("msg-");
+export interface WebhookRecord {
+  id: string;
+  url: string;
+  events: string[];
+  secret?: string | null;
+  created_at: string;
 }
 
-export function newToolCallId(): string {
-  return createId("tool-");
+export async function listWebhooks(): Promise<WebhookRecord[]> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const res = bridge.db.exec("SELECT id,url,events,secret,created_at FROM webhooks ORDER BY created_at DESC;");
+      if (!res?.[0]) return [];
+      return res[0].values.map((r: any[]) => {
+        const [id, url, events, secret, created_at] = r;
+        let ev: string[] = [];
+        try { ev = events ? JSON.parse(events) : []; } catch { ev = typeof events === 'string' ? events.split(',').map((s:string)=>s.trim()) : []; }
+        return { id, url, events: ev, secret: secret || null, created_at } as WebhookRecord;
+      });
+    }
+  } catch {}
+  // fallback: read from settings.json
+  try {
+    const s = JSON.parse(await fs.readFile(dataFile('settings.json'), 'utf8'));
+    return (s.webhooks || []).map((w: any) => ({ id: w.id, url: w.url, events: w.events || ['*'], secret: w.secret || null, created_at: w.created_at || new Date().toISOString() }));
+  } catch {}
+  return [];
 }
 
-export function newSessionId(): string {
-  return createId("sess-");
+export async function createWebhook(opts: { url: string; events?: string[]; secret?: string | null }): Promise<WebhookRecord> {
+  const bridge = await initSqlBridge();
+  const id = 'wh-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+  const created_at = new Date().toISOString();
+  const rec: WebhookRecord = { id, url: opts.url, events: opts.events || ['*'], secret: opts.secret || null, created_at };
+  try {
+    if (bridge?.db) {
+      const stmt = bridge.db.prepare("INSERT INTO webhooks (id,url,events,secret,created_at) VALUES (?,?,?,?,?)");
+      stmt.run([rec.id, rec.url, JSON.stringify(rec.events), rec.secret || null, rec.created_at]);
+      stmt.free && stmt.free();
+      bridge.persist();
+      return rec;
+    }
+  } catch {}
+  // fallback: append to settings
+  try {
+    const settingsPath = dataFile('settings.json');
+    let s = {} as any;
+    try { s = JSON.parse(await fs.readFile(settingsPath, 'utf8')); } catch {}
+    s.webhooks = s.webhooks || [];
+    s.webhooks.push(rec);
+    await fs.writeFile(settingsPath, JSON.stringify(s, null, 2), 'utf8');
+  } catch {}
+  return rec;
 }
 
-export function newTaskCheckpointId(): string {
-  return createId("checkpoint-");
+export async function deleteWebhook(id: string): Promise<boolean> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const stmt = bridge.db.prepare("DELETE FROM webhooks WHERE id = ?");
+      stmt.run([id]);
+      stmt.free && stmt.free();
+      bridge.persist();
+      return true;
+    }
+  } catch {}
+  // fallback: remove from settings
+  try {
+    const settingsPath = dataFile('settings.json');
+    let s = {} as any;
+    try { s = JSON.parse(await fs.readFile(settingsPath, 'utf8')); } catch {}
+    s.webhooks = (s.webhooks || []).filter((w: any) => w.id !== id);
+    await fs.writeFile(settingsPath, JSON.stringify(s, null, 2), 'utf8');
+    return true;
+  } catch {}
+  return false;
 }
+
+export async function getWebhook(id: string): Promise<WebhookRecord | null> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const res = bridge.db.exec("SELECT id,url,events,secret,created_at FROM webhooks WHERE id = ? LIMIT 1;", [id]);
+      if (res?.[0] && res[0].values && res[0].values.length) {
+        const [rid, url, events, secret, created_at] = res[0].values[0];
+        let ev: string[] = [];
+        try { ev = events ? JSON.parse(events) : []; } catch { ev = typeof events === 'string' ? events.split(',').map((s:string)=>s.trim()) : []; }
+        return { id: rid, url, events: ev, secret: secret || null, created_at } as WebhookRecord;
+      }
+    }
+  } catch {}
+  // fallback: settings
+  try { const s = JSON.parse(await fs.readFile(dataFile('settings.json'), 'utf8')); const w = (s.webhooks||[]).find((x:any)=>x.id===id); return w? { id: w.id, url: w.url, events: w.events||['*'], secret: w.secret||null, created_at: w.created_at||new Date().toISOString() } : null; } catch {}
+  return null;
+}
+
+export async function updateWebhook(id: string, patch: { url?: string; events?: string[]; secret?: string | null }): Promise<WebhookRecord | null> {
+  const bridge = await initSqlBridge();
+  try {
+    if (bridge?.db) {
+      const existing = await getWebhook(id);
+      if (!existing) return null;
+      const url = patch.url ?? existing.url;
+      const events = patch.events ?? existing.events;
+      const secret = patch.secret ?? existing.secret ?? null;
+      const stmt = bridge.db.prepare("UPDATE webhooks SET url = ?, events = ?, secret = ? WHERE id = ?");
+      stmt.run([url, JSON.stringify(events), secret, id]);
+      stmt.free && stmt.free();
+      bridge.persist();
+      return { id, url, events, secret, created_at: existing.created_at } as WebhookRecord;
+    }
+  } catch {}
+  // fallback: update settings.json
+  try {
+    const settingsPath = dataFile('settings.json');
+    let s: any = {};
+    try { s = JSON.parse(await fs.readFile(settingsPath, 'utf8')); } catch {}
+    s.webhooks = s.webhooks || [];
+    const idx = s.webhooks.findIndex((w: any) => w.id === id);
+    if (idx === -1) return null;
+    const existing = s.webhooks[idx];
+    existing.url = patch.url ?? existing.url;
+    existing.events = patch.events ?? existing.events;
+    existing.secret = patch.secret ?? existing.secret ?? null;
+    s.webhooks[idx] = existing;
+    await fs.writeFile(settingsPath, JSON.stringify(s, null, 2), 'utf8');
+    return { id: existing.id, url: existing.url, events: existing.events || ['*'], secret: existing.secret || null, created_at: existing.created_at || new Date().toISOString() } as WebhookRecord;
+  } catch {}
+  return null;
+}
+
+export async function migrateWebhooksFromSettingsIfNeeded(): Promise<void> {
+  const bridge = await initSqlBridge();
+  if (!bridge?.db) return;
+  try {
+    const existing = bridge.db.exec("SELECT COUNT(1) FROM webhooks;");
+    let count = 0;
+    if (existing && existing[0] && existing[0].values && existing[0].values[0]) count = Number(existing[0].values[0][0]);
+    if (count > 0) return; // already populated
+  } catch {}
+  try {
+    const settingsPath = dataFile('settings.json');
+    let s: any = {};
+    try { s = JSON.parse(await fs.readFile(settingsPath, 'utf8')); } catch {}
+    const whs = s.webhooks || [];
+    for (const w of whs) {
+      try {
+        const id = w.id || ('wh-' + Date.now() + '-' + Math.random().toString(36).slice(2,8));
+        const stmt = bridge.db.prepare("INSERT OR REPLACE INTO webhooks (id,url,events,secret,created_at) VALUES (?,?,?,?,?)");
+        stmt.run([id, w.url, JSON.stringify(w.events || ['*']), w.secret || null, w.created_at || new Date().toISOString()]);
+        stmt.free && stmt.free();
+      } catch {}
+    }
+    bridge.persist();
+  } catch {}
+}
+
+export function newMessageId(): string { return createId("msg-"); }
+export function newToolCallId(): string { return createId("tool-"); }
+export function newSessionId(): string { return createId("sess-"); }

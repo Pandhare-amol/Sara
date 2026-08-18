@@ -16,14 +16,29 @@ def _pyautogui():
     return pyautogui
 
 
+def _screen_size() -> tuple[int, int]:
+    pyautogui = _pyautogui()
+    width, height = pyautogui.size()
+    return int(width), int(height)
+
+
+def _validate_point(x: int, y: int) -> None:
+    width, height = _screen_size()
+    if x < 0 or y < 0 or x >= width or y >= height:
+        raise ToolError(f"Coordinate {x}, {y} is outside the screen bounds {width}x{height}.")
+
+
 @register("hardwareMouseMove")
 def hardware_mouse_move(args: Dict[str, Any]) -> Dict[str, Any]:
     pyautogui = _pyautogui()
     x = int(args.get("x"))
     y = int(args.get("y"))
     duration = float(args.get("duration") or 0.15)
+    _validate_point(x, y)
     pyautogui.moveTo(x, y, duration=duration)
-    return {"result": f"Moved mouse to {x}, {y}.", "x": x, "y": y}
+    px, py = pyautogui.position()
+    verified = int(px) == x and int(py) == y
+    return {"result": f"Moved mouse to {x}, {y}." if verified else f"Requested mouse move to {x}, {y}.", "x": x, "y": y, "verified": verified, "verification": "VERIFIED" if verified else "UNCERTAIN", "position": {"x": int(px), "y": int(py)}}
 
 
 @register("hardwareMouseClick")
@@ -34,10 +49,11 @@ def hardware_mouse_click(args: Dict[str, Any]) -> Dict[str, Any]:
     button = str(args.get("button") or "left")
     clicks = int(args.get("clicks") or 1)
     if x is not None and y is not None:
+        _validate_point(int(x), int(y))
         pyautogui.click(int(x), int(y), clicks=clicks, button=button)
     else:
         pyautogui.click(clicks=clicks, button=button)
-    return {"result": f"Clicked {button} mouse button {clicks} time(s)."}
+    return {"result": f"Clicked {button} mouse button {clicks} time(s).", "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareMouseDrag")
@@ -47,8 +63,11 @@ def hardware_mouse_drag(args: Dict[str, Any]) -> Dict[str, Any]:
     y = int(args.get("y"))
     duration = float(args.get("duration") or 0.3)
     button = str(args.get("button") or "left")
+    _validate_point(x, y)
     pyautogui.dragTo(x, y, duration=duration, button=button)
-    return {"result": f"Dragged mouse to {x}, {y}."}
+    px, py = pyautogui.position()
+    verified = int(px) == x and int(py) == y
+    return {"result": f"Dragged mouse to {x}, {y}." if verified else f"Requested mouse drag to {x}, {y}.", "x": x, "y": y, "position": {"x": int(px), "y": int(py)}, "verified": verified, "verification": "VERIFIED" if verified else "UNCERTAIN"}
 
 
 @register("hardwareMouseScroll")
@@ -58,9 +77,9 @@ def hardware_mouse_scroll(args: Dict[str, Any]) -> Dict[str, Any]:
     horizontal = bool(args.get("horizontal", False))
     if horizontal and hasattr(pyautogui, "hscroll"):
         pyautogui.hscroll(amount)
-        return {"result": f"Scrolled horizontally by {amount}."}
+        return {"result": f"Scrolled horizontally by {amount}.", "verified": False, "verification": "UNCERTAIN"}
     pyautogui.scroll(amount)
-    return {"result": f"Scrolled vertically by {amount}."}
+    return {"result": f"Scrolled vertically by {amount}.", "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareMousePosition")
@@ -79,7 +98,7 @@ def hardware_keyboard_type(args: Dict[str, Any]) -> Dict[str, Any]:
     if not text:
         raise ToolError("Parameter 'text' is required.")
     pyautogui.write(text, interval=interval)
-    return {"result": f"Typed {len(text)} character(s)."}
+    return {"result": f"Typed {len(text)} character(s).", "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareKeyboardPress")
@@ -95,7 +114,7 @@ def hardware_keyboard_press(args: Dict[str, Any]) -> Dict[str, Any]:
         pyautogui.press(normalized[0])
     else:
         pyautogui.hotkey(*normalized)
-    return {"result": f"Pressed {'+'.join(normalized)}.", "keys": normalized}
+    return {"result": f"Pressed {'+'.join(normalized)}.", "keys": normalized, "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareKeyboardHold")
@@ -105,7 +124,7 @@ def hardware_keyboard_hold(args: Dict[str, Any]) -> Dict[str, Any]:
     if not key:
         raise ToolError("Parameter 'key' is required.")
     pyautogui.keyDown(key)
-    return {"result": f"Holding {key}.", "key": key}
+    return {"result": f"Holding {key}.", "key": key, "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareKeyboardRelease")
@@ -115,7 +134,7 @@ def hardware_keyboard_release(args: Dict[str, Any]) -> Dict[str, Any]:
     if not key:
         raise ToolError("Parameter 'key' is required.")
     pyautogui.keyUp(key)
-    return {"result": f"Released {key}.", "key": key}
+    return {"result": f"Released {key}.", "key": key, "verified": False, "verification": "UNCERTAIN"}
 
 
 @register("hardwareMacroReplay")

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "ebbdc659-e650-427e-911a-3f5b0578c412"
+      }
+    },
+    "android": {
+      "package": "com.amolpandhare00.sara"
+    }
+  }
+}

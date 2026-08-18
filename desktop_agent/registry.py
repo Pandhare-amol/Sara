@@ -1,5 +1,5 @@
-﻿"""
-SARA Desktop Control Agent â€” Central tool registry.
+"""
+SARA Desktop Control Agent — Central tool registry.
 
 Each tool module registers handlers into a flat dict `TOOLS` mapping
 tool_name -> callable(args: dict) -> dict.
@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import importlib
 import threading
-from typing import Any, Callable, Dict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
 
 class ToolError(Exception):
@@ -26,6 +27,97 @@ class ToolError(Exception):
         self.fatal = fatal
 
 
+@dataclass
+class ToolDefinition:
+    name: str
+    description: str = ""
+    input_schema: Dict[str, Any] = field(default_factory=dict)
+    output_schema: Dict[str, Any] = field(default_factory=dict)
+    permission_level: str = "LOW"
+    risk_level: str = "LOW"
+    supported_os: List[str] = field(default_factory=list)
+    destructive: bool = False
+    live_ui_verification: bool = False
+    can_return_uncertain: bool = True
+    execution_method: str = "registered_tool"
+    verification_method: str = "semantic_result_check"
+    timeout: int = 30000
+    retry_policy: str = "retry_on_transient"
+    rollback_policy: str = "none"
+    tags: List[str] = field(default_factory=list)
+
+
+class ToolRegistry:
+    """Central catalog of SARA capabilities and permission metadata."""
+
+    def __init__(self) -> None:
+        self.tools: Dict[str, Dict[str, Any]] = {}
+
+    def register(self, name: str, description: str = "", **overrides: Any) -> Dict[str, Any]:
+        metadata = {
+            "name": name,
+            "description": description or f"Registered SARA capability: {name}",
+            "input_schema": {"type": "object", "properties": {}},
+            "output_schema": {"type": "object", "properties": {"result": {"type": "string"}}},
+            "permission_level": "LOW",
+            "risk_level": "LOW",
+            "supported_os": [],
+            "destructive": False,
+            "live_ui_verification": False,
+            "can_return_uncertain": True,
+            "execution_method": "registered_tool",
+            "verification_method": "semantic_result_check",
+            "timeout": 30000,
+            "retry_policy": "retry_on_transient",
+            "rollback_policy": "none",
+            "tags": [],
+        }
+        metadata.update(self.tools.get(name, {}))
+        metadata.update(overrides)
+        metadata["name"] = name
+        if "description" not in overrides:
+            metadata["description"] = description or metadata.get("description") or f"Registered SARA capability: {name}"
+        self.tools[name] = metadata
+        return dict(metadata)
+
+    def get(self, name: str) -> Optional[Dict[str, Any]]:
+        return self.tools.get(name)
+
+    def list(self) -> List[Dict[str, Any]]:
+        return [dict(item) for item in self.tools.values()]
+
+    def is_allowed(self, tool_name: str, args: Optional[Dict[str, Any]] = None) -> bool:
+        tool = self.get(tool_name)
+        if tool is None:
+            return False
+        risk = str(tool.get("risk_level") or "LOW").upper()
+        permission = str(tool.get("permission_level") or "LOW").upper()
+        payload = dict(args or {})
+        confirmed = bool(payload.get("confirmed") or payload.get("confirmation") or payload.get("token") or payload.get("execute_token"))
+        action_name = str(payload.get("action") or "").lower()
+        high_risk_actions = {"shutdown", "restart", "sleep", "hibernate", "delete", "wipe", "format", "send_external_message", "send_email", "purchase", "financial_transaction"}
+
+        # openApplication is non-destructive — allow freely.
+        # closeApplication and requestPowerAction require confirmation because
+        # closing an app can lose unsaved work and power actions are irreversible.
+        if tool_name in {"closeApplication", "requestPowerAction"} and not confirmed:
+            return False
+
+        if risk in {"HIGH", "CRITICAL"} and not confirmed:
+            return False
+        if permission == "HIGH" and not confirmed and action_name in high_risk_actions:
+            return False
+        if tool_name in {"requestPowerAction", "executePowerAction", "deleteFile", "deleteFolder", "closeAllApplications", "power_shutdown", "power_restart", "power_sleep", "power_lock"}:
+            if action_name in {"shutdown", "restart", "sleep", "hibernate", "lock", "delete", "wipe", "format"} and not confirmed:
+                return False
+        return True
+
+    def bootstrap_from_module_registry(self) -> Dict[str, Dict[str, Any]]:
+        for name in sorted(TOOLS):
+            self.register(name, description=f"Registered SARA desktop capability: {name}", tags=["desktop"])
+        return self.tools
+
+
 class State:
     """Process-wide shared state for tool handlers."""
 
@@ -34,7 +126,7 @@ class State:
         # Confirmation tokens for dangerous (power) actions.
         # token -> {"action": <tool_name>, "expires": <epoch>}
         self.confirmations: Dict[str, Dict[str, Any]] = {}
-        # Playwright singletons â€” lazily initialized on first browser tool use.
+        # Playwright singletons — lazily initialized on first browser tool use.
         self.playwright = None
         self.browser = None
         self.context = None
@@ -59,13 +151,15 @@ STATE = State()
 
 # tool_name -> handler(args: dict) -> dict
 TOOLS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {}
+TOOL_REGISTRY = ToolRegistry()
 
 
-def register(name: str):
+def register(name: str, *, description: str = "", **metadata: Any):
     """Decorator to register a handler under a tool name."""
 
     def deco(fn: Callable[[Dict[str, Any]], Dict[str, Any]]):
         TOOLS[name] = fn
+        TOOL_REGISTRY.register(name, description=description or getattr(fn, "__doc__", "") or f"Registered SARA capability: {name}", **metadata)
         return fn
 
     return deco
@@ -128,6 +222,16 @@ DESKTOP_TOOL_NAMES = [
     "analyzeScreenshot",
     "readScreen",
     "detectUiElements",
+    "desktopInspectScreen",
+    "desktopFindElement",
+    "desktopFindElements",
+    "desktopClickTarget",
+    "desktopDoubleClickTarget",
+    "desktopRightClickTarget",
+    "desktopMoveToTarget",
+    "desktopDragTarget",
+    "desktopFocusTarget",
+    "desktopTypeIntoTarget",
     # camera
     "openCamera",
     "takePhoto",
@@ -142,6 +246,24 @@ DESKTOP_TOOL_NAMES = [
     "saraCameraStopRecording",
     "saraCameraScanQr",
     "saraCameraObserve",
+    # gesture control
+    "gestureControlStart",
+    "gestureControlStop",
+    "gestureControlPause",
+    "gestureControlResume",
+    "gestureControlStatus",
+    "gestureControlCalibrate",
+    "gestureControlSetMapping",
+    "gestureControlSetMonitor",
+    "gestureControlSetSensitivity",
+    "gestureControlSetThresholds",
+    "gestureControlGetConfig",
+    "gestureControlSetConfig",
+    "gestureControlGetMappings",
+    "gestureControlSetMappings",
+    "gestureControlEnable",
+    "gestureControlDisable",
+    "gestureControlSetProfile",
     # browser automation (Playwright â€” desktop-owned, separate from holographic UI)
     "desktopBrowserOpen",
     "desktopBrowserNavigate",
@@ -156,6 +278,14 @@ DESKTOP_TOOL_NAMES = [
     "desktopBrowserScroll",
     "desktopBrowserReload", "desktopBrowserKey", "desktopBrowserZoom",
     "desktopBrowserMedia", "desktopBrowserReadPage", "desktopBrowserScreenshot",
+    "browserOpen",
+    "browserSearch",
+    "browserClick",
+    "browserType",
+    "browserScroll",
+    "browserGoBack",
+    "browserMediaControl",
+    "browserTabAction",
     # coding assistance
     "createPythonFile",
     "runPythonScript",
@@ -276,49 +406,83 @@ DESKTOP_TOOL_NAMES = [
     "saraAndroidPair",
     "saraAndroidPlan",
     "saraAndroidExecute",
+    # Email Automation
+    "email_send",
+    "email_read",
+    "email_search",
+    "email_draft",
+    "email_reply",
+    "email_forward",
+    "email_create_task_from_email",
+    "email_schedule_send",
+    # WhatsApp Extra Capabilities
+    "whatsapp_read_messages",
+    "whatsapp_reply",
+    "whatsapp_send_media",
+    "whatsapp_group_send",
+    "whatsapp_schedule_send",
+    "whatsapp_resolve_contact",
+    # YouTube Extra Capabilities
+    "youtube_pause",
+    "youtube_resume",
+    "youtube_seek",
+    "youtube_volume",
+    "youtube_fullscreen",
+    "youtube_captions",
+    "youtube_get_info",
+    "youtube_add_to_watch_later",
+    "youtube_upload",
+    # RAG ingestion (tools_rag.py)
+    "saraRagIngestDocument",
+    "saraRagIndexFolder",
+    # Universal Command Center
+    "saraUniversalCommand",
 ]
 
 
-# --- Eagerly import all tool modules so their @register decorators run. ---
-# Each module is imported defensively: a hard import failure here would make
-# the whole agent unstartable, which we want to avoid. The modules themselves
-# keep optional-dependency imports lazy/try-except.
-_MODULE_NAMES = [
-    "tools_confirmation",
-    "tools_applications",
-    "tools_websites",
-    "tools_search",
-    "tools_files",
-    "tools_file_extra",
-    "tools_pc",
-    "tools_windows",
-    "tools_window_extra",
-    "tools_clipboard",
-    "tools_screenshot",
-    "tools_camera",
-    "tools_browser",
-    "tools_coding",
-    "tools_system",
-    "tools_startup",
-    "tools_multi_agent",
-    "tools_platform",
-    "tools_learning",
-    "tools_service_integrations",
-    "tools_screen_monitor",
-    "tools_hardware",
-    "tools_voice_os",
-    "tools_camera_suite",
-    "tools_app_suite",
-    "tools_browser_suite",
-    "android_tools",
-]
+# --- Auto-discover tool modules so new tools are registered without editing a fixed list. ---
+# Keep the discovery deterministic by scanning the desktop_agent package for modules that
+# match the tools_* naming pattern and importing only those modules.
+def _discover_tool_modules() -> List[str]:
+    import pkgutil
+    from pathlib import Path
+
+    package_path = Path(__file__).resolve().parent
+    discovered: List[str] = []
+    for module_info in sorted(pkgutil.iter_modules([str(package_path)]), key=lambda item: item.name):
+        name = module_info.name
+        if not name.startswith("tools_") and name != "android_tools":
+            continue
+        if name.startswith("tools_") or name == "android_tools":
+            discovered.append(name)
+    return discovered
 
 
 def load_all() -> None:
-    for mod_name in _MODULE_NAMES:
-        importlib.import_module(f".{mod_name}", package="desktop_agent")
+    discovered = _discover_tool_modules()
+    imported = []
+    failed = []
+    try:
+        importlib.import_module(".capability_matrix", package="desktop_agent")
+    except Exception as exc:  # pragma: no cover - keep agent alive
+        failed.append("capability_matrix")
+        print(f"[SARA][TOOLS][ERROR] Failed to load capability_matrix: {exc}")
+    for mod_name in discovered:
+        try:
+            importlib.import_module(f".{mod_name}", package="desktop_agent")
+            imported.append(mod_name)
+        except Exception as exc:  # pragma: no cover - keep agent alive even if one module fails
+            failed.append(mod_name)
+            print(f"[SARA][TOOLS][ERROR] Failed to load {mod_name}: {exc}")
+
+    TOOL_REGISTRY.bootstrap_from_module_registry()
+    registered = len(TOOL_REGISTRY.tools)
+    print(f"[SARA][TOOLS] Discovered: {len(discovered)}")
+    print(f"[SARA][TOOLS] Registered: {registered}")
+    print(f"[SARA][TOOLS] Failed: {len(failed)}")
+    if failed:
+        print(f"[SARA][TOOLS][ERROR] Failed modules: {', '.join(failed)}")
 
 
-__all__ = ["TOOLS", "STATE", "DESKTOP_TOOL_NAMES", "ToolError", "register", "load_all"]
-
+__all__ = ["TOOLS", "STATE", "DESKTOP_TOOL_NAMES", "ToolError", "ToolDefinition", "ToolRegistry", "TOOL_REGISTRY", "register", "load_all"]
 

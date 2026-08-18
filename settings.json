@@ -1,8 +1,9 @@
 {
-  "autoStart": false,
+  "autoStart": true,
   "wakeWordEnabled": true,
   "wakePhrase": "hey sara",
   "micDeviceId": "",
-  "sensitivity": 60,
-  "animations": true
+  "sensitivity": 49,
+  "animations": true,
+  "language": "mr"
 }

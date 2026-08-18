@@ -1,0 +1,18 @@
+[
+  {
+    "action": "saraUniversalCommand",
+    "created_at": 1786706268.8441236,
+    "error": "",
+    "execution_time_ms": 8962,
+    "id": "5c1b9bb8eb344dd9a09c4f28592020ad",
+    "metadata": {
+      "plan": "Full system health check: CPU, GPU, temperature, and SARA health diagnostics.",
+      "steps_count": 4
+    },
+    "recovery": "",
+    "result": "completed",
+    "success": true,
+    "task": "check system health",
+    "user_feedback": ""
+  }
+]

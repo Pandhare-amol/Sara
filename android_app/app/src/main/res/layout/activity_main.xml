@@ -1,21 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="24dp"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="SARA Companion Offline"
-        android:textSize="18sp" />
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <Button
-        android:id="@+id/connectButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Connect"
-        android:layout_marginTop="16dp" />
-</LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SARA Companion"
+            android:textStyle="bold"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SARA Companion Offline"
+            android:textSize="18sp"
+            android:layout_marginTop="12dp" />
+
+        <TextView
+            android:id="@+id/roleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Call screening role: not granted"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/connectButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Connect to Sara"
+            android:layout_marginTop="20dp" />
+
+        <Button
+            android:id="@+id/roleButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Grant call screening role"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
+</ScrollView>

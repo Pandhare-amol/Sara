@@ -23,6 +23,8 @@ export interface SaraSettings {
   sensitivity: number;
   /** Preferred conversation language (en, hi, mr, gu, bn, ta, te, kn, ml, pa). */
   language: string;
+  /** Auto-enable hand gesture control when SARA starts (false = manual) */
+  autoEnableGesture: boolean;
   /** Master toggle for UI animations. */
   animations: boolean;
 }
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   micDeviceId: "",
   sensitivity: 60,
   language: "en",
+  autoEnableGesture: false,
   animations: true,
 };
 

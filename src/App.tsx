@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SaraAudioSession, LiveState } from "./lib/audio";
 import { SaraCoreVisualizer, SaraEmotion } from "./components/SaraCoreVisualizer";
 import { BrowserAgent } from "./components/BrowserAgent";
@@ -23,12 +23,18 @@ import {
   Pause,
   Square,
   RefreshCw,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Memory, MemoryCategory } from "./lib/memoryTypes";
 import { MemoryDashboard } from "./components/MemoryDashboard";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { GestureControlPanel } from "./components/GestureControlPanel";
+import { CameraPanel } from "./components/CameraPanel";
+import { GestureMappingEditor } from "./components/GestureMappingEditor";
+import { ConfirmationPanel } from "./components/ConfirmationPanel";
+import { AdminSecurityDashboard } from "./components/AdminSecurityDashboard";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./lib/settingsStore";
 import { SaraWakeWordDetector } from "./lib/wakeWord";
 
@@ -39,6 +45,17 @@ export default function App() {
   const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
   const [isScreenSharingPaused, setIsScreenSharingPaused] = useState<boolean>(false);
   const [screenVisionMode, setScreenVisionMode] = useState<boolean>(true);
+  const [muted, setMuted] = useState<boolean>(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    try {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    } catch {}
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2200) as unknown as number;
+  };
 
   // References to preserve state across intervals
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -127,16 +144,49 @@ export default function App() {
   const startScreenSharing = async () => {
     setErrorText(null);
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 5 }
-        },
-        audio: false
-      });
+      // First try the standard browser API
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 5 }
+          },
+          audio: false
+        });
+      } catch (sdErr) {
+        // If running inside Electron, attempt the desktopCapturer-based fallback
+        try {
+          const sara = (window as any).sara;
+          if (sara && sara.isDesktop && typeof sara.getPrimaryScreenSourceId === 'function') {
+            const sourceId = await sara.getPrimaryScreenSourceId();
+            if (sourceId) {
+              // Use legacy chromeMediaSourceId approach as a fallback
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              stream = await (navigator.mediaDevices as any).getUserMedia({
+                audio: false,
+                video: {
+                  mandatory: {
+                    chromeMediaSource: 'desktop',
+                    chromeMediaSourceId: sourceId,
+                    minWidth: 1280,
+                    minHeight: 720,
+                    maxFrameRate: 5
+                  }
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[Screen Capture] Electron fallback failed:', e);
+        }
+        // If both attempts failed rethrow the original error to surface message
+        if (!stream) throw sdErr;
+      }
 
-      screenStreamRef.current = stream;
+      screenStreamRef.current = stream as MediaStream;
 
       const video = document.createElement("video");
       video.srcObject = stream;
@@ -168,8 +218,91 @@ export default function App() {
 
     } catch (e: any) {
       console.error("Screen sharing permission declined or missing API:", e);
-      if (e.name !== "NotAllowedError") {
-        setErrorText(`Could not capture screen: ${e.message || e}`);
+      let attemptedFallback = false;
+      let fallbackError: any = null;
+      try {
+        const sara = (window as any).sara;
+        if (sara && sara.isDesktop && typeof sara.getScreenSources === 'function') {
+          attemptedFallback = true;
+          const sources = await sara.getScreenSources();
+          if (Array.isArray(sources) && sources.length > 0) {
+            for (const s of sources) {
+              try {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                const sStream = await (navigator.mediaDevices as any).getUserMedia({
+                  audio: false,
+                  video: {
+                    mandatory: {
+                      chromeMediaSource: 'desktop',
+                      chromeMediaSourceId: s.id,
+                      minWidth: 1280,
+                      minHeight: 720,
+                      maxFrameRate: 5
+                    }
+                  }
+                });
+                if (sStream) {
+                  // Use this stream
+                  screenStreamRef.current = sStream as MediaStream;
+                  const video = document.createElement('video');
+                  video.srcObject = sStream as MediaStream;
+                  video.muted = true;
+                  video.playsInline = true;
+                  video.play().catch((err) => console.warn('Video play warning (fallback):', err));
+                  screenVideoRef.current = video;
+
+                  setIsScreenSharing(true);
+                  setIsScreenSharingPaused(false);
+
+                  (sStream as MediaStream).getVideoTracks()[0].onended = () => {
+                    stopScreenSharing();
+                  };
+
+                  if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
+                  screenIntervalRef.current = setInterval(() => { captureFrameAndSend(); }, 2000);
+                  setTimeout(() => { captureFrameAndSend(); }, 500);
+                  break;
+                }
+              } catch (subErr) {
+                fallbackError = subErr;
+                console.warn('[Screen Capture] fallback attempt failed for source', s, subErr);
+              }
+            }
+          }
+        }
+      } catch (fbEx) {
+        fallbackError = fbEx;
+      }
+
+      // If still not sharing, report full payload to server and copy to clipboard
+      if (!screenStreamRef.current) {
+        const payload: any = {
+          errorName: e?.name || null,
+          errorMessage: e?.message || String(e),
+          errorStack: e?.stack || null,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+          url: typeof window !== 'undefined' ? window.location.href : null,
+          timestamp: new Date().toISOString(),
+          isElectron: !!((window as any).sara?.isDesktop),
+          attemptedFallback,
+          fallbackError: fallbackError ? (fallbackError.message || String(fallbackError)) : null
+        };
+        try {
+          await fetch('/api/client-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } catch (postErr) { console.warn('Failed to POST client error payload', postErr); }
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+            alert('Screen capture error details copied to clipboard. Paste them into the chat.');
+          }
+        } catch (clipErr) { console.warn('Failed to copy error payload to clipboard', clipErr); }
+
+        if (e.name !== 'NotAllowedError') setErrorText(`Could not capture screen: ${e.message || e}`);
       }
     }
   };
@@ -261,10 +394,16 @@ export default function App() {
   // Sara recollections database core state
   const [memories, setMemories] = useState<Memory[]>([]);
   const [showMemoryDashboard, setShowMemoryDashboard] = useState<boolean>(false);
+  const [showQuickChat, setShowQuickChat] = useState<boolean>(false);
 
   // V2: Settings + wake word state
   const [settings, setSettings] = useState<SaraSettings>(() => loadSettings());
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showGesturePanel, setShowGesturePanel] = useState<boolean>(false);
+  const [showCameraPanel, setShowCameraPanel] = useState<boolean>(false);
+  const [showMappingEditor, setShowMappingEditor] = useState<boolean>(false);
+  const [showConfirmPanel, setShowConfirmPanel] = useState<boolean>(false);
+  const [showAdminSecurity, setShowAdminSecurity] = useState<boolean>(false);
   const showSettingsRef = useRef<boolean>(false);
   useEffect(() => { showSettingsRef.current = showSettings; }, [showSettings]);
 
@@ -282,6 +421,16 @@ export default function App() {
       det.stop();
     };
   }, []);
+
+  // Auto-enable gesture control if user preference enabled
+  useEffect(() => {
+    try {
+      if (settings.autoEnableGesture) {
+        // call server endpoint to enable vision (Desktop Agent)
+        fetch('/api/vision/enable', { method: 'POST' }).catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+  }, [settings.autoEnableGesture]);
 
   // Start / stop wake word detection when the setting changes.
   useEffect(() => {
@@ -377,6 +526,40 @@ export default function App() {
           // Auto-clear the other caption when user starts talking
           setModelCaption("");
           setCharacterState("thinking");
+          try {
+            const lower = String(text || "").toLowerCase();
+            // Voice camera commands
+            const takePhotoRe = /take (?:a )?(?:photo|picture)(?: in (\d+) seconds?)?/i;
+            const startRecRe = /start (?:recording|video)(?: for (\d+) seconds?)?/i;
+            const stopRecRe = /stop (?:recording|video)/i;
+            const startCamRe = /(?:open|show|start) camera/i;
+            const stopCamRe = /(?:close|stop|hide) camera/i;
+            const galleryRe = /(?:open|show) (?:camera )?gallery/i;
+            const enableGestureRe = /enable hand gesture control|enable gestures|turn on gestures/i;
+            const disableGestureRe = /disable hand gesture control|disable gestures|turn off gestures/i;
+
+            let m = null;
+            if ((m = text.match(takePhotoRe))) {
+              const delay = m[1] ? parseInt(m[1], 10) : 0;
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'takePhoto', delay } }));
+            } else if (startRecRe.test(text)) {
+              const mm = text.match(startRecRe);
+              const duration = mm && mm[1] ? parseInt(mm[1], 10) : undefined;
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startRecording', duration } }));
+            } else if (stopRecRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopRecording' } }));
+            } else if (startCamRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startCamera' } }));
+            } else if (stopCamRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopCamera' } }));
+            } else if (galleryRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'openGallery' } }));
+            } else if (enableGestureRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-vision-action', { detail: { action: 'enable' } }));
+            } else if (disableGestureRe.test(text)) {
+              window.dispatchEvent(new CustomEvent('sara-vision-action', { detail: { action: 'disable' } }));
+            }
+          } catch (e) { console.warn('Voice camera command parse failed', e); }
         } else if (role === "model") {
           setModelCaption((prev) => {
             const next = prev + text;
@@ -446,6 +629,43 @@ export default function App() {
           setMemories(updatedMemories);
         }
       }
+      ,
+      onWake: async (info) => {
+        try {
+          // Play a brief activation chime locally
+          const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+          if (Ctx) {
+            const ctx: AudioContext = new Ctx();
+            const now = ctx.currentTime;
+            const notes = [ { f: 880, t: 0 }, { f: 1320, t: 0.09 } ];
+            notes.forEach(({ f, t }) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.value = f;
+              gain.gain.setValueAtTime(0.0001, now + t);
+              gain.gain.exponentialRampToValueAtTime(0.15, now + t + 0.01);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.18);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(now + t);
+              osc.stop(now + t + 0.2);
+            });
+            setTimeout(() => ctx.close().catch(() => {}), 600);
+          }
+
+          // If disconnected, connect the live audio session so the mic is captured
+          if (sessionRef.current && state === 'disconnected') {
+            await sessionRef.current.connect();
+            try { sessionRef.current.setMuted(false); } catch {}
+            setMuted(false);
+            showToast('Listening...');
+          } else if (sessionRef.current && sessionRef.current.isMuted && sessionRef.current.isMuted()) {
+            try { sessionRef.current.setMuted(false); } catch {}
+            setMuted(false);
+          }
+        } catch (e) { console.warn('Wake handler failed', e); }
+      }
     });
 
     return () => {
@@ -453,6 +673,20 @@ export default function App() {
         sessionRef.current.disconnect();
       }
     };
+  }, []);
+
+  // Initialize muted state from localStorage on first load
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem("sara.muted");
+      if (v === "1") {
+        setMuted(true);
+        try { sessionRef.current?.setMuted(true); } catch {}
+      } else {
+        setMuted(false);
+        try { sessionRef.current?.setMuted(false); } catch {}
+      }
+    } catch {}
   }, []);
 
   // Track stored conversationId in localStorage so the header control can show it
@@ -497,9 +731,19 @@ export default function App() {
     if (!sessionRef.current) return;
 
     if (state === "disconnected") {
+      // Connect the audio session
       await sessionRef.current.connect();
+      // Ensure unmuted by default when connecting
+      try { sessionRef.current.setMuted(false); } catch {}
+      setMuted(false);
+      try { window.localStorage.setItem("sara.muted", "0"); } catch {}
     } else {
-      sessionRef.current.disconnect();
+      // If already connected, toggle mute/unmute instead of disconnecting
+      const next = !muted;
+      try { sessionRef.current.setMuted(next); } catch {}
+      setMuted(next);
+      try { window.localStorage.setItem("sara.muted", next ? "1" : "0"); } catch {}
+      showToast(next ? "Microphone muted" : "Microphone unmuted");
     }
   };
   // V2: keep the ref in sync so the wake-word callback calls this exact handler.
@@ -622,53 +866,31 @@ export default function App() {
             <span>{isScreenSharing ? "SHARING" : "SHARE SCREEN"}</span>
           </button>
 
-          {/* V2: Settings toggler button â€” matches existing faint-to-hover header style */}
           <button
-            onClick={() => setShowDesktopConversations(!showDesktopConversations)}
+            onClick={() => setShowQuickChat((v) => !v)}
             className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showDesktopConversations
+              showQuickChat
                 ? "text-cyan-400 opacity-100 font-semibold"
                 : "opacity-25 hover:opacity-100 text-white"
             }`}
-            title="Desktop Conversations"
+            title="Quick chat with Sara"
           >
-            <MessageSquareOff size={14} className={showDesktopConversations ? "text-cyan-300" : ""} />
-            <span>CHATS</span>
+            <MessageSquareOff size={14} className={showQuickChat ? "text-cyan-300" : ""} />
+            <span>QUICK CHAT</span>
           </button>
 
           <button
-            onClick={() => setShowDesktopChat(!showDesktopChat)}
+            onClick={() => setShowAdminSecurity(!showAdminSecurity)}
             className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showDesktopChat
+              showAdminSecurity
                 ? "text-cyan-400 opacity-100 font-semibold"
                 : "opacity-25 hover:opacity-100 text-white"
             }`}
-            title="Open desktop chat"
+            title="Owner & Security Dashboard"
           >
-            <span>CHAT</span>
+            <ShieldCheck size={14} className={showAdminSecurity ? "text-cyan-300 animate-pulse" : ""} />
+            <span className="hidden sm:inline">SECURITY</span>
           </button>
-
-          {/* Stored Conversation Resume control */}
-          <div className="relative">
-            <button
-              onClick={() => setShowConvPanel(!showConvPanel)}
-              className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer px-2 py-1 rounded ${storedConversationId ? 'bg-white/5' : 'opacity-25 hover:opacity-100'}`}
-              title={storedConversationId ? `Stored conversation: ${storedConversationId}` : 'No stored conversation'}
-            >
-              <span className="hidden sm:inline">{storedConversationId ? `${storedConversationId.slice(0,8)}…` : 'No Conv'}</span>
-            </button>
-
-            {showConvPanel && (
-              <div className="absolute right-0 mt-2 w-64 bg-indigo-950/90 border border-indigo-800 rounded p-3 shadow-lg z-50">
-                <div className="text-xs text-indigo-200 mb-2">Stored Conversation</div>
-                <div className="text-sm text-white break-all mb-3">{storedConversationId ?? 'None'}</div>
-                <div className="flex gap-2">
-                  <button onClick={handleResumeStoredConversation} className="flex-1 p-2 bg-cyan-600 rounded text-sm">Resume</button>
-                  <button onClick={handleClearStoredConversation} className="flex-1 p-2 bg-white/5 rounded text-sm">Clear</button>
-                </div>
-              </div>
-            )}
-          </div>
 
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -682,8 +904,77 @@ export default function App() {
             <SettingsIcon size={14} className={showSettings ? "animate-spin [animation-duration:6s]" : ""} />
             <span>SETTINGS</span>
           </button>
+          <button
+            onClick={() => setShowGesturePanel((v) => !v)}
+            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showGesturePanel
+                ? "text-cyan-400 opacity-100 font-semibold"
+                : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="Gesture Control"
+          >
+            <Monitor size={14} />
+            <span>GESTURE</span>
+          </button>
+          <button
+            onClick={() => setShowMappingEditor((v) => !v)}
+            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showMappingEditor
+                ? "text-cyan-400 opacity-100 font-semibold"
+                : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="Gesture Mappings"
+          >
+            <Brain size={14} />
+            <span>MAPS</span>
+          </button>
+          <button
+            onClick={() => setShowConfirmPanel((v) => !v)}
+            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showConfirmPanel
+                ? "text-cyan-400 opacity-100 font-semibold"
+                : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="Confirmations"
+          >
+            <CircleAlert size={14} />
+            <span>CONFIRM</span>
+          </button>
+          <button
+            onClick={() => setShowCameraPanel((v) => !v)}
+            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showCameraPanel
+                ? "text-cyan-400 opacity-100 font-semibold"
+                : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="Camera"
+          >
+            <Play size={14} />
+            <span>CAMERA</span>
+          </button>
         </div>
       </header>
+
+      {showGesturePanel && <GestureControlPanel onClose={() => setShowGesturePanel(false)} />}
+      {showCameraPanel && <CameraPanel onClose={() => setShowCameraPanel(false)} />}
+      {showMappingEditor && <GestureMappingEditor onClose={() => setShowMappingEditor(false)} />}
+      {showConfirmPanel && <ConfirmationPanel onClose={() => setShowConfirmPanel(false)} />}
+
+      {/* Toast notifications */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="fixed right-6 top-6 z-50"
+          >
+            <div className="px-3 py-2 rounded-lg bg-slate-900/90 border border-white/8 text-sm text-white shadow-lg">
+              {toast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CORE AVATAR AND VISUALS */}
       <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-between py-6">
@@ -877,8 +1168,9 @@ export default function App() {
         </div>
 
         {/* Glossy Beautiful Primary Connector Core Node */}
-        <div className="flex items-center justify-center relative mb-4">
+          <div className="flex items-center justify-center relative mb-4">
           <button 
+            type="button"
             onClick={handleToggleConnection}
             className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer ${
               state === "disconnected"
@@ -889,14 +1181,14 @@ export default function App() {
                 ? "bg-purple-500/90 hover:bg-purple-600 border border-purple-400/95 text-white shadow-[0_0_35px_rgba(168,85,247,0.4)] scale-105"
                 : "bg-amber-600 border border-amber-300 text-white animate-spin"
             }`}
-            title={state === "disconnected" ? "Awake Sara" : "Sleep core"}
+            title={state === "disconnected" ? "Awake Sara" : (muted ? "Unmute microphone" : "Mute microphone")}
           >
             {state === "disconnected" ? (
               <Power className="opacity-80" size={24} />
             ) : state === "connecting" ? (
               <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : state === "listening" ? (
-              <Mic size={24} className="text-cyan-200" />
+              (muted ? <MicOff size={24} className="text-cyan-200" /> : <Mic size={24} className="text-cyan-200" />)
             ) : (
               <Volume2 size={24} className="text-white" />
             )}
@@ -1071,6 +1363,18 @@ export default function App() {
         themeColor={themeColor}
       />
 
+      {showQuickChat && (
+        <DesktopChatPanel
+          isOpen={showQuickChat}
+          onClose={() => setShowQuickChat(false)}
+          onShowConversations={() => {
+            setShowDesktopConversations(true);
+            setShowQuickChat(false);
+          }}
+          initialConversationId={desktopConversationId}
+        />
+      )}
+
       {/* Desktop chat panel */}
       <DesktopChatPanel
         isOpen={showDesktopChat}
@@ -1103,7 +1407,14 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         settings={settings}
         onChange={handleSettingsChange}
+        locked={state !== "disconnected"}
         themeColor={themeColor}
+      />
+
+      {/* SARA Owner / Admin Security Dashboard */}
+      <AdminSecurityDashboard
+        isOpen={showAdminSecurity}
+        onClose={() => setShowAdminSecurity(false)}
       />
     </div>
   );

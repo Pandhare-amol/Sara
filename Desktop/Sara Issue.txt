@@ -1,0 +1,274 @@
+डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.
+स्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.
+व्हॉट्सॲप ऑटोमेशन पण चालत नाहीये. / WhatsApp automation is also not working.
+
+
+
+
+
+(.venv-1) PS D:\project\new_jarvis\Sara\myraa-ai-assistant> npm run start:prod      
+
+> sara@1.0.0 start:prod
+> tsx startup/startupManager.ts
+
+
+╔══════════════════════════════════════════════════════════╗
+║         SARA — Smart Assistant for Real-time Automation   ║
+║         Created by Mr Amol Pandhre & the SARA Team        ║
+╚══════════════════════════════════════════════════════════╝
+
+[SARA] Starting...
+[SARA] Build identity: SARA v1.0.0 (008e30ae) — 2026-08-14
+[SARA] Build ID: 008e30ae-76df-4195-b699-1d24e5c8cd83
+[SARA] Build hash: 792f7b15d46f8de0...
+[SARA] Author: Mr Amol Pandhre & the SARA Team
+[SARA] Running integrity check...
+[SARA][INTEGRITY] ⚠️  2 file(s) failed integrity check:
+  FILE: desktop_agent\registry.py
+    EXPECTED: 3da72562f90ec7d9dc084d15066092df62047b546834626df71dee9667bf932a
+    ACTUAL:   5720c96ef212e4591ab4cba298f7bc65279caa45866c3e5958b953c986749ccf
+  FILE: desktop_agent\test_agents.py
+    EXPECTED: 1a597cbb6635e676f91f960dcb54389fa1d58f73c2f1072a6be163d6769cd335
+    ACTUAL:   c7d0f442a3b07d6d1ec969340d26ed3445376010dab4c29f42f085afcc5d0f38
+[SARA][INTEGRITY] SARA integrity check FAILED. Some files have been modified.
+[SARA][ERROR] SARA integrity check FAILED.
+[SARA][ERROR] 2 protected file(s) have been modified.
+[SARA][WARN] Continuing in degraded mode. Tamper event has been recorded.
+[SARA] Validating environment...
+[SARA] Environment check passed.
+[SARA] Checking database...
+[SARA] Database ready.
+[SARA] Starting backend...
+[SARA] Starting Backend (C:\Program Files\nodejs\node.exe D:\project\new_jarvis\Sara\myraa-ai-assistant\dist\server.cjs)...
+[Backend] ◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+[Backend][ERR] warning: in the working copy of 'eas.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'eas.json', LF will be replaced by CRLF the next time Git touches it
+[Backend] [Server] Running on http://localhost:3000
+[Backend] [Server] TaskRunner initialized
+[Backend] [Desktop Agent] Not detected. Auto-starting...
+[SARA] ✗ Backend did NOT become healthy within 30s.
+
+[SARA] ─── Diagnostic: Backend ─────────────────
+[SARA]   Working directory: D:\project\new_jarvis\Sara\myraa-ai-assistant
+[SARA]   Expected port: 3000
+[SARA]   Possible causes:
+[SARA]     • A required dependency is missing
+[SARA]     • Port 3000 is occupied by another process
+[SARA]     • The process crashed immediately (check logs above)
+[SARA]     • Insufficient permissions
+[SARA]   Run with DEVELOPMENT_MODE=true for more verbose output.
+[SARA] ─────────────────────────────────────────────
+
+[SARA][WARN] Backend failed to start. SARA may not be fully functional.
+[SARA] Starting Desktop Agent...
+[SARA] Starting Desktop Agent (D:\project\new_jarvis\Sara\myraa-ai-assistant\.venv-1\Scripts\python.exe -m uvicorn desktop_agent.main:app --host 127.0.0.1 --port 8765)...
+[Backend] [Desktop Agent] Auto-spawned via Python (PID 3100).
+[Desktop Agent][ERR] [20:39:22] [INFO] Loaded 235 desktop tools: _cancelPowerTimer, analyzeScreenshot, brightnessDown, brightnessUp, browserClick, browserGoBack, browserMediaControl, browserOpen, browserScroll, browserSearch, browserTabAction, browserType, clearClipboard, closeAllApplications, closeAnyApplication, closeApplication, closeWindow, compressPath, copyFile, copySelected, createFile, createFolder, createProjectFolder, createPythonFile, deleteFile, desktopBrowserClick, desktopBrowserCloseTab, desktopBrowserFillForm, desktopBrowserGoBack, desktopBrowserGoForward, desktopBrowserKey, desktopBrowserMedia, desktopBrowserNavigate, desktopBrowserOpen, desktopBrowserOpenTab, desktopBrowserReadPage, desktopBrowserReload, desktopBrowserScreenshot, desktopBrowserScroll, desktopBrowserSearch, desktopBrowserType, desktopBrowserZoom, detectUiElements, disableAutoStart, duplicateFile, email_create_task_from_email, email_draft, email_forward, email_read, email_reply, email_schedule_send, email_search, email_send, enableAutoStart, executePowerAction, extractZip, focusWindow, getActiveWindow, getAutoStartStatus, getClipboard, gpuInfo, hardwareKeyboardHold, hardwareKeyboardPress, hardwareKeyboardRelease, hardwareKeyboardType, hardwareMacroReplay, hardwareMouseClick, hardwareMouseDrag, hardwareMouseMove, hardwareMousePosition, hardwareMouseScroll, listFiles, listRunningApplications, listWindows, maximizeWindow, minimizeOtherWindows, minimizeWindow, moveFile, muteToggle, openAnyApplication, openApplication, openCamera, openFolder, openPath, openWebsite, pasteClipboard, readFile, readScreen, recordVideo, renameFile, requestPowerAction, restartExplorer, restoreWindow, runPythonScript, saraAgentEmergencyStop, saraAgentExecute, saraAgentStatus, saraAgentUnloadIdle, saraAndroidExecute, saraAndroidPair, saraAndroidPlan, saraAppExecute, saraAppExecuteGoal, saraAppListPlugins, saraAppPlan, saraBrowserExecute, saraBrowserExecuteGoal, saraBrowserPlan, saraCameraObserve, saraCameraOpen, saraCameraRecordVideo, saraCameraScanQr, saraCameraStopRecording, saraCameraTakePhoto, saraCompanionSuggestNext, saraCredentialList, saraCredentialLoad, saraCredentialRemove, saraCredentialStore, saraDueJobs, saraEvolutionApprove, saraEvolutionList, saraEvolutionPropose, saraEvolutionReject, saraExperienceInsights, saraExperienceList, saraExperienceRecord, saraGoalCheckpoint, saraGoalCreate, saraGoalGet, saraGoalList, saraGoalUpdate, saraHealthLatest, saraHealthRun, saraKnowledgeAdd, saraKnowledgeIngest, saraKnowledgeQuery, saraKnowledgeSourceList, saraKnowledgeValidate, saraLearningForget, saraLearningList, saraLearningMatch, saraLearningTeach, saraMemoryConsolidate, saraMemoryExport, saraMemoryFlush, saraMemoryForget, saraMemoryRemember, saraMemorySearch, saraMemorySync, saraPluginDiscover, saraRagExport, saraRagIndex, saraRagIndexFolder, saraRagIngestDocument, saraRagRemoveDeleted, saraRagRetrieve, saraRagSync, saraRecoveryLatest, saraRecoverySave, saraRlConfigureRewards, saraRlRecord, saraRlSummary, saraRunDueJobs, saraScheduleJob, saraScreenLiveStart, saraScreenLiveStatus, saraScreenLiveStop, saraScreenMonitorSample, saraScreenMonitorStart, saraScreenMonitorStatus, saraScreenMonitorStop, saraSecurityAssess, saraServiceConnect, saraServiceExecute, saraServiceList, saraServiceSession, saraSkillList, saraSkillMatch, saraSkillSave, saraStrategyBest, saraUniversalCommand, saraVoiceExecuteCommand, saraVoiceParseCommand, saraVoiceStopSpeaking, saraVoiceTrainCommand, saraWorkflowList, saraWorkflowSave, saveCapturedPhoto, saveScreenshot, scanQrCode, searchFiles, searchGitHub, searchGoogle, searchWeb, searchYouTube, setBrightness, setVolume, showCapturedMedia, showDesktop, stopVideoRecording, switchApplication, systemInfo, takePhoto, takeScreenshot, temperatureInfo, turnOffDisplay, volumeDown, volumeUp, whatsapp_create_task_from_message, whatsapp_get_contact, whatsapp_get_message_status, whatsapp_group_send, whatsapp_list_chats, whatsapp_open_chat, whatsapp_read_messages, whatsapp_reply, whatsapp_resolve_contact, whatsapp_schedule_send, whatsapp_search_messages, whatsapp_send, whatsapp_send_media, writeCodeFile, youtube_add_to_watch_later, youtube_captions, youtube_fullscreen, youtube_get_info, youtube_pause, youtube_play, youtube_resume, youtube_search, youtube_seek, youtube_transcript, youtube_upload, youtube_volume
+[Desktop Agent][ERR] INFO:     Started server process [9572]
+[Desktop Agent][ERR] INFO:     Waiting for application startup.
+[Desktop Agent][ERR] [20:39:22] [INFO] SARA Desktop Control Agent v1.0.0 starting up.
+[Desktop Agent][ERR] INFO:     Application startup complete.
+[Desktop Agent][ERR] INFO:     Uvicorn running on http://127.0.0.1:8765 (Press CTRL+C to quit)
+[Desktop Agent] INFO:     127.0.0.1:51916 - "GET /health HTTP/1.1" 200 OK
+[SARA] ✓ Desktop Agent is READY on port 8765.
+[SARA] Running health checks...
+[Desktop Agent] INFO:     127.0.0.1:51915 - "GET /health HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] Online after 9s â€” 52 tools available.
+[Desktop Agent] INFO:     127.0.0.1:51918 - "GET /health HTTP/1.1" 200 OK
+
+[SARA] ─────── Health Report ──────────────────────────
+[SARA]   ✓ Database        
+[SARA]   ✓ Memory System   
+[SARA]   ✓ Gemini API Key  
+[SARA]   ✓ Backend/Frontend (68ms)
+[SARA]   ✓ Desktop Agent    (40ms)
+[SARA] ──────────────────────────────────────────────────
+[SARA] ✅  All systems operational. SARA is READY.
+[SARA] ──────────────────────────────────────────────────
+
+[SARA] ████████████████████████████████████
+[SARA] █                                  █
+[SARA] █    SARA IS READY  ✅              █
+[SARA] █                                  █
+[SARA] ████████████████████████████████████
+[SARA] Launching Electron UI...
+(node:16488) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[electron] notify server listening on 127.0.0.1:43123
+[electron] Backend is already running, skipping spawn.
+[Backend] Client WebSocket connected to /live
+[Desktop Agent] INFO:     127.0.0.1:59770 - "GET /health HTTP/1.1" 200 OK
+[Desktop Agent] INFO:     127.0.0.1:50515 - "GET /health HTTP/1.1" 200 OK
+[Desktop Agent] INFO:     127.0.0.1:50515 - "GET /health HTTP/1.1" 200 OK
+[Desktop Agent] INFO:     127.0.0.1:65002 - "GET /health HTTP/1.1" 200 OK
+[Backend] [Function Call]: readScreen { max_chars: 1500 }
+[Backend] [Desktop Agent] Routing readScreen to Python backend...
+[Desktop Agent][ERR] [20:40:32] [INFO] /execute received payload: tool=readScreen args={max_chars=1500}
+[Desktop Agent][ERR] [20:40:32] [INFO] EXEC tool=readScreen args={max_chars=1500}
+[Backend] [Sara Interrupted!]
+[Desktop Agent] INFO:     127.0.0.1:56946 - "GET /health HTTP/1.1" 200 OK
+[Backend] [Function Call]: takeScreenshot { include_image: true }
+[Backend] [Desktop Agent] Routing takeScreenshot to Python backend...
+[Desktop Agent][ERR] [20:40:42] [INFO] /execute received payload: tool=takeScreenshot args={include_image=True}
+[20:40:42] [INFO] EXEC tool=takeScreenshot args={include_image=True}
+[Desktop Agent][ERR] [20:40:43] [INFO] DONE tool=takeScreenshot -> Captured screen (1366x768). | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:56949 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"takeScreenshot","args":{"include_image":true}}
+[Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Desktop Agent] Agent unreachable for readScreen; retrying startup.
+[Desktop Agent] INFO:     127.0.0.1:56955 - "GET /health HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] Already running â€” 52 tools available.
+[Desktop Agent][ERR] [20:40:50] [INFO] /execute received payload: tool=readScreen args={max_chars=1500}
+[Desktop Agent][ERR] [20:40:50] [INFO] EXEC tool=readScreen args={max_chars=1500}
+[Backend][ERR] [Desktop Agent] Error for readScreen: Desktop agent timed out.
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Sara Interrupted!]
+[Backend] [Function Call]: changeBackground { color: 'rose' }
+[Desktop Agent][ERR] [20:41:26] [WARNING] Verification status for readScreen: UNCERTAIN -> Active window 'riddle.txt - myraa-ai-assistant - Visual Studio Code [Administrator]' contains readable text. | Reward Outcome: 1
+[Desktop Agent][ERR] [20:41:27] [INFO] DONE tool=readScreen -> Active window 'SARA' contains readable text. | Reward Outcome: 1
+[Backend] [Sara Interrupted!]
+[Backend] [Function Call]: saveScreenshot { name: 'Error_Screen' }
+[Backend] [Desktop Agent] Routing saveScreenshot to Python backend...
+[Desktop Agent] INFO:     127.0.0.1:64129 - "GET /health HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] Already running â€” 52 tools available.
+[Desktop Agent][ERR] [20:41:58] [INFO] /execute received payload: tool=saveScreenshot args={name='Error_Screen'}
+[Desktop Agent][ERR] [20:41:58] [INFO] EXEC tool=saveScreenshot args={name='Error_Screen'}
+[Desktop Agent][ERR] [20:42:00] [WARNING] Verification status for saveScreenshot: FAILED -> Saved screenshot to C:\Users\k8673\Pictures\SaraScreenshots\Error_Screen-20260814-204158.png. | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:64130 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"saveScreenshot","args":{"name":"Error_Screen"}}
+[Tool Response] All 1 tool response(s) sent successfully.
+[Backend][ERR] [Desktop Agent] Error for saveScreenshot: Verification returned FAILED for tool 'saveScreenshot'.
+[Backend] [Sara Interrupted!]
+[Backend] [Function Call]: createFile {
+  overwrite: true,
+  path: 'C:/Users/tech/Desktop/Sara Issue.txt',
+  content: 'TECH, screen brightness cha issue aahe ka? Windows settings madhe brightness adjust karun paha.'
+}
+[Backend] [Desktop Agent] Routing createFile to Python backend...
+[Desktop Agent][ERR] [20:42:35] [INFO] /execute received payload: tool=createFile args={overwrite=True, path='C:/Users/tech/Desktop/Sara Issue.txt', content='TECH, screen brightness cha issue aahe ka? Windows settings…}
+[Desktop Agent][ERR] [20:42:35] [INFO] EXEC tool=createFile args={overwrite=True, path='C:/Users/tech/Desktop/Sara Issue.txt', content='TECH, screen brightness cha issue aahe ka? Windows settings…}
+[Desktop Agent][ERR] [20:42:35] [WARNING] ToolError in createFile: Path 'C:\Users\tech\Desktop\Sara Issue.txt' is outside SARA's safe folders (Desktop, Documents, Downloads, Pictures, Music, Videos, home, and the project folder). Pass allow_anywhere=true only if you really mean it.
+[Desktop Agent] INFO:     127.0.0.1:64551 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"createFile","args":{"overwrite":true,"path":"C:/Users/tech/Desktop/Sara Issue.txt","content":"TECH, screen brightness cha issue aahe ka? Windows settings madhe brightness adjust karun paha."}}
+[Tool Response] All 1 tool response(s) sent successfully.
+[Backend][ERR] [Desktop Agent] Error for createFile: Path 'C:\Users\tech\Desktop\Sara Issue.txt' is outside SARA's safe folders (Desktop, Documents, Downloads, Pictures, Music, Videos, home, and the project folder). Pass allow_anywhere=true only if you really mean it.
+[Backend] [Function Call]: openFolder { name: 'desktop' }
+[Backend] [Desktop Agent] Routing openFolder to Python backend...
+[Desktop Agent][ERR] [20:42:58] [INFO] /execute received payload: tool=openFolder args={name='desktop'}
+[Desktop Agent][ERR] [20:42:58] [INFO] EXEC tool=openFolder args={name='desktop'}
+[Desktop Agent][ERR] [20:42:58] [INFO] DONE tool=openFolder -> Opened folder: C:\Users\k8673\Desktop | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53868 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"openFolder","args":{"name":"desktop"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: saveCustomMemory {
+  category: 'goal',
+  text: 'The user wants to resolve a potential screen brightness issue causing error messages on their system.'
+}
+[Backend] [Function Call]: createFile { content: '', overwrite: true, path: 'Desktop/Sara Issue.txt' }
+[Backend] [Desktop Agent] Routing createFile to Python backend...
+[Desktop Agent][ERR] [20:43:21] [INFO] /execute received payload: tool=createFile args={content='', overwrite=True, path='Desktop/Sara Issue.txt'}
+[20:43:21] [INFO] EXEC tool=createFile args={content='', overwrite=True, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:43:21] [INFO] DONE tool=createFile -> Created file: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop\Sara Issue.txt | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53928 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"createFile","args":{"content":"","overwrite":true,"path":"Desktop/Sara Issue.txt"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: readFile { path: 'Desktop/Sara Issue.txt' }
+[Backend] [Desktop Agent] Routing readFile to Python backend...
+[Desktop Agent][ERR] [20:43:45] [INFO] /execute received payload: tool=readFile args={path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:43:45] [INFO] EXEC tool=readFile args={path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:43:45] [WARNING] Verification status for readFile: UNCERTAIN ->  | Reward Outcome: -1
+[Desktop Agent] INFO:     127.0.0.1:53986 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"readFile","args":{"path":"Desktop/Sara Issue.txt"}}
+[Backend][ERR] [Desktop Agent] Error for readFile: Verification returned UNCERTAIN for tool 'readFile'.
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: createFile {
+  content: 'डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.',
+  overwrite: true,
+  path: 'Desktop/Sara Issue.txt'
+}
+[Backend] [Desktop Agent] Routing createFile to Python backend...
+[Desktop Agent][ERR] [20:43:47] [INFO] /execute received payload: tool=createFile args={content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, overwrite=True, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:43:47] [INFO] EXEC tool=createFile args={content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, overwrite=True, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:43:47] [INFO] DONE tool=createFile -> Created file: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop\Sara Issue.txt | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53986 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"createFile","args":{"content":"डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.","overwrite":true,"path":"Desktop/Sara Issue.txt"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: readFile { path: 'Desktop/Sara Issue.txt' }
+[Backend] [Desktop Agent] Routing readFile to Python backend...
+[Desktop Agent][ERR] [20:44:09] [INFO] /execute received payload: tool=readFile args={path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:09] [INFO] EXEC tool=readFile args={path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:09] [WARNING] Verification status for readFile: UNCERTAIN -> \u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not working correctly. | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53993 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"readFile","args":{"path":"Desktop/Sara Issue.txt"}}
+[Backend][ERR] [Desktop Agent] Error for readFile: Verification returned UNCERTAIN for tool 'readFile'.
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: writeCodeFile {
+  language: 'text',
+  content: 'डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.\n' +
+    'स्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.',
+  overwrite: true,
+  path: 'Desktop/Sara Issue.txt'
+}
+[Backend] [Desktop Agent] Routing writeCodeFile to Python backend...
+[Desktop Agent][ERR] [20:44:11] [INFO] /execute received payload: tool=writeCodeFile args={language='text', content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, overwrite=True, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:11] [INFO] EXEC tool=writeCodeFile args={language='text', content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, overwrite=True, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:11] [WARNING] Verification status for writeCodeFile: UNCERTAIN -> Wrote text file: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop\Sara Issue.txt | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53993 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"writeCodeFile","args":{"language":"text","content":"डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.\nस्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.","overwrite":true,"path":"Desktop/Sara Issue.txt"}}
+[Backend][ERR] [Desktop Agent] Error for writeCodeFile: Verification returned UNCERTAIN for tool 'writeCodeFile'.
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: clearClipboard {}
+[Backend] [Desktop Agent] Routing clearClipboard to Python backend...
+[Desktop Agent][ERR] [20:44:12] [INFO] /execute received payload: tool=clearClipboard args={}
+[Desktop Agent][ERR] [20:44:12] [INFO] EXEC tool=clearClipboard args={}
+[Desktop Agent][ERR] [20:44:12] [WARNING] Verification status for clearClipboard: UNCERTAIN -> Clipboard cleared. | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53993 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"clearClipboard","args":{}}
+[Backend][ERR] [Desktop Agent] Error for clearClipboard: Verification returned UNCERTAIN for tool 'clearClipboard'.
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: createFile {
+  overwrite: true,
+  content: 'स्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.',
+  path: 'Desktop/Sara Issue.txt'
+}
+[Backend] [Desktop Agent] Routing createFile to Python backend...
+[Desktop Agent][ERR] [20:44:44] [INFO] /execute received payload: tool=createFile args={overwrite=True, content='\u0938\u094d\u0915\u094d\u0930\u0940\u0928 \u0936\u0947\u0905\u0930\u093f\u0902\u0917 \u092a\u0923 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940\u092f\u0947. / Screen sharing is also…, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:44] [INFO] EXEC tool=createFile args={overwrite=True, content='\u0938\u094d\u0915\u094d\u0930\u0940\u0928 \u0936\u0947\u0905\u0930\u093f\u0902\u0917 \u092a\u0923 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940\u092f\u0947. / Screen sharing is also…, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:44:44] [INFO] DONE tool=createFile -> Created file: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop\Sara Issue.txt | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:53998 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"createFile","args":{"overwrite":true,"content":"स्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.","path":"Desktop/Sara Issue.txt"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: createFile {
+  overwrite: true,
+  content: 'डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.\n' +
+    'स्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.\n' +
+    'व्हॉट्सॲप ऑटोमेशन पण चालत नाहीये. / WhatsApp automation is also not working.',
+  path: 'Desktop/Sara Issue.txt'
+}
+[Backend] [Desktop Agent] Routing createFile to Python backend...
+[Desktop Agent][ERR] [20:45:03] [INFO] /execute received payload: tool=createFile args={overwrite=True, content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:45:03] [INFO] EXEC tool=createFile args={overwrite=True, content='\u0921\u0947\u0938\u094d\u0915\u091f\u0949\u092a \u090f\u091c\u0902\u091f \u092c\u0930\u094b\u092c\u0930 \u0915\u093e\u092e \u0915\u0930\u0924 \u0928\u093e\u0939\u0940. / Desktop agent is not wo…, path='Desktop/Sara Issue.txt'}
+[Desktop Agent][ERR] [20:45:03] [INFO] DONE tool=createFile -> Created file: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop\Sara Issue.txt | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:54024 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"createFile","args":{"overwrite":true,"content":"डेस्कटॉप एजंट बरोबर काम करत नाही. / Desktop agent is not working correctly.\nस्क्रीन शेअरिंग पण काम करत नाहीये. / Screen sharing is also not working.\nव्हॉट्सॲप ऑटोमेशन पण चालत नाहीये. / WhatsApp automation is also not working.","path":"Desktop/Sara Issue.txt"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[Backend] [Function Call]: openFolder { path: 'D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\Desktop' }
+[Backend] [Desktop Agent] Routing openFolder to Python backend...
+[Desktop Agent][ERR] [20:45:25] [INFO] /execute received payload: tool=openFolder args={path='D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\Desktop'}
+[Desktop Agent][ERR] [20:45:25] [INFO] EXEC tool=openFolder args={path='D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\Desktop'}
+[Desktop Agent][ERR] [20:45:25] [INFO] DONE tool=openFolder -> Opened folder: D:\project\new_jarvis\Sara\myraa-ai-assistant\Desktop | Reward Outcome: 1
+[Desktop Agent] INFO:     127.0.0.1:54052 - "POST /execute HTTP/1.1" 200 OK
+[Backend] [Desktop Agent] POST /execute -> http://127.0.0.1:8765/execute body={"tool":"openFolder","args":{"path":"D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\Desktop"}}
+[Backend] [Tool Response] All 1 tool response(s) sent successfully.
+[SARA] Shutdown requested...
+[SARA] Stopping Backend...
+[SARA] Stopping Desktop Agent...
+(.venv-1) PS D:\project\new_jarvis\Sara\myraa-ai-assistant> 
+
+
+
+
+
+
+

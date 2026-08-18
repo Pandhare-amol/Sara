@@ -1,0 +1,2 @@
+Software: Gesture control software specific to camera model, or open-source solutions like MediaPipe.
+Resources: Stable internet connection for downloading drivers, potentially external specialized camera, system performance review (CPU/RAM usage).

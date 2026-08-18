@@ -1,0 +1,454 @@
+{
+  "files": [
+    {
+      "file": "src\\App.tsx",
+      "hash": "09e77f368b7d813dfa9043a3c3e3f62517cd27c777ffc1a8dd5bbacff734019d"
+    },
+    {
+      "file": "src\\components\\AdminSecurityDashboard.tsx",
+      "hash": "c56f7438943d2c53b432f11d9fbd428f588b1428566b0b1a41987f638fc19d13"
+    },
+    {
+      "file": "src\\components\\ApiKeyGate.tsx",
+      "hash": "81f8f105aed6a1223478a5693a2947d67a1c24bedcd2f607eef039d871bbb0d7"
+    },
+    {
+      "file": "src\\components\\BrowserAgent.tsx",
+      "hash": "c57ab008fe6c9931ce4aa53a14a1533beaf4873ebca33b206406b42218d4f395"
+    },
+    {
+      "file": "src\\components\\BrowserVisionFallback.tsx",
+      "hash": "a576d82b39bc0249473ebe788f9f332c848fe359c2c19d7956ef6b9840515326"
+    },
+    {
+      "file": "src\\components\\CameraPanel.tsx",
+      "hash": "b6a8b53ab807c49a2c69c117446250a394e0cc717918d213d7452d94a7d6c44b"
+    },
+    {
+      "file": "src\\components\\ConfirmationPanel.tsx",
+      "hash": "615e53ef733104ea362a633756b9aaa19fc422a499b30b25c4403c0876cf891f"
+    },
+    {
+      "file": "src\\components\\DesktopChatPanel.tsx",
+      "hash": "2fa57d71224524c57ddbb079f48a782bdb5b6c5a69ff6425504b0b7c92b838cb"
+    },
+    {
+      "file": "src\\components\\DesktopConversationsPanel.tsx",
+      "hash": "8b336b4a491e20ba3f75e477407714d81781743f870c4b0623bc9b8a2bf4ab39"
+    },
+    {
+      "file": "src\\components\\GestureControlPanel.tsx",
+      "hash": "d863ed88f15ee75fb6c6489dc00c9532797694d0347c758c57af3941e276aa0c"
+    },
+    {
+      "file": "src\\components\\GestureMappingEditor.tsx",
+      "hash": "5f6f0a12b5d45215ebc8cc99aa9a8fbdd9f2a443c162fca243a1d5fda969917e"
+    },
+    {
+      "file": "src\\components\\HolographicProjector.tsx",
+      "hash": "434e7b05e3dfedbd1aa1724595544d2bf8a2ea31020ae1bcd24ac4aa891ad145"
+    },
+    {
+      "file": "src\\components\\MemoryDashboard.tsx",
+      "hash": "abac24a436749b77daf7b1d1394f58564e5bf50fc5d6a5a79ac3d710ec096266"
+    },
+    {
+      "file": "src\\components\\SaraCoreVisualizer.tsx",
+      "hash": "27dd20d5cab7208b7a6a089785044efe273ee899e2aa43546a306dad29e550b7"
+    },
+    {
+      "file": "src\\components\\SettingsPanel.tsx",
+      "hash": "4b8d6e6a34b06c00c683a4f80b1c58a1310656666c703a2f6047f913a07e3989"
+    },
+    {
+      "file": "src\\components\\WhatsAppPanel.tsx",
+      "hash": "dee0f67adfd8ad658d1ac6a5dfc2b7d1e44282f605da0f0d81ac32268fcd12ec"
+    },
+    {
+      "file": "src\\config\\saraProfile.ts",
+      "hash": "2c533fab97b07c956f2201c3dc5d2d40ed49611b7851a06030cbeb7f63967c4d"
+    },
+    {
+      "file": "src\\index.css",
+      "hash": "f57e393c43711b2137436f23352e53188e0dd1ec515a75f645c46f7c83a0d15d"
+    },
+    {
+      "file": "src\\lib\\audio.ts",
+      "hash": "21b31c887823b92cd9012c89de2272d2388f4d60154fe4385a8e6a826a265fcc"
+    },
+    {
+      "file": "src\\lib\\desktopConversationStore.ts",
+      "hash": "baa0f46b6bf6838b2df8f3c0025e377bb6e986679bc5d308b7bafc01248c962b"
+    },
+    {
+      "file": "src\\lib\\memoryTypes.js",
+      "hash": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230"
+    },
+    {
+      "file": "src\\lib\\memoryTypes.ts",
+      "hash": "5c591ed7d422a8e7e697a368a0cc211358c0a5ab0ebc0cf3886184e2e5035743"
+    },
+    {
+      "file": "src\\lib\\settingsStore.ts",
+      "hash": "3b64b05af997c938033e2fe9e137a6e6e5df18adef73adbe128fbcdb4b85086a"
+    },
+    {
+      "file": "src\\lib\\wakeWord.ts",
+      "hash": "14141ab6851a7e614da29dbc043c544de22880d70701c0dbcd985d54b1d52f7b"
+    },
+    {
+      "file": "src\\main.tsx",
+      "hash": "3b10a4a0ed3611c95bd11eff9b8c6fd23b923bca99851e03c3f420b97eaba56f"
+    },
+    {
+      "file": "src\\security\\auditLogger.ts",
+      "hash": "7ec09b19ba150c942f3e896a5508fbf807389ccecb6cc1238d876f1514c132a1"
+    },
+    {
+      "file": "src\\security\\buildIdentity.ts",
+      "hash": "0359ada79104da5200c61d60ed3c98f0c8954ac94723dacf2d434c7f727f63a9"
+    },
+    {
+      "file": "src\\security\\integrityMonitor.ts",
+      "hash": "2f797caebe0074b233c1047f0703cb6ff8c9721d1f82dff0e0ba055bb344eed8"
+    },
+    {
+      "file": "src\\security\\integrityVerifier.ts",
+      "hash": "785a2de9356e56077aaeba6f263b031821ab0e621b1ac731b4d932b7268a6223"
+    },
+    {
+      "file": "src\\security\\notificationManager.ts",
+      "hash": "651ea7374abe28790656a3d776ef93411839debc159e802e14baa112e03e118e"
+    },
+    {
+      "file": "src\\security\\notifications.ts",
+      "hash": "a1f8eb1742e44426d3bb598b20ca4b2614ae2c610cf1175d8a255fc1134c2a3d"
+    },
+    {
+      "file": "src\\security\\securityManager.ts",
+      "hash": "1bed23744b51177e89e0f3bbd620adea9ef66bed36061619ce03acdb0206c50f"
+    },
+    {
+      "file": "src\\server_state.ts",
+      "hash": "51f76fb47a51d4e9340fc8c01aaf9df06706097667977c3c5f1da6f6621c2dd0"
+    },
+    {
+      "file": "src\\wake\\nullWake.ts",
+      "hash": "7224783726dce087a14d1ecbd3aab17576bfad0f5fb592d6f510201e8c9e8cd7"
+    },
+    {
+      "file": "src\\wake\\porcupineWake.ts",
+      "hash": "30ba2efe068572d27dc1d3b10300600e44ed9733846b003a84da298f8510eb43"
+    },
+    {
+      "file": "src\\wake\\wakeInterface.ts",
+      "hash": "c091ea50078a047d61a4b4bd02b42192b38c30b3ae35e467b6d20a834b26aa22"
+    },
+    {
+      "file": "src\\whatsapp_client.ts",
+      "hash": "bb57a6342c3d09919cad4ad17b1cf4d10199b51ba434faf3a92deedfbf894a0c"
+    },
+    {
+      "file": "desktop_agent\\agents.py",
+      "hash": "fc65e6bcbd0ba78daf0c07f1f311c436606ac119087481bc38c4943dfbf5c08b"
+    },
+    {
+      "file": "desktop_agent\\android_api.py",
+      "hash": "299985a32445e7d7e5e8034ba24c82a267361ce3e1b44e298636480e51c8298f"
+    },
+    {
+      "file": "desktop_agent\\android_companion.py",
+      "hash": "d862fc778390436bb17ac694d390210aaf57aceb4ba4957908b9e149d998ec78"
+    },
+    {
+      "file": "desktop_agent\\android_tools.py",
+      "hash": "e2cc83feb45ee3539c51a1fd93a22796779602f93677c709ab8b039af7dbac01"
+    },
+    {
+      "file": "desktop_agent\\app_automation_suite.py",
+      "hash": "8a192c5a2fb1c77e9d74c74d345e9778ac2f6958e22d264dc73f378486492b3f"
+    },
+    {
+      "file": "desktop_agent\\browser_automation_suite.py",
+      "hash": "531d0681a7b9b2fcc8b277e0fc6538d6099789bd29686419b92693c1de1670d1"
+    },
+    {
+      "file": "desktop_agent\\checkpoint_agent.py",
+      "hash": "829b94a0db15c012480470c86ceadcc5f0755d232f1c487605425bffa7c898f4"
+    },
+    {
+      "file": "desktop_agent\\checkpoint_schema.sql",
+      "hash": "029a00cf686731067cd2a4322cf9581816122e59c162e07f48e759d2b6990982"
+    },
+    {
+      "file": "desktop_agent\\gesture_engine.py",
+      "hash": "f9ccd188dda957c7b1557a9168d93d3c1af4d8401b2c519028984b7c67950347"
+    },
+    {
+      "file": "desktop_agent\\gesture_forward_tool.py",
+      "hash": "1e3c5324e668efc0e8d5e38ac56affeade23b95fab86d689bd4ad9e637ef6261"
+    },
+    {
+      "file": "desktop_agent\\gesture_mapper.py",
+      "hash": "c6a10209de1fe5c61af2ec2d3700deb887bad68e18a6b35203f85af196c2d166"
+    },
+    {
+      "file": "desktop_agent\\gesture_tools.py",
+      "hash": "c3280da0abf9e3bc1b65f221fbcec55b0d5b05198e41ac6d6f009dbc9e4c57d6"
+    },
+    {
+      "file": "desktop_agent\\main.py",
+      "hash": "421155801c461030b5f65b61ea4eb8bc644b02df1d9fee3feee105e284e951be"
+    },
+    {
+      "file": "desktop_agent\\memory_agent.py",
+      "hash": "7eb8d9151a5e1fd21c8aa05fb534aa2d3df48bbaa82ce7013ca6d6ad3fc22884"
+    },
+    {
+      "file": "desktop_agent\\models\\README.md",
+      "hash": "692f844204a5d5fb3fda540cb21b825e29109dfa4561578b398bb99e101ccda8"
+    },
+    {
+      "file": "desktop_agent\\os_control_suite.py",
+      "hash": "416f7800221609cac42de176071b387b01a2ccaccd7a0fb23e63bed24af62475"
+    },
+    {
+      "file": "desktop_agent\\platform_core.py",
+      "hash": "15e64a4ec89bb351106105ab0373b01d3c39c30da0d8934c5523665b83745a1d"
+    },
+    {
+      "file": "desktop_agent\\README.md",
+      "hash": "5f32f64f1a229b82d345e7d6f64af9db8e28b374eb9610c42a6cf27888477e1c"
+    },
+    {
+      "file": "desktop_agent\\registry.py",
+      "hash": "5720c96ef212e4591ab4cba298f7bc65279caa45866c3e5958b953c986749ccf"
+    },
+    {
+      "file": "desktop_agent\\requirements.txt",
+      "hash": "ff5b8b9a9402214cdb3a0c56bc092c56e92d780fd2aa3573fbfa0d19374748fb"
+    },
+    {
+      "file": "desktop_agent\\reward_engine.py",
+      "hash": "b091d18c5e64c9309b595ecb2598edbd44d2d76a01987bb4c0679a2ac144b111"
+    },
+    {
+      "file": "desktop_agent\\screen_monitor.py",
+      "hash": "bbc327e54603eb6ac66c70f09806b7bbc66bdbcc655da92d2b44dac0de0683ca"
+    },
+    {
+      "file": "desktop_agent\\service_integrations.py",
+      "hash": "a0e440413d99700948be05bc0cd822a66678d289999a67e35a08656bdc851adb"
+    },
+    {
+      "file": "desktop_agent\\sqlite_memory.py",
+      "hash": "fa4db0be0c0cd92aea09504e0ac09b7d175704bc8a3cf1f6151b7ccd64fd88ab"
+    },
+    {
+      "file": "desktop_agent\\state_watcher.py",
+      "hash": "a83047662137a6579a8c96916025c0617b3fe86ec24bc8b55f5e04441a26e9a5"
+    },
+    {
+      "file": "desktop_agent\\stt.py",
+      "hash": "418f59f71d5becbf9101147b6b180e329e01555dd82850e7994471daa9072eb0"
+    },
+    {
+      "file": "desktop_agent\\test_agents.py",
+      "hash": "c7d0f442a3b07d6d1ec969340d26ed3445376010dab4c29f42f085afcc5d0f38"
+    },
+    {
+      "file": "desktop_agent\\test_android_companion.py",
+      "hash": "35dd8863446a9d83d3222c9611c38b5b5704235175c47c0c9749712624788cd6"
+    },
+    {
+      "file": "desktop_agent\\test_app_automation_suite.py",
+      "hash": "d3d4c1bafc87d6a8fb9238bb9a17596b88f9337313e602f5c7bec294c8ff720c"
+    },
+    {
+      "file": "desktop_agent\\test_browser_automation_suite.py",
+      "hash": "91fe0abb6d66dfd795c8c639c9ea294d125a375794120be483b5e7e2091db7b0"
+    },
+    {
+      "file": "desktop_agent\\test_os_control_suite.py",
+      "hash": "a38b6f68cb696e45117ee3a69cf3fb7693d83fb7025865a9e4066f0c0d6fda9e"
+    },
+    {
+      "file": "desktop_agent\\test_platform_core.py",
+      "hash": "26bd967ba3a5ead211e8d2db949f87d2efe7b7828baa650b1280cda8a7af4e0e"
+    },
+    {
+      "file": "desktop_agent\\test_screen_monitor.py",
+      "hash": "1f85f4626bd88430f22ed421c905434cd178c2a2090c276853a2afcc03592638"
+    },
+    {
+      "file": "desktop_agent\\test_service_integrations.py",
+      "hash": "c380ce3631d3781abf8d9ff7fdffc66cce89f708b336f7d2bbf448da82c4e6d8"
+    },
+    {
+      "file": "desktop_agent\\test_voice_command_router.py",
+      "hash": "72e6f5b3ace4430863bca26fb4c44a8d6aac59ec435a867fe2b7f9c3599f7736"
+    },
+    {
+      "file": "desktop_agent\\test_whatsapp_email_youtube.py",
+      "hash": "2f13f74a80f4ef89f0f3a9fe250d86e4f32fccb130681b572fa09ed2771c9185"
+    },
+    {
+      "file": "desktop_agent\\tools_applications.py",
+      "hash": "817189ef7fa321be4da8d6d8a4081ce83dc10d80c80ad8aaeadbce0df460d76c"
+    },
+    {
+      "file": "desktop_agent\\tools_app_suite.py",
+      "hash": "06b2609c5782a84e1384d09ebece4c08b1623c58816a231db0d4b3c72e2a66c2"
+    },
+    {
+      "file": "desktop_agent\\tools_background.py",
+      "hash": "756afd22b7746fcf1b2f904fc8a6748bc49213db56cfe283195fdbc4a5b83b69"
+    },
+    {
+      "file": "desktop_agent\\tools_browser.py",
+      "hash": "e9b77450eb3e2bb120e10eb23e2c89b93be9b546d426567ee63250abe0d69cc9"
+    },
+    {
+      "file": "desktop_agent\\tools_browser_suite.py",
+      "hash": "9926ddcdffb07f190b8e69fc5c887f10f59f94f2efde64d42fbf5ec293592914"
+    },
+    {
+      "file": "desktop_agent\\tools_camera.py",
+      "hash": "904fe890828b153cc975766f0dd5d944a5f2bd44bc35d8c96f62435f0573f5ce"
+    },
+    {
+      "file": "desktop_agent\\tools_camera_suite.py",
+      "hash": "aeb44fc156b882a759e9e4ad135357658c82c64958b43243c4f59653059ff90c"
+    },
+    {
+      "file": "desktop_agent\\tools_clipboard.py",
+      "hash": "4618882b88fa257a1e42ee7ecb66e98d06aaca46de3ec31a68099a167ef17926"
+    },
+    {
+      "file": "desktop_agent\\tools_coding.py",
+      "hash": "7c076fd0403c01ceee82650c858d041ca08268f6f584a596deb585732af3ad48"
+    },
+    {
+      "file": "desktop_agent\\tools_confirmation.py",
+      "hash": "51af649582839b9309ee2482df53bbd04ce9ec79055a8f1bd5ad92c7686c06f0"
+    },
+    {
+      "file": "desktop_agent\\tools_email.py",
+      "hash": "80f9a5c3525c605d76943f7aa1cd0f23faa68530700ac024b4aa8df1ed14284e"
+    },
+    {
+      "file": "desktop_agent\\tools_files.py",
+      "hash": "922df20e984e9751f6d8d8f2a2d7e1f5bc380968988dd6bd3c4fdd07dd70c328"
+    },
+    {
+      "file": "desktop_agent\\tools_file_extra.py",
+      "hash": "a9637999fa59f83bfeed44d89978f019d49caec3f4e32f8e68f8dc9636011670"
+    },
+    {
+      "file": "desktop_agent\\tools_hardware.py",
+      "hash": "f32a05e1d1ecf9a6e859595e0c5c5d8237a852940d5cdafc50c5fc67f712236b"
+    },
+    {
+      "file": "desktop_agent\\tools_learning.py",
+      "hash": "a25523fc72d7c0b73bbf9296ca6ef4b39b87e3811806701f8c605598ca37b879"
+    },
+    {
+      "file": "desktop_agent\\tools_multi_agent.py",
+      "hash": "c89dc101fa6524d97a4d20e4c728dc3053b0ebbec3690a6bdf13f3155a8e46b9"
+    },
+    {
+      "file": "desktop_agent\\tools_pc.py",
+      "hash": "cf8f1c9be245c43929f8296a0fcfb895165430b7521b3ad7ee40fdbef41855c4"
+    },
+    {
+      "file": "desktop_agent\\tools_platform.py",
+      "hash": "7562ac95edb926d6ce2c29093c5d91e920e803d96ba941ea36c0b5ec7bfc35fe"
+    },
+    {
+      "file": "desktop_agent\\tools_rag.py",
+      "hash": "1c7c03d10aad61d265a7dcf801c8452148cf90d3b532dda608c0bad1f45cc55d"
+    },
+    {
+      "file": "desktop_agent\\tools_screenshot.py",
+      "hash": "24309d6c82dd66eb572e1d9ae1e79059b66e4f906aaa70bda02297b0d80b02b6"
+    },
+    {
+      "file": "desktop_agent\\tools_screen_monitor.py",
+      "hash": "b17d7473cd071acc4bf44d407e72612c977cdd4b1f363d92bbf01a3146879c60"
+    },
+    {
+      "file": "desktop_agent\\tools_search.py",
+      "hash": "0015c953ccadc40238d0f2b10a77c3b0d157cb22716f036fcfde5e6054691319"
+    },
+    {
+      "file": "desktop_agent\\tools_service_integrations.py",
+      "hash": "d21cb02cd6daba18671970a9d2bd8f1f0c19bd14f9b2138fdb37f1d9d7a289e5"
+    },
+    {
+      "file": "desktop_agent\\tools_startup.py",
+      "hash": "761def66364e1cd228efc0563f36c803972f1bdcef7d304f5a12e4bba843196e"
+    },
+    {
+      "file": "desktop_agent\\tools_system.py",
+      "hash": "18e2a9c55bd0021a6aac5ae78ac73f92340a4d6d23ce6a2ad5c5f6a41e8a97ef"
+    },
+    {
+      "file": "desktop_agent\\tools_universal_command.py",
+      "hash": "3cd7cc285da0a4a8e8a7e781ec82ec96e36acc4b95168f2cfb798a92828a077e"
+    },
+    {
+      "file": "desktop_agent\\tools_vision.py",
+      "hash": "83315b5f07cac545982b98a1abb042f19de4e13e548c786b8113b3e0e1c785fe"
+    },
+    {
+      "file": "desktop_agent\\tools_voice_os.py",
+      "hash": "274135488f8f3b4ca9b3ae22b7c770b21a8cbe38ef81e34ff75de5a9f6eb8526"
+    },
+    {
+      "file": "desktop_agent\\tools_websites.py",
+      "hash": "c6f27906b7c3e7f3270723a603875392c6bc5fc1c8ad4e9b8ab6cf7679c580cb"
+    },
+    {
+      "file": "desktop_agent\\tools_whatsapp.py",
+      "hash": "31d6c4ac08637bf51ea6b5daede69c687d76e6ddb6c1c78922eb4c7918281c35"
+    },
+    {
+      "file": "desktop_agent\\tools_windows.py",
+      "hash": "b9d9fb16a4347adc22bc4303be621ec55e54274c0751e054d8fbcc480cb20094"
+    },
+    {
+      "file": "desktop_agent\\tools_window_extra.py",
+      "hash": "cf6d82cadabc591c1148fe8804deb6709a2c2ded5615e348a569395bd91434dd"
+    },
+    {
+      "file": "desktop_agent\\tools_youtube.py",
+      "hash": "6c8c9a0b00003b9d7f58edad78cede5fabecf7c72a9122dfc34177878c31a79e"
+    },
+    {
+      "file": "desktop_agent\\verification.py",
+      "hash": "0b19d1494a66e108eb3507dd79001562cd36f9e1092853b060e9500866f56750"
+    },
+    {
+      "file": "desktop_agent\\vision_engine.py",
+      "hash": "84642116c143d63bb8821342980d58b0e03fbbb24e596b8d8030453d06dd0ccc"
+    },
+    {
+      "file": "desktop_agent\\voice_command_router.py",
+      "hash": "07af90d7c89bc88524324a2833b3df34ada72879135373b20e002202495ab2db"
+    },
+    {
+      "file": "desktop_agent\\__init__.py",
+      "hash": "658828668e83bd390a0ca070651a83a70fb3e9962dad9ab4bad16c930beea0b0"
+    },
+    {
+      "file": "server_full.ts",
+      "hash": "63c3cffeeb8313789dfabce74ad50e73c0ce38cc0981eaae09f69babfd72f1e8"
+    },
+    {
+      "file": "package.json",
+      "hash": "c731e9c2cb1288868d6bc50f77370684bb766fd98df9c6260b935f981583ee02"
+    }
+  ],
+  "generated_at": "2026-08-15T08:07:44.350Z",
+  "source_revision": "5cb1f9c0"
+}

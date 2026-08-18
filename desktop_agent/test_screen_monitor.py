@@ -12,11 +12,19 @@ class ScreenMonitorTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.old_data_dir = os.environ.get("SARA_DATA_DIR")
         os.environ["SARA_DATA_DIR"] = self.tmp.name
+
+        import desktop_agent.platform_core as platform_core
         import desktop_agent.screen_monitor as screen_monitor
 
+        platform_core.close_all_services()
         self.screen_monitor = importlib.reload(screen_monitor)
 
     def tearDown(self) -> None:
+        try:
+            import desktop_agent.platform_core as platform_core
+            platform_core.close_all_services()
+        except Exception:
+            pass
         if self.old_data_dir is None:
             os.environ.pop("SARA_DATA_DIR", None)
         else:

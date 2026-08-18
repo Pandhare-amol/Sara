@@ -27,6 +27,8 @@ interface SettingsPanelProps {
   /** Persist a settings patch (also notifies App of changes). */
   onChange: (patch: Partial<SaraSettings>) => void;
   themeColor: string;
+  /** When true, disables inputs because Sara is actively running */
+  locked?: boolean;
 }
 
 type SettingsTab = "general" | "voice" | "system" | "about";
@@ -37,11 +39,13 @@ function ToggleRow({
   description,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="pt-2 border-t border-white/5 flex items-center justify-between text-left">
@@ -52,10 +56,11 @@ function ToggleRow({
         </span>
       </div>
       <button
-        onClick={() => onChange(!checked)}
-        className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none cursor-pointer ${
-          checked ? "bg-cyan-500" : "bg-white/10"
-        }`}
+        onClick={() => !disabled && onChange(!checked)}
+        disabled={disabled}
+        className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+        } ${checked ? "bg-cyan-500" : "bg-white/10"}`}
       >
         <div
           className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-200 ease-in-out ${
@@ -67,7 +72,7 @@ function ToggleRow({
   );
 }
 
-export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor }: SettingsPanelProps) {
+export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor, locked }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [agentHealth, setAgentHealth] = useState<{
@@ -93,36 +98,76 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
   }, [isOpen]);
 
   // Probe desktop agent health (port 8765) via the server-side logs/health proxy.
+  // FIXED: Use AbortController to prevent overlapping requests causing Chromium OnSizeReceived -2 error.
   useEffect(() => {
     if (!isOpen) return;
+    let abortController: AbortController | null = null;
+    let isPending = false;
+
     const probe = async () => {
+      // Prevent overlapping requests (fixes OnSizeReceived -2 error)
+      if (isPending) return;
+      
+      isPending = true;
       try {
-        // Re-use the local agent directly (same machine, same browser).
-        const res = await fetch("http://127.0.0.1:8765/health", { cache: "no-store" });
-        if (!res.ok) {
-          setAgentHealth({ online: false });
-          return;
-        }
-        const data = await res.json();
-        setAgentHealth({ online: true, toolCount: data.tool_count });
-      } catch {
-        // Cross-origin may fail; try the server proxy as a fallback.
+        // Cancel previous request if still pending
+        abortController?.abort();
+        abortController = new AbortController();
+
         try {
-          const res2 = await fetch("/api/agent-health", { cache: "no-store" });
-          if (res2.ok) {
-            const d = await res2.json();
-            setAgentHealth({ online: !!d.online, toolCount: d.tool_count });
+          // Try local agent directly (same machine, same browser).
+          const res = await Promise.race([
+            fetch("http://127.0.0.1:8765/health", {
+              cache: "no-store",
+              signal: abortController.signal,
+            }),
+            new Promise<Response>((_r, rej) =>
+              setTimeout(() => rej(new Error("timeout")), 3500)
+            ),
+          ]);
+          if (!res.ok) {
+            setAgentHealth({ online: false });
             return;
           }
-        } catch {
-          /* ignore */
+          const data = await res.json();
+          setAgentHealth({ online: true, toolCount: data.tool_count });
+        } catch (directErr: any) {
+          // Cross-origin may fail; try the server proxy as a fallback.
+          if (directErr?.name !== "AbortError") {
+            try {
+              const res2 = await Promise.race([
+                fetch("/api/agent-health", {
+                  cache: "no-store",
+                  signal: abortController.signal,
+                }),
+                new Promise<Response>((_r, rej) =>
+                  setTimeout(() => rej(new Error("timeout")), 3500)
+                ),
+              ]);
+              if (res2.ok) {
+                const d = await res2.json();
+                setAgentHealth({ online: !!d.online, toolCount: d.tool_count });
+                return;
+              }
+            } catch {
+              /* ignore fallback failure */
+            }
+          }
+          setAgentHealth({ online: false });
         }
-        setAgentHealth({ online: false });
+      } finally {
+        isPending = false;
       }
     };
+
+    // Initial probe
     probe();
-    const id = setInterval(probe, 5000);
-    return () => clearInterval(id);
+    // Poll every 10 seconds (reduced from 5 to prevent request flooding)
+    const id = setInterval(probe, 10000);
+    return () => {
+      clearInterval(id);
+      abortController?.abort();
+    };
   }, [isOpen]);
 
   const getThemeBadgeGlow = () => {
@@ -191,6 +236,12 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
               </button>
             </div>
 
+            {locked && (
+              <div className="px-6 py-3 border-b border-amber-500/10 bg-amber-900/10 text-amber-300 text-sm">
+                Settings are locked while Sara is active. Stop Sara to change preferences.
+              </div>
+            )}
+
             {/* Tab selector row â€” mirrors MemoryDashboard pill style */}
             <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2 overflow-x-auto">
               {tabs.map((t) => {
@@ -236,6 +287,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                         body: JSON.stringify({ autoStart: v }),
                       }).catch(() => {});
                     }}
+                    disabled={locked}
                   />
 
                   <ToggleRow
@@ -243,6 +295,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                     description="Enable motion and orb transitions"
                     checked={settings.animations}
                     onChange={(v) => onChange({ animations: v })}
+                    disabled={locked}
                   />
 
                   {settings.autoStart && (
@@ -268,6 +321,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                     description="Always-listen for the activation phrase"
                     checked={settings.wakeWordEnabled}
                     onChange={(v) => onChange({ wakeWordEnabled: v })}
+                    disabled={locked}
                   />
 
                   <div className="space-y-1.5">
@@ -277,9 +331,10 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                     <input
                       type="text"
                       value={settings.wakePhrase}
-                      onChange={(e) => onChange({ wakePhrase: e.target.value })}
+                      onChange={(e) => !locked && onChange({ wakePhrase: e.target.value })}
                       placeholder="hey sara"
-                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition"
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                     <span className="text-[8px] text-slate-500 uppercase font-mono">
                       Say this phrase to activate Sara
@@ -292,8 +347,9 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                     </label>
                     <select
                       value={settings.language || "en"}
-                      onChange={(e) => onChange({ language: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition cursor-pointer"
+                      onChange={(e) => !locked && onChange({ language: e.target.value })}
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <option value="en">English</option>
                       <option value="hi">Hindi (हिंदी)</option>
@@ -317,8 +373,9 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                     </label>
                     <select
                       value={settings.micDeviceId}
-                      onChange={(e) => onChange({ micDeviceId: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition cursor-pointer"
+                      onChange={(e) => !locked && onChange({ micDeviceId: e.target.value })}
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <option value="">System Default</option>
                       {mics.map((m, i) => (
@@ -348,8 +405,9 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                       min={0}
                       max={100}
                       value={settings.sensitivity}
-                      onChange={(e) => onChange({ sensitivity: Number(e.target.value) })}
-                      className="w-full accent-cyan-500 cursor-pointer"
+                      onChange={(e) => !locked && onChange({ sensitivity: Number(e.target.value) })}
+                      disabled={locked}
+                      className={`w-full accent-cyan-500 ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     />
                     <span className="text-[8px] text-slate-500 uppercase font-mono">
                       Higher = faster re-arm &amp; more matches
@@ -405,6 +463,14 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                       <span>âœ“ Clipboard</span>
                     </div>
                   </div>
+
+                  <ToggleRow
+                    label="AUTO-ENABLE GESTURE CONTROL"
+                    description="Start local hand gesture control automatically when Sara starts"
+                    checked={settings.autoEnableGesture}
+                    onChange={(v) => onChange({ autoEnableGesture: v })}
+                    disabled={locked}
+                  />
                 </div>
               )}
 
@@ -437,7 +503,23 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor 
                         <span>WAKE WORD</span>
                         <span className="text-slate-300">Web Speech API</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span>PROVENANCE</span>
+                        <span className="text-emerald-400 font-bold">Cryptographically Verified</span>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-cyan-300">Security &amp; Audit Dashboard</span>
+                    <a
+                      href="/admin/security"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg border border-cyan-400/40 bg-cyan-400/10 text-cyan-200 text-[10px] font-mono font-semibold hover:bg-cyan-400/20 transition"
+                    >
+                      OPEN DASHBOARD
+                    </a>
                   </div>
 
                   <div className="p-3 rounded-xl border border-amber-500/15 bg-amber-500/5 flex items-start gap-2">

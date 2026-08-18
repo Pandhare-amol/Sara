@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { X, MessageSquareOff } from "lucide-react";
+import { X, MessageSquareOff, ArrowDown } from "lucide-react";
 import { getDesktopConversation, saveDesktopConversation, createDesktopConversation, DesktopConversationRecord, DesktopChatMessage } from "../lib/desktopConversationStore";
 
 type Props = {
@@ -20,8 +20,65 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
   const [messages, setMessages] = useState<DesktopChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showScrollToLatest, setShowScrollToLatest] = useState(false);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const title = useMemo(() => conversation?.title ?? "Chat with SARA", [conversation]);
+
+  const updateScrollState = () => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const atTop = container.scrollTop <= 8;
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 8;
+    setCanScrollUp(!atTop);
+    setCanScrollDown(!atBottom);
+    setShowScrollToLatest(!atBottom);
+  };
+
+  const scrollToBottom = (force = false) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const threshold = 120;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    if (force || nearBottom) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      setShowScrollToLatest(false);
+      setCanScrollDown(false);
+    }
+  };
+
+  const scrollByAmount = (direction: "up" | "down") => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const delta = direction === "up" ? -220 : 220;
+    container.scrollBy({ top: delta, behavior: "smooth" });
+    setTimeout(updateScrollState, 80);
+  };
+
+  useEffect(() => {
+    if (!messages.length) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (nearBottom) {
+      scrollToBottom(true);
+    } else {
+      setShowScrollToLatest(true);
+    }
+    updateScrollState();
+  }, [messages.length]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const onScroll = () => updateScrollState();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    updateScrollState();
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -33,11 +90,17 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
       if (loaded) {
         setConversation(loaded);
         setMessages(loaded.messages);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("sara.conversationId", loaded.id);
+        }
         return;
       }
       const initial = createDesktopConversation();
       setConversation(initial);
       setMessages(initial.messages);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("sara.conversationId", initial.id);
+      }
       await saveDesktopConversation(initial);
     })();
 
@@ -49,6 +112,9 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
   const persistConversation = async (next: DesktopConversationRecord) => {
     setConversation(next);
     setMessages(next.messages);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("sara.conversationId", next.id);
+    }
     await saveDesktopConversation(next);
   };
 
@@ -140,22 +206,61 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
           </div>
 
           <div className="flex h-[calc(100%-5.5rem)] flex-col bg-slate-950">
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.length === 0 ? (
-                <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center text-slate-300">
-                  Start a desktop conversation with SARA.
-                </div>
-              ) : (
-                messages.map((item, index) => (
-                  <div
-                    key={`${item.role}-${index}`}
-                    className={`max-w-[80%] rounded-3xl p-4 ${item.role === "user" ? "ml-auto bg-cyan-500/10 text-cyan-100" : "mr-auto bg-white/5 text-slate-100"}`}
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 mb-2">{item.role === "user" ? "You" : "SARA"}</p>
-                    <p className="whitespace-pre-line text-sm leading-6">{item.text}</p>
+            <div className="relative flex-1">
+              <div
+                ref={scrollRef}
+                className="h-full overflow-y-auto overflow-x-hidden p-6 pr-12 space-y-4"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(148,163,184,0.8) transparent" }}
+              >
+                {messages.length === 0 ? (
+                  <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center text-slate-300">
+                    Start a desktop conversation with SARA.
                   </div>
-                ))
-              )}
+                ) : (
+                  messages.map((item, index) => (
+                    <div
+                      key={`${item.role}-${index}`}
+                      className={`max-w-[80%] rounded-3xl p-4 ${item.role === "user" ? "ml-auto bg-cyan-500/10 text-cyan-100" : "mr-auto bg-white/5 text-slate-100"}`}
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 mb-2">{item.role === "user" ? "You" : "SARA"}</p>
+                      <p className="whitespace-pre-line text-sm leading-6 break-words">{item.text}</p>
+                    </div>
+                  ))
+                )}
+                <div ref={bottomRef} />
+                {showScrollToLatest && (
+                  <button
+                    onClick={() => scrollToBottom(true)}
+                    className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border border-cyan-400/30 bg-slate-900/90 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200 shadow-lg"
+                  >
+                    <ArrowDown size={12} />
+                    New messages
+                  </button>
+                )}
+              </div>
+
+              <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
+                <button
+                  onClick={() => scrollByAmount("up")}
+                  disabled={!canScrollUp}
+                  className="rounded-full border border-white/10 bg-slate-900/90 p-2 text-slate-200 transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Scroll up"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 14 6-6 6 6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => scrollByAmount("down")}
+                  disabled={!canScrollDown}
+                  className="rounded-full border border-white/10 bg-slate-900/90 p-2 text-slate-200 transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Scroll down"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 10 6 6 6-6" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="border-t border-white/10 bg-slate-900/95 p-5">

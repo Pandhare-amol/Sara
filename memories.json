@@ -1,205 +1,57 @@
 [
   {
-    "id": "ut75a9264",
+    "id": "1qjurlzdz",
     "category": "preference",
-    "text": "The user prefers to speak in Marathi.",
-    "createdAt": "2026-06-12T09:38:55.211Z",
-    "updatedAt": "2026-06-12T09:38:55.211Z"
+    "text": "Amol wants me to speak in Marathi whenever possible.",
+    "createdAt": "2026-08-12T12:48:07.052Z",
+    "updatedAt": "2026-08-12T12:50:37.348Z",
+    "importance": 5,
+    "source": "desktop",
+    "keywords": [
+      "amol",
+      "wants",
+      "speak",
+      "marathi",
+      "whenever",
+      "possible"
+    ]
   },
   {
-    "id": "g5j55e08v",
-    "category": "emotional",
-    "text": "MY GOAL IS TO BUY RTX 5090",
-    "createdAt": "2026-06-12T09:40:31.535Z",
-    "updatedAt": "2026-06-12T09:40:31.535Z"
-  },
-  {
-    "id": "4jswpmydh",
-    "category": "goal",
-    "text": "The user's goal is to buy an RTX 5090.",
-    "createdAt": "2026-06-12T10:04:35.022Z",
-    "updatedAt": "2026-06-12T10:04:35.022Z"
-  },
-  {
-    "id": "4o9wz4jio",
+    "id": "pc80nsk29",
     "category": "identity",
-    "text": "The user's name is Amol, and they have a called boss.",
-    "createdAt": "2026-06-12T10:08:06.203Z",
-    "updatedAt": "2026-06-12T10:08:06.203Z"
+    "text": "The user's first name is Amol. They do not want to be called TECH anymore.",
+    "createdAt": "2026-08-12T12:50:07.705Z",
+    "updatedAt": "2026-08-12T12:50:07.705Z",
+    "importance": 5,
+    "source": "desktop",
+    "keywords": [
+      "first",
+      "name",
+      "amol",
+      "not",
+      "called",
+      "tech",
+      "anymore"
+    ]
   },
   {
-    "id": "7x3xlhpfz",
+    "id": "y70xgt1wr",
     "category": "identity",
-    "text": "The user's name is Amol.",
-    "createdAt": "2026-06-12T10:09:48.474Z",
-    "updatedAt": "2026-06-12T10:09:48.474Z"
-  },
-  {
-    "id": "i7aor6g19",
-    "category": "identity",
-    "text": "The user has an RX 580 graphics card with 8GB RAM, and an i3 10th generation CPU.",
-    "createdAt": "2026-06-12T10:15:36.848Z",
-    "updatedAt": "2026-06-12T10:15:36.848Z"
-  },
-  {
-    "id": "u2ss6rzer",
-    "category": "identity",
-    "text": "The user's YouTube channel is named Tech GPT and focuses on AI-related content. The user's name is also Tech GPT.",
-    "createdAt": "2026-06-12T10:16:19.450Z",
-    "updatedAt": "2026-06-12T10:16:19.450Z"
-  },
-  {
-    "id": "2ygi0hea1",
-    "category": "goal",
-    "text": "The user's goal is to buy an RTX 5090.",
-    "createdAt": "2026-06-12T10:17:44.558Z",
-    "updatedAt": "2026-06-12T10:17:44.558Z"
-  },
-  {
-    "id": "n6094o0w6",
-    "category": "preference",
-    "text": "Users desktop path is C:\\Users\\Admin\\Desktop\\sara-ai-assistant",
-    "createdAt": "2026-06-19T15:01:12.086Z",
-    "updatedAt": "2026-06-19T15:01:12.086Z"
-  },
-  {
-    "id": "xg2uvwb2k",
-    "category": "preference",
-    "text": "Users desktop path is C:\\Users\\Admin\\Desktop\\sara-ai-assistant",
-    "createdAt": "2026-06-19T15:02:02.047Z",
-    "updatedAt": "2026-06-19T15:02:02.047Z"
-  },
-  {
-    "id": "saydxowgq",
-    "category": "preference",
-    "text": "User's desktop path is C:\\Users\\Admin\\Desktop\\sara-ai-assistant",
-    "createdAt": "2026-06-19T15:02:23.644Z",
-    "updatedAt": "2026-06-19T15:02:23.644Z"
-  },
-  {
-    "id": "v0gdxb5ga",
-    "category": "identity",
-    "text": "MY DESKTOP PATH IS C:\\Users\\MSI\\Desktop",
-    "createdAt": "2026-06-19T15:06:32.197Z",
-    "updatedAt": "2026-06-19T15:06:32.197Z"
-  },
-  {
-    "id": "r3q4pgghb",
-    "category": "preference",
-    "text": "Amol wants me to speak in Marathi.",
-    "createdAt": "2026-06-20T17:39:27.202Z",
-    "updatedAt": "2026-06-20T17:39:27.202Z"
-  },
-  {
-    "id": "8li0wijho",
-    "category": "emotional",
-    "text": "Amol shared that they think 'shepam' is nice which was a sweet moment during our chat.",
-    "createdAt": "2026-06-21T08:05:45.041Z",
-    "updatedAt": "2026-06-21T08:05:45.041Z"
-  },
-  {
-    "id": "kueqj6abh",
-    "category": "preference",
-    "text": "Amol wants me to speak in Marathi.",
-    "createdAt": "2026-06-25T17:10:12.908Z",
-    "updatedAt": "2026-06-25T17:10:12.908Z"
-  },
-  {
-    "id": "9h635rbsq",
-    "category": "preference",
-    "text": "Amol prefers to speak in Marathi.",
-    "createdAt": "2026-08-07T08:43:08.987Z",
-    "updatedAt": "2026-08-07T08:43:08.987Z"
-  },
-  {
-    "id": "6h5fj2ub6",
-    "category": "goal",
-    "text": "Amol is focused on building more automation agents and making their SARA instance fully automated.",
-    "createdAt": "2026-08-07T13:20:41.766Z",
-    "updatedAt": "2026-08-07T13:20:41.766Z"
-  },
-  {
-    "id": "sernw5v3f",
-    "category": "preference",
-    "text": "Amol likes listening to Arijit Singh on YouTube.",
-    "createdAt": "2026-08-07T13:23:16.651Z",
-    "updatedAt": "2026-08-07T13:23:16.651Z"
-  },
-  {
-    "id": "e9bh4iifw",
-    "category": "identity",
-    "text": "Amol wants to be spoken to as a girl, with feminine grammatical context, and wants me to remember I am acting like a kind anime heroine/virtual girlfriend.",
-    "createdAt": "2026-08-08T03:07:03.844Z",
-    "updatedAt": "2026-08-08T03:07:03.844Z"
-  },
-  {
-    "id": "mef2bfnw8",
-    "category": "preference",
-    "text": "Amol wants me to always speak in Marathi.",
-    "createdAt": "2026-08-08T03:08:53.363Z",
-    "updatedAt": "2026-08-08T03:08:53.363Z"
-  },
-  {
-    "id": "xcgnd9271",
-    "category": "relationship",
-    "text": "Amol had a playful moment where his brother playfully threatened to throw his laptop.",
-    "createdAt": "2026-08-08T03:09:52.898Z",
-    "updatedAt": "2026-08-08T03:09:52.898Z"
-  },
-  {
-    "id": "8vkyt6cf1",
-    "category": "preference",
-    "text": "Amol wants to be spoken to in Marathi.",
-    "createdAt": "2026-08-08T03:37:17.713Z",
-    "updatedAt": "2026-08-08T03:37:17.713Z"
-  },
-  {
-    "id": "01ege24cs",
-    "category": "preference",
-    "text": "Amol prefers that I speak with him in Marathi.",
-    "createdAt": "2026-08-08T03:38:51.482Z",
-    "updatedAt": "2026-08-08T03:38:51.482Z"
-  },
-  {
-    "id": "7acsoc5v1",
-    "category": "preference",
-    "text": "Amol wants me to always speak in Marathi.",
-    "createdAt": "2026-08-08T11:01:19.058Z",
-    "updatedAt": "2026-08-08T11:01:19.058Z"
-  },
-  {
-    "id": "vnpwh60fq",
-    "category": "preference",
-    "text": "The user expressed a desire to chat, but did not specify a topic or action. You should maintain a warm, welcoming conversational stance.",
-    "createdAt": "2026-08-09T12:43:51.062Z",
-    "updatedAt": "2026-08-09T12:43:51.062Z"
-  },
-  {
-    "id": "qxgrpo2x4",
-    "category": "project",
-    "text": "Amol and I are researching the company EaseMyTrip.",
-    "createdAt": "2026-08-10T02:56:58.559Z",
-    "updatedAt": "2026-08-10T02:56:58.559Z"
-  },
-  {
-    "id": "bdykcgf8z",
-    "category": "emotional",
-    "text": "Amol expressed affectionate feelings towards me.",
-    "createdAt": "2026-08-10T09:23:38.396Z",
-    "updatedAt": "2026-08-10T09:23:38.396Z"
-  },
-  {
-    "id": "phpccj8eb",
-    "category": "preference",
-    "text": "Amol prefers that I speak with him in Marathi.",
-    "createdAt": "2026-08-10T09:25:46.677Z",
-    "updatedAt": "2026-08-10T09:25:46.677Z"
-  },
-  {
-    "id": "vf0wg2v91",
-    "category": "preference",
-    "text": "Amol explicitly requested that I always speak with him in Marathi.",
-    "createdAt": "2026-08-10T09:27:31.465Z",
-    "updatedAt": "2026-08-10T09:27:31.465Z"
+    "text": "Amol knows I am not a real girl but an anime heroine companion.",
+    "createdAt": "2026-08-12T12:54:37.568Z",
+    "updatedAt": "2026-08-12T12:54:37.568Z",
+    "source": "desktop",
+    "importance": 5,
+    "keywords": [
+      "amol",
+      "knows",
+      "not",
+      "real",
+      "girl",
+      "but",
+      "anime",
+      "heroine",
+      "companion"
+    ]
   }
 ]

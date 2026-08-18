@@ -36,14 +36,50 @@ function saveStored(conversations: DesktopConversationRecord[]): void {
 }
 
 export async function getDesktopConversations(): Promise<DesktopConversationRecord[]> {
+  try {
+    const res = await fetch("/api/conversations?source=desktop", { cache: "no-store" });
+    if (res.ok) {
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        return items as DesktopConversationRecord[];
+      }
+    }
+  } catch {}
   return loadStored();
 }
 
 export async function getDesktopConversation(conversationId: string): Promise<DesktopConversationRecord | null> {
+  try {
+    const res = await fetch(`/api/conversations?source=desktop`, { cache: "no-store" });
+    if (res.ok) {
+      const items = await res.json();
+      const found = Array.isArray(items) ? items.find((item: any) => item.id === conversationId) : null;
+      if (found) return found as DesktopConversationRecord;
+    }
+  } catch {}
   return loadStored().find((item) => item.id === conversationId) ?? null;
 }
 
 export async function saveDesktopConversation(conversation: DesktopConversationRecord): Promise<DesktopConversationRecord> {
+  const payload = { source: "desktop", conversation };
+  try {
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const saved = await res.json().catch(() => null);
+      if (saved?.conversation) {
+        const all = loadStored();
+        const index = all.findIndex((item) => item.id === conversation.id);
+        const next = index >= 0 ? [...all.slice(0, index), saved.conversation, ...all.slice(index + 1)] : [saved.conversation, ...all];
+        saveStored(next.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
+        return saved.conversation as DesktopConversationRecord;
+      }
+    }
+  } catch {}
+
   const all = loadStored();
   const index = all.findIndex((item) => item.id === conversation.id);
   if (index >= 0) {

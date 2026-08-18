@@ -1985,5 +1985,1187 @@
     "created_at": 1786329681.1074357,
     "id": "2b72dfd001cd4a068c493d593a8ba4d5",
     "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786589466.5720348,
+    "id": "54c5a7a2bbc04ccd9bdc453889f7406a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786589466.5844173,
+    "id": "818a805d49e44940b35e580ae995521b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786589478.7957351,
+    "id": "55fd8acdcded4561b76b87316757ec3a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786589478.8017595,
+    "id": "fe4ddec418874427a7c5cf5a7226313e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786589478.8096862,
+    "id": "0a08697c1cd142f3b05e937e7ed593b0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786589478.8294368,
+    "id": "89f55e92d5db45969712c37c9c2e086a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786589478.8375173,
+    "id": "ade27741cd704ceab800930c92cfe75c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786589478.8558598,
+    "id": "308e4480c56d44398ac3fa3da26f3a41",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786589478.8949573,
+    "id": "b73f6f3209eb4aa8a00193ed375abdad",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786589479.1258733,
+    "id": "32d38bcfb9704761b10fcc30780dcf32",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786589479.1497438,
+    "id": "67f71cf8fde94a2aafe95e9db3c82d2b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786589479.4812963,
+    "id": "310b4baaa8394985822b3aa2fe72e3fb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590237.0279171,
+    "id": "a107935f04684ab89397369c8f7d41b6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590237.0289266,
+    "id": "253329345e344df3a52d6e5c446b006f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590237.0411382,
+    "id": "fcaa8fd6b33242968755bfe87048657c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590237.0454144,
+    "id": "8ce2bd5521ac487d8d002611e3fb55f9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590237.060611,
+    "id": "24f68f83ad6c498f887acab124b1493b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590237.065577,
+    "id": "bc3b3f878bdb4bcda169e1f37d8a5532",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786590237.0875492,
+    "id": "1caf848fda9a47e2b3ae5c74e19a2f09",
+    "requires_confirmation": true
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786590244.3638935,
+    "id": "c1151d7378b44eff8ca131a7c7743e0f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786590244.3732486,
+    "id": "2e5a508497ba48d4bf24638d63e87e2a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590245.456704,
+    "id": "22895413a22f494a81879fd22dec01f5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590245.4615035,
+    "id": "d68baf95160547569d843b0aabfefbac",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590245.473163,
+    "id": "f0a36c3cd882436598ed89353219590c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590245.4811957,
+    "id": "30fcbcd59b4c444ca0c7efed998120a5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590245.4960723,
+    "id": "be25821fe1174ac9b1019f25c04f1d6e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590245.4985874,
+    "id": "44eef46a40294014833eaac22c74a931",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590245.5149248,
+    "id": "59844a406ec64171a1723105fa7771e5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786590245.5467145,
+    "id": "1abe844c49ce4c0e9ea0eb0ea24c483c",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786590245.7661772,
+    "id": "8af4449ece8f40318ebf3775fe734d1d",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786590245.7804084,
+    "id": "f80326c702b0435cb45d6959095f4d03",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590246.075858,
+    "id": "b8aedd93608d4ad7982e272437b0e6cb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590246.094096,
+    "id": "57e61a1ce7d24abf842113f3f56a66c2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786590742.5743313,
+    "id": "846bd89eb5b141c3879650da5eb80716",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786590742.5822022,
+    "id": "2aaf989c2e3b45e5b8df7c0fbb005fc7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590743.2150662,
+    "id": "4add87bb1e334fd391b5e85ddffb2c51",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590743.219085,
+    "id": "bf6abcce4a134f229c09bd53cdda055c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590743.2302058,
+    "id": "506f6ebe183e40bca4b077f0bb2b5817",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590743.2347674,
+    "id": "7aaffb4c32e648cca840737686a71a1f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590743.2485328,
+    "id": "3cd520426b494211943ff709770ee0ae",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590743.2547245,
+    "id": "617cf4f52eaa4359945645303c231010",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786590743.2852077,
+    "id": "6a5ada074bcd4c818704928b6002c549",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786590743.511554,
+    "id": "ee43f1c296cd4854bd12b3ce8a66dbbb",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786590743.521874,
+    "id": "43a1656e10844d20b321f756934f57b8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590743.7967727,
+    "id": "efd826b93cef4e30ac6e12244dc870fd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590743.8162336,
+    "id": "e26f99c90ab34cdb852a99ee44017f2b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786590796.1443157,
+    "id": "99366c01cdfd4e37bc4af842d12da8b0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786590796.1575027,
+    "id": "6960d6016db8496b9505752ae81d28d9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590796.7916045,
+    "id": "cb40293cbc3847a2b25a149d8096a85e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590796.7941473,
+    "id": "c7369c47a5aa4e8996875f33a43c3ab9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590796.8112824,
+    "id": "e8581b2447014d39bdd60ccb93f0693a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590796.8201842,
+    "id": "645828c1e6f24d0c84e661389e674042",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590796.8352923,
+    "id": "a27093d890fd42cbbe6551ef3b65b67e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590796.8413315,
+    "id": "115b442186ca467289c0fe1fe440a658",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786590796.8716955,
+    "id": "666ab167983244ef9188119c05f509c0",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786590797.0915906,
+    "id": "b2d9f06c5b1d4e09be015571bcb41f60",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786590797.105192,
+    "id": "f121578f708b4de4879b4e1c8f1dddf8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590797.3760722,
+    "id": "e9c1203165824bb5b937114e4d991a0f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590797.38751,
+    "id": "e3cd61c4de514e9e9bd235f69a57c8d7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786590902.2383995,
+    "id": "d80bceb28e994ba798672c62b634239f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786590902.251123,
+    "id": "a9829dd100a943ca9de6e4e577503010",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590903.0879645,
+    "id": "1fe44ab818824217ae4d97a5ab326a8a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786590903.0988386,
+    "id": "052a10882524453f9a453274ceb30d5b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590903.112469,
+    "id": "5dd78612a6e2456aade89510018611f4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786590903.121147,
+    "id": "de0207fb316b4336a56c1e6a3d39e2bd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590903.1431453,
+    "id": "44f4d0c40d6b4eb69436ea7ce7bcc626",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786590903.1512725,
+    "id": "b8a5ff3e6395460bb739fc32456d5d66",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786590903.1910243,
+    "id": "48c9eed1efd548f68649337416873597",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786590903.4109263,
+    "id": "857b49078fcb4e1096ffb495fd4e501e",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786590903.4236243,
+    "id": "6dfdba269d7b4551bf3b48a2ef8b1ef6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590903.7729914,
+    "id": "b977a0e6d5ec4425895ce57d4f4d13d6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786590903.7922857,
+    "id": "97dc8359c32f47469d6c3774a32a6921",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786591318.2440326,
+    "id": "c9b5cfb8f3d94c49aaf55a14ee42c570",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786591318.2553928,
+    "id": "cbf3af13ce1d4125bcc7aee10a1fd7cf",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786591318.882596,
+    "id": "b4b58eb040954dd7a318e04f978fb12d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786591318.882596,
+    "id": "dc1ac7862e894da5aa3c07d24123e5da",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786591318.895231,
+    "id": "820076a92f7d4ad2b3c49910121bc3a0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786591318.9029338,
+    "id": "45b4dbc44805477fae26215ad42fd467",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786591318.9109778,
+    "id": "dd6d0cf60b99451999c17b265b2624dd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786591318.9222987,
+    "id": "8041de86b766416a9014314dcf12df92",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786591318.9498835,
+    "id": "bc8d463ae9b54104890a06a05c7873a3",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786591319.1779191,
+    "id": "d4c674e20ced4bf89811385e95810520",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786591319.200085,
+    "id": "deb9924743bb4cfd80374483020e775d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786591319.4645376,
+    "id": "4a0ad147eaf7455daeaac0d410a0abb6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786591319.4767234,
+    "id": "185361836b7f4bb7bb6df61c7e9d7faa",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786591398.124269,
+    "id": "1367579afd8948c39f6a8badece53033",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786591398.136284,
+    "id": "f55138223eba45939536300d239eaf01",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786591398.9594736,
+    "id": "d795c05ec6a244c2874dbb1705fb433c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786591398.9635506,
+    "id": "01a14122f2324e9f9cca98c12d654670",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786591398.9793973,
+    "id": "d3d22f64c30e4c559ad1a238994e2edd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786591398.98943,
+    "id": "6dd613f7e76c4c7c99ce5080a446a3f2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786591399.0094519,
+    "id": "07506bcdc46749ceac608915e73448ec",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786591399.022378,
+    "id": "eb24b3d216b44a2d88a3b0f10594ab30",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786591399.0662472,
+    "id": "076319d6afce4272858ec76c6ce43747",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786591399.2939594,
+    "id": "365b6adc0888477284fd15d7a20dcbb9",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786591399.3211055,
+    "id": "34c018f011234fa89825207f123b7cb1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786591399.6282365,
+    "id": "697042eaddb3438aaa0993dc283a03b6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786591399.6459851,
+    "id": "e0a75ddb434d49d2a3dfe60ddaed80ba",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786680008.9129033,
+    "id": "11bb430164454f17994632fbbc5485b7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786680008.9292276,
+    "id": "62592fa6bc804ffeb17ac77de8648fcc",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786680020.903752,
+    "id": "3f64dde5958245a4af162aaf0d1c7d1a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786680020.9141753,
+    "id": "2e1b4224e8bc4e7a9097366e8e3464dc",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786680020.9449034,
+    "id": "df764b80a3e044758e2e0895ad8a094d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786680020.9539888,
+    "id": "c4b840f1f99c43968aea55fdf3f7a014",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786680020.9942746,
+    "id": "48283e6c33b7483b9703d9437da1c4a3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786680021.0129116,
+    "id": "02a64739684148ef98f99037c5c1a8c3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786680021.6500332,
+    "id": "9aa28eb126594efa8ddbb1fb0dc9022a",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786680021.8923452,
+    "id": "3a0bfb872af84845a36c9acbe08bcc42",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786680021.9158132,
+    "id": "4dad1b93b55548cf858041731b352b59",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786680022.4145932,
+    "id": "c49f4d0e945845218f35386b61fbecd5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786680022.4311185,
+    "id": "0a5a1f687ce54aa7a9001394138e8a34",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1786680301.522198,
+    "id": "21d2eb1f449a4b648e3e6e45f4327556",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1786680301.5360215,
+    "id": "2a16542346a447beb7f654e804e28b86",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786680305.808952,
+    "id": "1444061b3c534a9fa8a5b81e67e59af7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786680305.8606718,
+    "id": "48447650408f4a32b9a3b1edfa452c21",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786680305.9116516,
+    "id": "08c7d2ea31674dd1af4f7be3bd9a5674",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786680305.9230762,
+    "id": "426b5a117fa845c48e15e4cc898329f8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786680305.9497857,
+    "id": "79a999b910e74f2b960d00aeb77e2f15",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786680305.9672108,
+    "id": "819574d66a8f44c28df92ccf78e412c5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786680306.5024621,
+    "id": "bdc1a4ac14eb4712abd037eebf9ddc64",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786680306.7371118,
+    "id": "5d7d07c625f94b15b559e804354c8136",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786680306.7502174,
+    "id": "721be06e853c492cb52863f6764984a3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786680306.9548292,
+    "id": "5d86c728877b4aacbf0be0c48be06cb1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786680306.989117,
+    "id": "6408243294fd43d0b3bc347b19e686de",
+    "requires_confirmation": false
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1786704789.78214,
+    "id": "1d47df2385304df788e067c0c5002e12",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1786704789.828945,
+    "id": "4b173740d5c0481c9899d3eb60a2a26f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786704790.4766967,
+    "id": "d736941aaa7d4853985360b13492dcd0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1786704790.4994016,
+    "id": "bca7d26a468a4de088c14f8d2fac90f7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786704790.5328848,
+    "id": "8e97c5e277494a97a47cdaf7a6375569",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1786704790.5479121,
+    "id": "91d9b7690629434caf92cdb4e78987f8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786704790.5719428,
+    "id": "1714e1b13c9f4678b1a76a3bbf88ddf6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1786704790.5847218,
+    "id": "18e95efbda8944b58c2797a6cf76b8fa",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786704790.6289694,
+    "id": "e64598a8610a42ccb53d2d7656dbe4be",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1786704790.6434062,
+    "id": "775e1cc66bb84488ab7fd67ad3542ce2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1786704794.965964,
+    "id": "ddbdb02ebb43442c81e4e25f46113a2a",
+    "requires_confirmation": true
+  },
+  {
+    "action": "",
+    "args": {},
+    "created_at": 1786707594.8786576,
+    "id": "bc66b41f539e4410ac87050f791f53d0",
+    "requires_confirmation": false
   }
 ]

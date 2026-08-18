@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
-import { loadMemories, saveMemories, formatSystemInstructionsWithMemories } from "./server_memory";
+import { loadMemories, saveMemories, formatSystemInstructionsWithMemories, searchMemories, processConversationSlice } from "./server_memory";
 import { dataFile, getGeminiApiKey, hasGeminiApiKey, setGeminiApiKey } from "./server_paths";
 import { Memory } from "./src/lib/memoryTypes";
 
@@ -29,13 +29,14 @@ function buildMobileChatPrompt(memories: Memory[], history: { role: string; text
     .map((entry) => `${entry.role === "assistant" ? "Sara" : "User"}: ${entry.text}`)
     .join("\n");
 
-  return `${systemInstruction}\n\n${dialogue}\nUser: ${userText}\nSara:`;
+  return `${systemInstruction}\n\n=== CONVERSATION HISTORY ===\n${dialogue}${dialogue.length ? "\n" : ""}=== END CONVERSATION HISTORY ===\nUser: ${userText}\nSara:`;
 }
 
 async function generateMobileChatResponse(
   apiKey: string,
   history: { role: string; text: string }[],
   userText: string,
+  relevantMemories: Memory[] = [],
 ): Promise<string> {
   const ai = new GoogleGenAI({
     apiKey,
@@ -46,7 +47,7 @@ async function generateMobileChatResponse(
     },
   });
 
-  const memories = await loadMemories("mobile");
+  const memories = relevantMemories.length > 0 ? relevantMemories : await loadMemories("mobile");
   const prompt = buildMobileChatPrompt(memories, history.slice(-8), userText);
   const response = await ai.models.generateContent({
     model: "gemini-3.5-flash",
@@ -150,7 +151,9 @@ app.post("/api/chat", async (req, res) => {
       }))
       .filter((item: any) => item.text.length > 0);
 
-    const reply = await generateMobileChatResponse(apiKey, normalizedHistory, text);
+    const relevantMemories = await searchMemories(text, "mobile", 10);
+    const reply = await generateMobileChatResponse(apiKey, normalizedHistory, text, relevantMemories);
+    await processConversationSlice(apiKey, [...normalizedHistory, { role: "user", text }, { role: "assistant", text: reply }], "mobile");
     res.json({ ok: true, text: reply });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to generate chat response." });

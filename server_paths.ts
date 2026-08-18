@@ -16,8 +16,14 @@
 import fs from "fs";
 import path from "path";
 
-/** Writable per-user data directory. Falls back to cwd in development. */
-export const DATA_DIR: string = process.env.SARA_DATA_DIR || process.cwd();
+/** Writable per-user data directory.
+ *
+ * In production this is controlled by SARA_DATA_DIR and points to the user
+ * data folder (e.g. %APPDATA%/Sara). In development, keep writable runtime data
+ * in a dedicated ./data directory so file watchers on the project root do not
+ * trigger frontend reloads when the app writes memories, sessions, or settings.
+ */
+export const DATA_DIR: string = process.env.SARA_DATA_DIR || path.join(process.cwd(), "data");
 
 try {
   fs.mkdirSync(DATA_DIR, { recursive: true });

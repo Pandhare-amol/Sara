@@ -1,0 +1,25 @@
+{
+  "timestamp": 1786965136541,
+  "version": "1.0.0",
+  "episodic": [],
+  "semantic": [],
+  "procedural": [],
+  "preference": [],
+  "failure": [],
+  "achievement": [],
+  "autobiographical": [],
+  "metadata": {
+    "totalMemories": 0,
+    "averageConfidence": 0,
+    "memoryTypes": {
+      "episodic": 0,
+      "semantic": 0,
+      "procedural": 0,
+      "preference": 0,
+      "failure": 0,
+      "achievement": 0,
+      "autobiographical": 0
+    },
+    "lastUpdateTime": 1786965136541
+  }
+}

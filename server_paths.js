@@ -22,8 +22,14 @@ exports.setGeminiApiKey = setGeminiApiKey;
 exports.clearGeminiApiKey = clearGeminiApiKey;
 var fs_1 = require("fs");
 var path_1 = require("path");
-/** Writable per-user data directory. Falls back to cwd in development. */
-exports.DATA_DIR = process.env.SARA_DATA_DIR || process.cwd();
+/** Writable per-user data directory.
+ *
+ * In production this is controlled by SARA_DATA_DIR and points to the user
+ * data folder (e.g. %APPDATA%/Sara). In development, keep writable runtime data
+ * in a dedicated ./data directory so file watchers on the project root do not
+ * trigger frontend reloads when the app writes memories, sessions, or settings.
+ */
+exports.DATA_DIR = process.env.SARA_DATA_DIR || path_1.default.join(process.cwd(), "data");
 try {
     fs_1.default.mkdirSync(exports.DATA_DIR, { recursive: true });
 }

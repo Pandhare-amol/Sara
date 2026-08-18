@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict
 
 from pathlib import Path
@@ -9,6 +10,12 @@ from pathlib import Path
 from .agents import MANAGER
 from .platform_core import DIAGNOSTICS, EXPERIENCES, EVOLUTION, GOALS, HEALTH, KNOWLEDGE_GRAPH, KNOWLEDGE_PIPELINE, MEMORY, PLUGINS, RAG, REINFORCEMENT, RECOVERY, SECURITY, SCHEDULER, SKILLS, STRATEGIES, VAULT, WORKFLOWS
 from .registry import register
+from .reward_engine import RewardEngine
+from . import tools_hardware as hardware
+from . import tools_windows as windows
+from . import tools_websites as websites
+
+REWARD_ENGINE = RewardEngine()
 
 
 @register("saraMemoryRemember")
@@ -207,6 +214,53 @@ def sara_health_latest(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": HEALTH.latest()}
 
 
+@register("desktopAgentDiagnostic")
+def desktop_agent_diagnostic(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Run a harmless end-to-end Desktop Agent capability probe."""
+    diagnostics: Dict[str, Any] = {
+        "agent": "healthy",
+        "windows_api": "unknown",
+        "mouse": "unknown",
+        "keyboard": "unknown",
+        "screen_capture": "unknown",
+        "window_detection": "unknown",
+        "browser_launch": "unknown",
+        "verification": "unknown",
+        "latency_ms": 0,
+        "details": {},
+    }
+    started = time.time()
+    try:
+        active = windows.get_active_window({})
+        diagnostics["windows_api"] = "healthy" if active.get("window") else "degraded"
+        diagnostics["details"]["active_window"] = active.get("window")
+    except Exception as exc:  # noqa: BLE001
+        diagnostics["windows_api"] = "failed"
+        diagnostics["details"]["active_window_error"] = str(exc)
+
+    try:
+        mouse = hardware.hardware_mouse_position({})
+        diagnostics["mouse"] = "healthy" if mouse.get("x") is not None and mouse.get("y") is not None else "degraded"
+        diagnostics["details"]["mouse"] = {k: mouse.get(k) for k in ("x", "y", "screen_width", "screen_height")}
+    except Exception as exc:  # noqa: BLE001
+        diagnostics["mouse"] = "failed"
+        diagnostics["details"]["mouse_error"] = str(exc)
+
+    try:
+        screenshot = tools_websites.open_url("https://example.com")
+        diagnostics["browser_launch"] = "healthy" if screenshot else "failed"
+        diagnostics["details"]["browser"] = {"url": screenshot}
+    except Exception as exc:  # noqa: BLE001
+        diagnostics["browser_launch"] = "failed"
+        diagnostics["details"]["browser_error"] = str(exc)
+
+    diagnostics["verification"] = "healthy" if all(
+        diagnostics[key] == "healthy" for key in ("windows_api", "mouse", "browser_launch")
+    ) else "degraded"
+    diagnostics["latency_ms"] = int((time.time() - started) * 1000)
+    return {"result": diagnostics, "verified": diagnostics["verification"] == "healthy"}
+
+
 @register("saraRlRecord")
 def sara_rl_record(args: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -222,7 +276,9 @@ def sara_rl_record(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("saraRlSummary")
 def sara_rl_summary(args: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": REINFORCEMENT.summary()}
+    legacy_summary = REINFORCEMENT.summary()
+    policy_stats = REWARD_ENGINE.get_policy_stats()
+    return {"result": {"legacy": legacy_summary, "policy_stats": policy_stats}}
 
 
 @register("saraRlConfigureRewards")
@@ -232,7 +288,13 @@ def sara_rl_configure_rewards(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("saraStrategyBest")
 def sara_strategy_best(args: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": STRATEGIES.best_strategies(str(args.get("query") or ""), int(args.get("limit") or 5))}
+    # Return both legacy strategies and new Reward Engine policy stats
+    return {
+        "result": {
+            "legacy_strategies": STRATEGIES.best_strategies(str(args.get("query") or ""), int(args.get("limit") or 5)),
+            "policy_stats": REWARD_ENGINE.get_policy_stats()
+        }
+    }
 
 
 @register("saraWorkflowSave")

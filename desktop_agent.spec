@@ -75,7 +75,10 @@ a = Analysis(
     ["run_agent.py"],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ("data/porcupine", "data/porcupine"),
+        ("desktop_agent/models", "desktop_agent/models"),
+    ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

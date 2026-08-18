@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Audio handling utility for Sara Live API Voice stream.
  * Handles:
  * - 16kHz layout sampling for microphone stream.
@@ -86,9 +86,11 @@ export class SaraAudioSession {
   private onToolCall: (name: string, args: any, callback: (result: any) => void) => void;
   private onError: (error: string) => void;
   private onMemorySync?: (memories: any[]) => void;
+  private onWake?: (info: { phrase?: string; confidence?: number } ) => void;
   
   private currentState: LiveState = "disconnected";
   private isActivated = false;
+  private muted: boolean = false;
 
   constructor(handlers: {
     onStateChange: (state: LiveState) => void;
@@ -96,17 +98,32 @@ export class SaraAudioSession {
     onToolCall: (name: string, args: any, callback: (result: any) => void) => void;
     onError: (error: string) => void;
     onMemorySync?: (memories: any[]) => void;
+    onWake?: (info: { phrase?: string; confidence?: number }) => void;
   }) {
     this.onStateChange = handlers.onStateChange;
     this.onTranscription = handlers.onTranscription;
     this.onToolCall = handlers.onToolCall;
     this.onError = handlers.onError;
     this.onMemorySync = handlers.onMemorySync;
+    this.onWake = handlers.onWake;
   }
 
   private setState(state: LiveState) {
     this.currentState = state;
     this.onStateChange(state);
+  }
+
+  public setMuted(v: boolean) {
+    this.muted = v;
+  }
+
+  public toggleMuted(): boolean {
+    this.muted = !this.muted;
+    return this.muted;
+  }
+
+  public isMuted(): boolean {
+    return this.muted;
   }
 
   public getState(): LiveState {
@@ -149,8 +166,8 @@ export class SaraAudioSession {
             throw new Error("Holographic audio link unsupported: Web Audio API missing in browser.");
           }
 
-          this.inputAudioCtx = new AudioContextClass({ sampleRate: 16000 });
-          this.outputAudioCtx = new AudioContextClass({ sampleRate: 24000 });
+          this.inputAudioCtx = new AudioContextClass({ sampleRate: 16000, latencyHint: 'interactive' });
+          this.outputAudioCtx = new AudioContextClass({ sampleRate: 24000, latencyHint: 'interactive' });
 
           // Ensure Audio Contexts are active and resumed to bypass browser security blocks
           if (this.inputAudioCtx.state === "suspended") {
@@ -198,13 +215,15 @@ export class SaraAudioSession {
           this.micSourceNode.connect(this.inputAnalyser);
 
           // Stream input PCM 16-bit to WS
-          this.micProcessorNode = this.inputAudioCtx.createScriptProcessor(2048, 1, 1);
+          // 512 samples @ 16kHz = ~32ms per chunk (was 2048 = ~128ms) — lower input latency
+          this.micProcessorNode = this.inputAudioCtx.createScriptProcessor(512, 1, 1);
           this.micSourceNode.connect(this.micProcessorNode);
           this.micProcessorNode.connect(this.inputAudioCtx.destination);
 
           this.micProcessorNode.onaudioprocess = (e) => {
             if (this.currentState === "disconnected" || this.currentState === "connecting") return;
-            
+            // If muted, do not forward microphone audio to the server, but keep audio nodes for visuals
+            if (this.muted) return;
             const channelData = e.inputBuffer.getChannelData(0);
             
             // Convert to base64 Int16 Little Endian PCM
@@ -234,6 +253,14 @@ export class SaraAudioSession {
           if (data.type === "error") {
             this.onError(data.error);
             this.disconnect();
+            return;
+          }
+
+          // Wake event from server: notify app to start capture/play ack
+          if (data.type === 'wake') {
+            try {
+              if (this.onWake) this.onWake({ phrase: data.phrase, confidence: data.confidence });
+            } catch (e) {}
             return;
           }
 
@@ -368,8 +395,8 @@ export class SaraAudioSession {
       
       // Gapless scheduler sync
       if (this.nextStartTime < currentTime) {
-        // Start fresh: 30ms ahead to bridge schedule timing
-        this.nextStartTime = currentTime + 0.03;
+        // Start fresh: 5ms ahead to minimize first-chunk latency (was 30ms)
+        this.nextStartTime = currentTime + 0.005;
       }
 
       source.start(this.nextStartTime);
