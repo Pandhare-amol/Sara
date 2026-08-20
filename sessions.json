@@ -1,0 +1,146 @@
+[
+  {
+    "sessionId": "sess-1786357584819-nk4tpusg",
+    "conversationId": "conv-1786357584802-x4tq8n6f",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:26:24.802Z",
+    "lastSeen": "2026-08-10T10:26:25.417Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786357583981-ohi9fkkh",
+    "conversationId": "conv-1786357583971-0ukffx1j",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:26:23.971Z",
+    "lastSeen": "2026-08-10T10:28:57.318Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786357669688-vgorjgix",
+    "conversationId": "conv-1786357669670-761z3sgi",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:27:49.670Z",
+    "lastSeen": "2026-08-10T10:30:22.322Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786357670535-reafb1zj",
+    "conversationId": "conv-1786357670521-0mpxe5aw",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:27:50.521Z",
+    "lastSeen": "2026-08-10T10:30:22.741Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786357754198-ygwmoj59",
+    "conversationId": "conv-1786357754187-5grazdpm",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:29:14.187Z",
+    "lastSeen": "2026-08-10T10:31:46.281Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786359195061-1hrm5sls",
+    "conversationId": "conv-1786359194992-r0265whj",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:53:14.992Z",
+    "lastSeen": "2026-08-10T10:55:49.396Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786360079876-pzpxkymm",
+    "conversationId": "conv-1786360079865-udax6ida",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T11:07:59.865Z",
+    "lastSeen": "2026-08-10T11:08:00.466Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786359985483-zxb3mpf7",
+    "conversationId": "conv-1786359985462-j49skutw",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T11:06:25.463Z",
+    "lastSeen": "2026-08-10T11:08:58.292Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786360428923-yr3v8111",
+    "conversationId": "conv-1786360428907-gtp9v5tg",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T11:13:48.907Z",
+    "lastSeen": "2026-08-10T11:13:51.288Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786360550806-qcoizfsw",
+    "conversationId": "conv-1786360550800-32nya214",
+    "device": "browser",
+    "connectionStatus": "connecting",
+    "createdAt": "2026-08-10T11:15:50.806Z",
+    "lastSeen": "2026-08-10T11:15:50.806Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786372125475-2o75mxuk",
+    "conversationId": "conv-1786372125373-t1npq40b",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T14:28:45.373Z",
+    "lastSeen": "2026-08-10T14:31:18.991Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786372614565-ko0hc5du",
+    "conversationId": "conv-1786372614509-q1xkulco",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T14:36:54.509Z",
+    "lastSeen": "2026-08-10T14:39:51.079Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786372934829-jrw0m77v",
+    "conversationId": "conv-1786372934817-s8fbdwne",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T14:42:14.817Z",
+    "lastSeen": "2026-08-10T14:44:49.106Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786357755064-urlbkp7u",
+    "conversationId": "conv-1786357755049-t3cd5k6x",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T10:29:15.049Z",
+    "lastSeen": "2026-08-10T14:44:49.784Z",
+    "reconnectAttempts": 7
+  },
+  {
+    "sessionId": "sess-1786375086360-4xrzrxge",
+    "conversationId": "conv-1786375086309-v48sqqf8",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T15:18:06.309Z",
+    "lastSeen": "2026-08-10T15:20:39.752Z",
+    "reconnectAttempts": 0
+  },
+  {
+    "sessionId": "sess-1786375090376-v9bbjt3r",
+    "conversationId": "conv-1786375090359-rw7fbjhj",
+    "device": "browser",
+    "connectionStatus": "offline",
+    "createdAt": "2026-08-10T15:18:10.359Z",
+    "lastSeen": "2026-08-10T15:20:44.038Z",
+    "reconnectAttempts": 0
+  }
+]

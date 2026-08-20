@@ -1,0 +1,1977 @@
+[
+  {
+    "content": "SARA autonomous AI OS platform probe",
+    "created_at": 1786094930.9646087,
+    "id": "dc9474e06aef413786db6b122c397f73",
+    "kind": "test",
+    "metadata": {
+      "source": "codex"
+    },
+    "updated_at": 1786094930.9646087
+  },
+  {
+    "content": "Shutdown the computer",
+    "created_at": 1786095388.154053,
+    "id": "337daf0a4d5f429b8bf8a60de292755c",
+    "kind": "voice_command",
+    "metadata": {
+      "parsed": {
+        "args": {
+          "action": "shutdown"
+        },
+        "confidence": 0.94,
+        "intent": "power.shutdown",
+        "requires_confirmation": true,
+        "response": "I need confirmation before I shutdown the computer.",
+        "tool": "requestPowerAction"
+      }
+    },
+    "updated_at": 1786095388.154053
+  },
+  {
+    "content": "start work",
+    "created_at": 1786095388.164053,
+    "id": "27aa63aa7b364db09e5c2b9d5afdaafd",
+    "kind": "custom_voice_workflow",
+    "metadata": {
+      "skill_id": "23761a0fc7ef40a1abf13e59daf24394",
+      "steps": [
+        {
+          "action": "open_application",
+          "agent": "application_agent",
+          "args": {
+            "name": "vscode"
+          }
+        }
+      ]
+    },
+    "updated_at": 1786095388.164053
+  },
+  {
+    "content": "Shutdown the computer",
+    "created_at": 1786095397.220478,
+    "id": "45ff7890e6614d6faf754b2dc63d9b00",
+    "kind": "voice_command",
+    "metadata": {
+      "parsed": {
+        "args": {
+          "action": "shutdown"
+        },
+        "confidence": 0.94,
+        "intent": "power.shutdown",
+        "requires_confirmation": true,
+        "response": "I need confirmation before I shutdown the computer.",
+        "tool": "requestPowerAction"
+      }
+    },
+    "updated_at": 1786095397.220478
+  },
+  {
+    "content": "start work",
+    "created_at": 1786095397.2329078,
+    "id": "9699ddba82ed4026bd98defe932bc222",
+    "kind": "custom_voice_workflow",
+    "metadata": {
+      "skill_id": "23761a0fc7ef40a1abf13e59daf24394",
+      "steps": [
+        {
+          "action": "open_application",
+          "agent": "application_agent",
+          "args": {
+            "name": "vscode"
+          }
+        }
+      ]
+    },
+    "updated_at": 1786095397.2329078
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097788.2291176,
+    "id": "33e27c2a695a4efd90cf729fa1d7a597",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097788.229118
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097788.2384067,
+    "id": "f98cae44d70046d69c88d627150f7002",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097788.238407
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097788.240861,
+    "id": "ef34743ed7b346adbe1cc157d2c89f58",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097788.2408612
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097847.238125,
+    "id": "6710d0d48c604df685932753a2b18e73",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097847.2381253
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097847.244214,
+    "id": "0799caafa10343a7bdcfda83c7572dd2",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097847.244214
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786097847.2481627,
+    "id": "3d82747acc0642ceb3c199138d368f50",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786097847.248163
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786098006.599255,
+    "id": "1ec89a89d8194b71ade9867b09c76373",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786098006.5992553
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786098066.869603,
+    "id": "dba99f1ee9274592bd9ba6bac47cc5f3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786098066.8696034
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786099130.0235822,
+    "id": "b8e9ea99946549078b19ea1843716e04",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786099130.0235825
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786099183.4062748,
+    "id": "9524e0cc7f3c43fd95823c1cdd720756",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786099183.406275
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786099203.147916,
+    "id": "92e4e9d4540444508672c233406a9868",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786099203.1479163
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786099360.0918953,
+    "id": "af868795a08444d6b5e9475d1feae8f3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786099360.0918956
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115727.273353,
+    "id": "007eeb7921494538a93ecd6e38a17020",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115727.273353
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115727.328131,
+    "id": "162a3217b79b41dbaa89bcf8737733bd",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115727.328131
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115727.3394468,
+    "id": "a204971a84ac45568ccc105912a3b5a1",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115727.3394468
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115925.9813602,
+    "id": "5658fa27744144c8b98679725b3f2502",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115925.9813602
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115926.024038,
+    "id": "eb474236568946e0a6256d403a276144",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115926.024038
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786115926.0348275,
+    "id": "2d1bc3721447406abb4f886034721dc6",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786115926.0348275
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116024.2963932,
+    "id": "c7f562e1667e40168ce10cf0d3a93384",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 396
+    },
+    "updated_at": 1786116024.2963932
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116024.4791276,
+    "id": "9a8bb1239a204af9bd134d814c5f2cb3",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786116024.4791276
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116024.5294726,
+    "id": "8d525b92530946c1b45af038fea072bf",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786116024.5294726
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116230.9075694,
+    "id": "c22211f954624997bfe0cf211aaaf56d",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 869
+    },
+    "updated_at": 1786116230.9075694
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116231.250514,
+    "id": "dd5c803905964f73aef3821fd1af0c30",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786116231.250514
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786116231.2672791,
+    "id": "4bcfa84b40fe4ec39257bbeb812f475c",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786116231.2672791
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194807.4195595,
+    "id": "0f1ee1b548484725bfce2ec1dfe3074a",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 126
+    },
+    "updated_at": 1786194807.4195595
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194807.445531,
+    "id": "47f57fea4ddb4620956c7310d8816f57",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194807.445531
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194807.4588711,
+    "id": "83970ed8a6c3478bbcde44c957d5136c",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194807.4588711
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194843.0097177,
+    "id": "368cb090a3514196ab6fc293587b0f3e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 48
+    },
+    "updated_at": 1786194843.0097177
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194843.036655,
+    "id": "b30b5fdc28ba406fbf09a57935988bd7",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194843.036655
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194843.0426228,
+    "id": "e39619a70018404bb2803c79ffba4fc8",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194843.0426228
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194862.059904,
+    "id": "788a4ef0f1cc45c2a156162a3f4ef2c9",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 44
+    },
+    "updated_at": 1786194862.059904
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194862.1048353,
+    "id": "51571756fa164711859eb9ca07eddd47",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194862.1048353
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194862.1140592,
+    "id": "ceeb1fb8db43410c9ead733beda3d4c1",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194862.1140592
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194879.1380715,
+    "id": "f3b94a669a4c4910a89e410c3679ff7d",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 40
+    },
+    "updated_at": 1786194879.1380715
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194879.155406,
+    "id": "97df359d3c7f44afa81441c0671c2d0e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194879.155406
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786194879.1658897,
+    "id": "27aa08bc4e5e4e34b7fd547f2f6df341",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786194879.1658897
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786195050.2653787,
+    "id": "64ef49a198b0407c9bc7572f0f5d7745",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195050.2653787
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195050.538336,
+    "id": "ff9f7627c7d94cc08aced362a859c850",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 40
+    },
+    "updated_at": 1786195050.538336
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195050.5524788,
+    "id": "3df9ad48325d4411870e94d7d6f923e9",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195050.5524788
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195050.560061,
+    "id": "6802db10f4d243418842e353e6bc5fe2",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195050.560061
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786195070.5235538,
+    "id": "d6745c9b41d449b78c7742436fdbec44",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195070.5235538
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195070.8249922,
+    "id": "8eb7bbd4ff104b72834b0afbd02f8e35",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 44
+    },
+    "updated_at": 1786195070.8249922
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195070.844402,
+    "id": "2bed125162ae462a98add11926bda1ed",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195070.844402
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786195070.8523521,
+    "id": "8939cf98bffc4af098dbc7c63e1bb5f1",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786195070.8523521
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786196672.9266026,
+    "id": "ee40e4f867c74832b889f642f02f73e3",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 76
+    },
+    "updated_at": 1786196672.9266026
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786196673.0191977,
+    "id": "56ed60509e8546d3b1f7bae4d2becbda",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786196673.0191977
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786196673.036787,
+    "id": "8ed34391ee3e47068f0b11689d96ca8f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786196673.036787
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786201761.2983956,
+    "id": "bca1affb99794602aa09a81801cf911c",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201761.2983956
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786201761.359359,
+    "id": "22234e7910a249fe8a5d03a830a73ce9",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201761.359359
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201762.1096401,
+    "id": "7d4eb5d348054881b6031b654ae1505b",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 450
+    },
+    "updated_at": 1786201762.1096401
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201762.177404,
+    "id": "be1ac83a3a7d4913b25ce29253de6672",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201762.177404
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201762.190915,
+    "id": "e39f1ca3f2f24075bc9b688aca69216e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201762.190915
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786201786.425215,
+    "id": "627ee40aaabd4da99da62b2918d99506",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201786.425215
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786201786.4572878,
+    "id": "0c09c3a4b8bc4b1288f169309caa47f5",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201786.4572878
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201786.839323,
+    "id": "5a251c5bb11c4b4394289d45e07eac02",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 129
+    },
+    "updated_at": 1786201786.839323
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201786.8928216,
+    "id": "71554f598d4f44beb3b099153b7e0cf2",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201786.8928216
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201786.9171183,
+    "id": "ab74a9e211944cb3a8915f8bb774a4e2",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201786.9171183
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786201803.7484539,
+    "id": "e90a5d83c9e141cd9e4075de176a9881",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201803.7484539
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786201803.8137095,
+    "id": "3ad9fb40c8f9444e81c25e5beca9d291",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201803.8137095
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201804.3271656,
+    "id": "e857d8f0c1e945e380a1c29c63a4a766",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 247
+    },
+    "updated_at": 1786201804.3271656
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201804.3730187,
+    "id": "6be8e795bd6d4f71bf0bb8a49846a87f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201804.3730187
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786201804.3877041,
+    "id": "87db286df55f4b4fbe2a830d1089a3bd",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786201804.3877041
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202337.7750678,
+    "id": "c2fc714f25114e7c801f54ec235eaf31",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1786202337.7750678
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202337.8097923,
+    "id": "28a91d41b79140d89d859c2c08c265b0",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1786202337.8097923
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202337.8445694,
+    "id": "e0dd0308356946b78592de072cf165f1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1786202337.8445694
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786202453.6869035,
+    "id": "19de9a58f0b64bd080516563f31a1a32",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786202453.6869035
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202453.792949,
+    "id": "a0ed997fd02d4a7490686798b9d0b774",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1786202453.792949
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202453.830918,
+    "id": "0d0f95ab4c6344d6a6940d7d0076bd2d",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1786202453.830918
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786202453.8930695,
+    "id": "e702adb56a184586b6ef531575ff10ac",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 28
+    },
+    "updated_at": 1786202453.8930695
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786202454.7543201,
+    "id": "83c6780e20a54a6c81188489f2f6ae4d",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 389
+    },
+    "updated_at": 1786202454.7543201
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786202454.829947,
+    "id": "e3ac6327d2d04313b7f33f1d53fc95aa",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786202454.829947
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786202454.8601856,
+    "id": "46731681a8fe4daf8468f26a8d563873",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786202454.8601856
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786207851.0815597,
+    "id": "1a894da9ddd74c66b5bcbc4c99178db2",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786207851.0815597
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786207851.1045597,
+    "id": "a729a902a3404a74a8d02814a1268ba1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786207851.1045597
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786207851.1164353,
+    "id": "7261771fecae4822945d20b1981ed318",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786207851.1164353
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786207851.1267266,
+    "id": "de7b33efa6834ebe898b55391b036607",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786207851.1267266
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786207851.4164803,
+    "id": "cba493e07f77405cb4444aabc686a1f4",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 58
+    },
+    "updated_at": 1786207851.4164803
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786207851.4372404,
+    "id": "66172addaa7841cb9c68de03aeea7fa6",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786207851.4372404
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786207851.4455132,
+    "id": "df558183ed8e4b7f985c2c2f66421eef",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786207851.4455132
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786293242.4458683,
+    "id": "f1ca956a49ec4b80bea86fa4c7f5d131",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786293242.4458683
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786293242.4793913,
+    "id": "4bec674d10da4164a748b1c361e7a6cf",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786293242.4793913
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786293242.490628,
+    "id": "50b3180d31b34528a71cedc2315b0d26",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786293242.490628
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786293242.5037467,
+    "id": "6dcad61cfec84d5a8f62128569646671",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 1
+    },
+    "updated_at": 1786293242.5037467
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786293242.9198024,
+    "id": "3c934f8199fc4aa98504b6fcc17afcd0",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 170
+    },
+    "updated_at": 1786293242.9198024
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786293242.9635057,
+    "id": "7a97d928f0b14193bf048332757c131c",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786293242.9635057
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786293242.9741354,
+    "id": "eccd930ad0b14af19d8a6a7aa8ed01f7",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786293242.9741354
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294820.841607,
+    "id": "dc9a799b60284eb8a1d30f194b0cc317",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 1
+    },
+    "updated_at": 1786294820.841607
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294820.8525813,
+    "id": "15a1be79c2864d19bb777d11448ef4f1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 1
+    },
+    "updated_at": 1786294820.8525813
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294820.865849,
+    "id": "bf569451a8a74bf2ab3bbac909885ce7",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294820.865849
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786294820.901953,
+    "id": "abab5e5d8fd34ffba90ce7bf2c6f154a",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294820.901953
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294846.9562888,
+    "id": "50d3a81e0d464c8389b0573ce0827cd8",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294846.9562888
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294846.9692886,
+    "id": "0025d6f747994c6a82e9c59895a8039e",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294846.9692886
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294846.9842868,
+    "id": "5d6e8b85b7384d7ca6610a3c9da5d43a",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 1
+    },
+    "updated_at": 1786294846.9842868
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786294847.0201662,
+    "id": "d877de83e7f741ec8e7add285f4ed3f2",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294847.0201662
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294867.0940886,
+    "id": "85346596513b44d08456f8fa18d41dac",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786294867.0940886
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294867.1046813,
+    "id": "4c9284c096d2488ea95a7d48a8c1ad44",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786294867.1046813
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294867.11808,
+    "id": "f1f76cd088024037817d873470fdcebb",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294867.11808
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786294867.1540275,
+    "id": "9f120dd12e2a402e9563a264adce5407",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294867.1540275
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294892.205374,
+    "id": "dcd828e720fd4da984a62c4f4c24da37",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786294892.205374
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294892.2169006,
+    "id": "89336d9ff7a44e40920e235afdc350c7",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 1
+    },
+    "updated_at": 1786294892.2169006
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294892.231714,
+    "id": "ba53db3d37fa489794742ef50e9cff34",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294892.231714
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786294892.268497,
+    "id": "080d4204a7084ff2a518e1bb9d4f35d7",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294892.268497
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786294898.5738187,
+    "id": "9f88b575f7644486b94ffc3490ab6f34",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294898.5738187
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294898.6047914,
+    "id": "ec1b592c97304a82acd4e47d0d5c1a3f",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294898.6047914
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294898.6163895,
+    "id": "40cd0a61d5b341699894149bc1d58407",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 2
+    },
+    "updated_at": 1786294898.6163895
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786294898.6442583,
+    "id": "9209b375cee7431eb127d5e1d61522e0",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 3
+    },
+    "updated_at": 1786294898.6442583
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786294898.964721,
+    "id": "90f42e90f29d478da79d2e0cedfa186f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 67
+    },
+    "updated_at": 1786294898.964721
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786294898.998663,
+    "id": "e72bdf2a304248dd8a21b1077dbaa935",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294898.998663
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786294899.0106606,
+    "id": "8814540e6f9b40fba6b982f277f44764",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786294899.0106606
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786328977.5964684,
+    "id": "a3b791c508a94387a2ff4629917297f0",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786328977.5964684
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786328977.7327023,
+    "id": "93ee6b023e744c6d89014d3d37f19dd1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 19
+    },
+    "updated_at": 1786328977.7327023
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786328977.8052485,
+    "id": "c7ff48e135f04c9ba4d7ff1dc43c8f70",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 22
+    },
+    "updated_at": 1786328977.8052485
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786328977.8992424,
+    "id": "27fe190cf6cb44bc9c729875fa10f919",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1786328977.8992424
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786329101.163704,
+    "id": "29ab347d55e9438e8239aa9fe0b53df1",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329101.163704
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329101.3203049,
+    "id": "3df2ac1c30964c6ab7bc424dc320b704",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1786329101.3203049
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329101.351558,
+    "id": "6dcda844b4a24b0092b4eed73882043c",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1786329101.351558
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329101.3829212,
+    "id": "205ba9f6c7034c158265412048601f08",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1786329101.3829212
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329102.3070776,
+    "id": "bd999dab41314b7b9a1c4011bda9d9bd",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 625
+    },
+    "updated_at": 1786329102.3070776
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329102.3540978,
+    "id": "930d15c68e78436ebeb462c91cf4cba7",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329102.3540978
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329102.374975,
+    "id": "e97e9c4daaa54160b8f9c3d0dea4de4a",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329102.374975
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1786329680.2258415,
+    "id": "8430a49e37604d47b672734b1f97bd23",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329680.2258415
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329680.4090264,
+    "id": "c013603b32f04f89902c12d1ba07d6e1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1786329680.4090264
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329680.4415073,
+    "id": "d471794518114cd887228869cebe8693",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1786329680.4415073
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1786329680.4807496,
+    "id": "73d0c8b02cd147de94fbec83388f7ec3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1786329680.4807496
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329681.0233152,
+    "id": "6e8b2cd1d933420a842c4569b32f71a1",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 249
+    },
+    "updated_at": 1786329681.0233152
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329681.0870414,
+    "id": "8020e4ca2b3c4c219ed9e3688d516b37",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329681.0870414
+  },
+  {
+    "content": "os_action",
+    "created_at": 1786329681.1171494,
+    "id": "fd73833c69d84fe7a395d6c677bfb8b3",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1786329681.1171494
+  }
+]

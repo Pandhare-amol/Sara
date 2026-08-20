@@ -1,0 +1,4311 @@
+{
+  "agents": {
+    "android_agent": {
+      "capabilities": [
+        "android",
+        "phone"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "android_agent",
+      "status": "stopped"
+    },
+    "application_agent": {
+      "capabilities": [
+        "applications",
+        "close",
+        "launch",
+        "websites"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "application_agent",
+      "status": "stopped"
+    },
+    "application_suite_agent": {
+      "capabilities": [
+        "application_plugins",
+        "cross_application_workflows",
+        "safe_app_automation"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "application_suite_agent",
+      "status": "stopped"
+    },
+    "browser_agent": {
+      "capabilities": [
+        "browser",
+        "forms",
+        "screenshots",
+        "search",
+        "tabs",
+        "web"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "browser_agent",
+      "status": "stopped"
+    },
+    "business_agent": {
+      "capabilities": [
+        "business_workflows",
+        "reports"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "business_agent",
+      "status": "stopped"
+    },
+    "calendar_agent": {
+      "capabilities": [
+        "calendar",
+        "events"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "calendar_agent",
+      "status": "stopped"
+    },
+    "camera_agent": {
+      "capabilities": [
+        "camera",
+        "capture"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "camera_agent",
+      "status": "stopped"
+    },
+    "coding_agent": {
+      "capabilities": [
+        "coding",
+        "debugging",
+        "projects",
+        "scripts"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "coding_agent",
+      "status": "stopped"
+    },
+    "debugging_agent": {
+      "capabilities": [
+        "debugging",
+        "error_analysis"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "debugging_agent",
+      "status": "stopped"
+    },
+    "device_sync_agent": {
+      "capabilities": [
+        "clipboard_sync",
+        "cross_device_sync"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "device_sync_agent",
+      "status": "stopped"
+    },
+    "email_agent": {
+      "capabilities": [
+        "email",
+        "mail"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "email_agent",
+      "status": "stopped"
+    },
+    "file_agent": {
+      "capabilities": [
+        "file_management",
+        "files"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "file_agent",
+      "status": "stopped"
+    },
+    "hardware_agent": {
+      "capabilities": [
+        "keyboard",
+        "macros",
+        "mouse",
+        "real_input"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "hardware_agent",
+      "status": "stopped"
+    },
+    "health_diagnostics_agent": {
+      "capabilities": [
+        "health_diagnostics",
+        "system_diagnostics"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "health_diagnostics_agent",
+      "status": "stopped"
+    },
+    "instagram_agent": {
+      "capabilities": [
+        "instagram",
+        "social_media"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "instagram_agent",
+      "status": "stopped"
+    },
+    "knowledge_agent": {
+      "capabilities": [
+        "entity_linking",
+        "knowledge_graph"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "knowledge_agent",
+      "status": "stopped"
+    },
+    "learning_agent": {
+      "capabilities": [
+        "adaptation",
+        "workflow_learning"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "learning_agent",
+      "status": "stopped"
+    },
+    "memory_agent": {
+      "capabilities": [
+        "episodic_memory",
+        "memory",
+        "preferences",
+        "workflow_storage"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "memory_agent",
+      "status": "stopped"
+    },
+    "mobile_control_agent": {
+      "capabilities": [
+        "android",
+        "calls",
+        "camera",
+        "notifications",
+        "phone",
+        "settings",
+        "sms"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "mobile_control_agent",
+      "status": "stopped"
+    },
+    "monitoring_agent": {
+      "capabilities": [
+        "crash_recovery",
+        "health",
+        "resources"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "monitoring_agent",
+      "status": "stopped"
+    },
+    "notification_agent": {
+      "capabilities": [
+        "notifications"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "notification_agent",
+      "status": "stopped"
+    },
+    "ocr_agent": {
+      "capabilities": [
+        "ocr",
+        "text_extraction"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "ocr_agent",
+      "status": "stopped"
+    },
+    "os_agent": {
+      "capabilities": [
+        "clipboard",
+        "files",
+        "folders",
+        "power",
+        "system",
+        "windows"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "os_agent",
+      "status": "stopped"
+    },
+    "personal_assistant_agent": {
+      "capabilities": [
+        "personal_assistance",
+        "reminders"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "personal_assistant_agent",
+      "status": "stopped"
+    },
+    "phone_agent": {
+      "capabilities": [
+        "calls",
+        "phone"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "phone_agent",
+      "status": "stopped"
+    },
+    "process_agent": {
+      "capabilities": [
+        "process_monitoring",
+        "processes"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "process_agent",
+      "status": "stopped"
+    },
+    "rag_agent": {
+      "capabilities": [
+        "code_indexing",
+        "document_indexing",
+        "knowledge_search",
+        "retrieval"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "rag_agent",
+      "status": "stopped"
+    },
+    "reinforcement_agent": {
+      "capabilities": [
+        "confidence",
+        "learning",
+        "task_outcomes"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "reinforcement_agent",
+      "status": "stopped"
+    },
+    "research_agent": {
+      "capabilities": [
+        "information_gathering",
+        "web_research"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "research_agent",
+      "status": "stopped"
+    },
+    "scheduler_agent": {
+      "capabilities": [
+        "scheduled_jobs",
+        "timers",
+        "workflow_templates"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "scheduler_agent",
+      "status": "stopped"
+    },
+    "security_agent": {
+      "capabilities": [
+        "audit",
+        "credentials",
+        "permissions",
+        "safe_mode"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "security_agent",
+      "status": "stopped"
+    },
+    "sms_agent": {
+      "capabilities": [
+        "sms",
+        "text_messages"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "sms_agent",
+      "status": "stopped"
+    },
+    "supervisor_agent": {
+      "capabilities": [
+        "orchestration",
+        "quality_control",
+        "supervision"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "supervisor_agent",
+      "status": "stopped"
+    },
+    "system_control_agent": {
+      "capabilities": [
+        "applications",
+        "desktop",
+        "monitoring",
+        "power",
+        "processes",
+        "sessions",
+        "windows"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "system_control_agent",
+      "status": "stopped"
+    },
+    "task_planner": {
+      "capabilities": [
+        "delegation",
+        "intent_detection",
+        "planning"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "task_planner",
+      "status": "stopped"
+    },
+    "vision_agent": {
+      "capabilities": [
+        "ocr",
+        "screen_understanding",
+        "screenshots"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "vision_agent",
+      "status": "stopped"
+    },
+    "voice_os_agent": {
+      "capabilities": [
+        "command_router",
+        "intent_recognition",
+        "training",
+        "voice_commands"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "voice_os_agent",
+      "status": "stopped"
+    },
+    "whatsapp_agent": {
+      "capabilities": [
+        "messaging",
+        "whatsapp"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "whatsapp_agent",
+      "status": "stopped"
+    },
+    "window_agent": {
+      "capabilities": [
+        "window_management",
+        "windows"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "window_agent",
+      "status": "stopped"
+    },
+    "youtube_agent": {
+      "capabilities": [
+        "media_playback",
+        "youtube"
+      ],
+      "error": null,
+      "last_used": 0.0,
+      "name": "youtube_agent",
+      "status": "stopped"
+    }
+  },
+  "events": [
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786201761.1717732,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786201786.2389622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786201803.5992973,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786202453.4846601,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786206331.0386212,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786206331.0386212,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786206331.0386212,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786206331.0386212,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786206331.0398378,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786207850.9915497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786293242.2620497,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786294898.490971,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786328977.183671,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786329100.409912,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "supervisor_agent",
+        "capabilities": [
+          "orchestration",
+          "quality_control",
+          "supervision"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "file_agent",
+        "capabilities": [
+          "file_management",
+          "files"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "process_agent",
+        "capabilities": [
+          "process_monitoring",
+          "processes"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "window_agent",
+        "capabilities": [
+          "window_management",
+          "windows"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "phone_agent",
+        "capabilities": [
+          "calls",
+          "phone"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "sms_agent",
+        "capabilities": [
+          "sms",
+          "text_messages"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "whatsapp_agent",
+        "capabilities": [
+          "messaging",
+          "whatsapp"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "instagram_agent",
+        "capabilities": [
+          "instagram",
+          "social_media"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "youtube_agent",
+        "capabilities": [
+          "media_playback",
+          "youtube"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "email_agent",
+        "capabilities": [
+          "email",
+          "mail"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "calendar_agent",
+        "capabilities": [
+          "calendar",
+          "events"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "camera_agent",
+        "capabilities": [
+          "camera",
+          "capture"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "ocr_agent",
+        "capabilities": [
+          "ocr",
+          "text_extraction"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "research_agent",
+        "capabilities": [
+          "information_gathering",
+          "web_research"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "debugging_agent",
+        "capabilities": [
+          "debugging",
+          "error_analysis"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "business_agent",
+        "capabilities": [
+          "business_workflows",
+          "reports"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "personal_assistant_agent",
+        "capabilities": [
+          "personal_assistance",
+          "reminders"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "knowledge_agent",
+        "capabilities": [
+          "entity_linking",
+          "knowledge_graph"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "learning_agent",
+        "capabilities": [
+          "adaptation",
+          "workflow_learning"
+        ]
+      },
+      "time": 1786329680.0638952,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "device_sync_agent",
+        "capabilities": [
+          "clipboard_sync",
+          "cross_device_sync"
+        ]
+      },
+      "time": 1786329680.0649076,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "health_diagnostics_agent",
+        "capabilities": [
+          "health_diagnostics",
+          "system_diagnostics"
+        ]
+      },
+      "time": 1786329680.0649076,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786329726.6754622,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "supervisor_agent",
+        "capabilities": [
+          "orchestration",
+          "quality_control",
+          "supervision"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "file_agent",
+        "capabilities": [
+          "file_management",
+          "files"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "process_agent",
+        "capabilities": [
+          "process_monitoring",
+          "processes"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "window_agent",
+        "capabilities": [
+          "window_management",
+          "windows"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "phone_agent",
+        "capabilities": [
+          "calls",
+          "phone"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "sms_agent",
+        "capabilities": [
+          "sms",
+          "text_messages"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "whatsapp_agent",
+        "capabilities": [
+          "messaging",
+          "whatsapp"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "instagram_agent",
+        "capabilities": [
+          "instagram",
+          "social_media"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "youtube_agent",
+        "capabilities": [
+          "media_playback",
+          "youtube"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "email_agent",
+        "capabilities": [
+          "email",
+          "mail"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "calendar_agent",
+        "capabilities": [
+          "calendar",
+          "events"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "camera_agent",
+        "capabilities": [
+          "camera",
+          "capture"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "ocr_agent",
+        "capabilities": [
+          "ocr",
+          "text_extraction"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "research_agent",
+        "capabilities": [
+          "information_gathering",
+          "web_research"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "debugging_agent",
+        "capabilities": [
+          "debugging",
+          "error_analysis"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "business_agent",
+        "capabilities": [
+          "business_workflows",
+          "reports"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "personal_assistant_agent",
+        "capabilities": [
+          "personal_assistance",
+          "reminders"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "knowledge_agent",
+        "capabilities": [
+          "entity_linking",
+          "knowledge_graph"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "learning_agent",
+        "capabilities": [
+          "adaptation",
+          "workflow_learning"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "device_sync_agent",
+        "capabilities": [
+          "clipboard_sync",
+          "cross_device_sync"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "health_diagnostics_agent",
+        "capabilities": [
+          "health_diagnostics",
+          "system_diagnostics"
+        ]
+      },
+      "time": 1786329726.6791983,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "supervisor_agent",
+        "capabilities": [
+          "orchestration",
+          "quality_control",
+          "supervision"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "file_agent",
+        "capabilities": [
+          "file_management",
+          "files"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "process_agent",
+        "capabilities": [
+          "process_monitoring",
+          "processes"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "window_agent",
+        "capabilities": [
+          "window_management",
+          "windows"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "phone_agent",
+        "capabilities": [
+          "calls",
+          "phone"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "sms_agent",
+        "capabilities": [
+          "sms",
+          "text_messages"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "whatsapp_agent",
+        "capabilities": [
+          "messaging",
+          "whatsapp"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "instagram_agent",
+        "capabilities": [
+          "instagram",
+          "social_media"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "youtube_agent",
+        "capabilities": [
+          "media_playback",
+          "youtube"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "email_agent",
+        "capabilities": [
+          "email",
+          "mail"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "calendar_agent",
+        "capabilities": [
+          "calendar",
+          "events"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "camera_agent",
+        "capabilities": [
+          "camera",
+          "capture"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "ocr_agent",
+        "capabilities": [
+          "ocr",
+          "text_extraction"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "research_agent",
+        "capabilities": [
+          "information_gathering",
+          "web_research"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "debugging_agent",
+        "capabilities": [
+          "debugging",
+          "error_analysis"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "business_agent",
+        "capabilities": [
+          "business_workflows",
+          "reports"
+        ]
+      },
+      "time": 1786353872.458401,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "personal_assistant_agent",
+        "capabilities": [
+          "personal_assistance",
+          "reminders"
+        ]
+      },
+      "time": 1786353872.46421,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "knowledge_agent",
+        "capabilities": [
+          "entity_linking",
+          "knowledge_graph"
+        ]
+      },
+      "time": 1786353872.46421,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "learning_agent",
+        "capabilities": [
+          "adaptation",
+          "workflow_learning"
+        ]
+      },
+      "time": 1786353872.46421,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "device_sync_agent",
+        "capabilities": [
+          "clipboard_sync",
+          "cross_device_sync"
+        ]
+      },
+      "time": 1786353872.46421,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "health_diagnostics_agent",
+        "capabilities": [
+          "health_diagnostics",
+          "system_diagnostics"
+        ]
+      },
+      "time": 1786353872.46421,
+      "type": "agent_registered"
+    }
+  ],
+  "tasks": []
+}

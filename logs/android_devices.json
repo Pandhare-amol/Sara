@@ -1,0 +1,32 @@
+{
+  "7d608858": {
+    "id": "7d608858",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1786151744,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
+  }
+}
