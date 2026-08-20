@@ -1,7 +1,7 @@
 {
   "Build Project": {
     "description": "Run a local coding or build task.",
-    "id": "03b20af7d81248a29fd14d20f96b41d8",
+    "id": "bf74800fefe44934ac77f79c7cd819cb",
     "metadata": {
       "builtin": true
     },
@@ -12,11 +12,11 @@
         "agent": "coding_agent"
       }
     ],
-    "updated_at": 1786934784.457052
+    "updated_at": 1787153855.7940912
   },
   "Download File": {
     "description": "Download or save a web file through browser automation.",
-    "id": "b590023fa1ab4e47856910f6355852c0",
+    "id": "84b14e0ebdd7441fb86266f32840a12d",
     "metadata": {
       "builtin": true
     },
@@ -27,11 +27,11 @@
         "agent": "browser_agent"
       }
     ],
-    "updated_at": 1786934784.453038
+    "updated_at": 1787153855.792122
   },
   "Open Browser": {
     "description": "Open a website in the browser agent.",
-    "id": "927ac4d2c6644666800fe2c4d7f52e71",
+    "id": "c1f56ac3ea1344b8b6fbbe92316fa7c8",
     "metadata": {
       "builtin": true
     },
@@ -42,11 +42,11 @@
         "agent": "browser_agent"
       }
     ],
-    "updated_at": 1786934784.453038
+    "updated_at": 1787153855.791119
   },
   "Organize Downloads": {
     "description": "Inspect Downloads and organize files.",
-    "id": "e426e14bd47641a2ba16a6152eb00101",
+    "id": "bd4ff8368ec3481194c03407f65a168d",
     "metadata": {
       "builtin": true
     },
@@ -57,11 +57,11 @@
         "agent": "os_agent"
       }
     ],
-    "updated_at": 1786934784.4611278
+    "updated_at": 1787153855.796615
   },
   "Run Tests": {
     "description": "Run project tests through the coding agent.",
-    "id": "ce8e257c784d4daf887e9dff704642a0",
+    "id": "f04ac9320971463ba875955887709f2f",
     "metadata": {
       "builtin": true
     },
@@ -72,11 +72,11 @@
         "agent": "coding_agent"
       }
     ],
-    "updated_at": 1786934784.457052
+    "updated_at": 1787153855.795605
   },
   "Search Folder": {
     "description": "Search local files and folders.",
-    "id": "d2920b7fe9324f2caca4bfd7aba600fe",
+    "id": "c543ccb56a3944dbaaf7773c125baa40",
     "metadata": {
       "builtin": true
     },
@@ -87,6 +87,6 @@
         "agent": "os_agent"
       }
     ],
-    "updated_at": 1786934784.453038
+    "updated_at": 1787153855.7930899
   }
 }

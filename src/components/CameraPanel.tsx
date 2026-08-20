@@ -1,19 +1,33 @@
 import React, { useEffect, useRef, useState } from "react";
+import { CameraManager, FrameRateController, VisionSession } from "../vision";
 
 export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const cameraManagerRef = useRef(new CameraManager());
+  const frameRateControllerRef = useRef(new FrameRateController(500));
+  const visionSessionRef = useRef<VisionSession | null>(null);
 
   const [status, setStatus] = useState<"off" | "starting" | "active" | "error">("off");
   const [errorText, setErrorText] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisText, setAnalysisText] = useState<string | null>(null);
 
   useEffect(() => {
+    cameraManagerRef.current.onStatusChange = (snapshot) => {
+      if (snapshot.status === "CAMERA_DISCONNECTED") {
+        setStatus("error");
+        setErrorText(snapshot.error || "The camera was disconnected.");
+        streamRef.current = null;
+      }
+    };
     return () => {
+      cameraManagerRef.current.onStatusChange = undefined;
       stopCamera();
     };
   }, []);
@@ -35,6 +49,9 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         if (duration > 0) setTimeout(() => stopRecording(), duration * 1000);
       } else if (act === 'stopRecording') stopRecording();
       else if (act === 'openGallery') fetchAndShowGallery();
+      else if (act === 'analyzeVision') {
+        void startCamera().then(() => window.setTimeout(analyzeFrame, 500));
+      }
     };
     window.addEventListener('sara-camera-action', handler as EventListener);
     return () => window.removeEventListener('sara-camera-action', handler as EventListener);
@@ -56,11 +73,8 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
     setStatus("starting");
     try {
       await enumerate();
-      const constraints: MediaStreamConstraints = {
-        video: { deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-        audio: false,
-      };
-      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      const s = await cameraManagerRef.current.start(selectedDeviceId ?? undefined);
+      visionSessionRef.current = new VisionSession();
       streamRef.current = s;
       if (videoRef.current) {
         videoRef.current.srcObject = s;
@@ -70,10 +84,6 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       }
       setStatus("active");
 
-      const track = s.getVideoTracks()[0];
-      track.onended = () => {
-        stopCamera();
-      };
     } catch (e: any) {
       console.error("Camera start failed", e);
       setErrorText(e?.message || String(e));
@@ -87,16 +97,16 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         recorderRef.current.stop();
       }
     } catch {}
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} });
-      streamRef.current = null;
-    }
+    cameraManagerRef.current.stop();
+    streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.pause();
       try { (videoRef.current as any).srcObject = null; } catch {}
     }
     setStatus("off");
     setIsRecording(false);
+    visionSessionRef.current?.end();
+    visionSessionRef.current = null;
   };
 
   const takePhoto = async () => {
@@ -128,6 +138,44 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       }
     } catch (e: any) {
       setErrorText(e?.message || String(e));
+    }
+  };
+
+  const analyzeFrame = async () => {
+    if (!streamRef.current || !videoRef.current || videoRef.current.videoWidth === 0) {
+      setErrorText("Start the camera and wait for the preview before analyzing.");
+      return;
+    }
+    setIsAnalyzing(true);
+    setAnalysisText(null);
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Camera frame is unavailable.");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (!frameRateControllerRef.current.shouldCapture()) return;
+      visionSessionRef.current?.recordFrame();
+      visionSessionRef.current?.beginAnalysis();
+      const startedAt = performance.now();
+      const response = await fetch("/api/vision/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataUrl: canvas.toDataURL("image/jpeg", 0.8),
+          question: "How am I looking?",
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Vision analysis failed.");
+      setAnalysisText(result.text || "I could not find enough visible detail to comment on.");
+      visionSessionRef.current?.finishAnalysis(result.text || "", performance.now() - startedAt);
+    } catch (error: any) {
+      setErrorText(error?.message || String(error));
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -296,7 +344,13 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         <button onClick={takePhoto} className="px-3 py-1 bg-indigo-600 rounded text-xs">Take Photo</button>
         {!isRecording && <button onClick={startRecording} className="px-3 py-1 bg-amber-600 rounded text-xs">Start Recording</button>}
         {isRecording && <button onClick={stopRecording} className="px-3 py-1 bg-rose-600 rounded text-xs">Stop Recording</button>}
+        <button onClick={analyzeFrame} disabled={isAnalyzing} className="px-3 py-1 bg-cyan-600 rounded text-xs">{isAnalyzing ? "Analyzing..." : "Analyze Vision"}</button>
       </div>
+
+      <div className="mb-2 text-xs font-semibold text-cyan-200">
+        CAMERA: {status === "active" ? "ON" : "OFF"} · VISION: {isAnalyzing || analysisText ? "ACTIVE" : "INACTIVE"}
+      </div>
+      {analysisText && <div className="mb-2 rounded bg-cyan-950/50 p-2 text-xs text-cyan-100">{analysisText}</div>}
 
       {errorText && <div className="text-xs text-rose-300">{errorText}</div>}
 

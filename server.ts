@@ -45,6 +45,9 @@ import {
   appendToolCall,
 } from "./server_state";
 import cognitiveRoutes from "./src/cognitive/routes";
+import { ToolRouter } from "./src/core/tools/toolRouter";
+import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
+import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
 
 dotenv.config();
 
@@ -80,10 +83,12 @@ const DESKTOP_AGENT_TIMEOUT = 25_000; // ms
  * The complete set of tool names routed to the Python desktop agent.
  * Kept in sync with desktop_agent/registry.py DESKTOP_TOOL_NAMES.
  */
-const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
+const DESKTOP_TOOLS: Set<string> = new Set([
   // applications / websites / search
   "openApplication", "closeApplication", "openAnyApplication", "closeAnyApplication", "openWebsite",
   "searchWeb", "searchYouTube", "searchGoogle", "searchGitHub", "openUrlInBrowser",
+    "desktopBrowserMediaState",
+    "desktopLiveState",
   // files
   "createFile", "readFile", "renameFile", "deleteFile", "moveFile", "copyFile", "duplicateFile",
   "createFolder", "compressPath", "extractZip", "openPath", "openFolder", "listFiles", "searchFiles",
@@ -306,33 +311,118 @@ async function ensureDesktopAgent(): Promise<void> {
   console.warn("[Desktop Agent] Did not come online within 20s. Desktop control will be unavailable.");
 }
 
-async function callDesktopAgent(
+async function verifyDesktopAgentReadiness(): Promise<boolean> {
+  try {
+    const healthRes = await fetch(`${DESKTOP_AGENT_URL}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!healthRes.ok) {
+      return false;
+    }
+
+    const health = await healthRes.json().catch(() => ({}));
+    if (health?.service !== "sara-desktop-agent") {
+      return false;
+    }
+
+    const capRes = await fetch(`${DESKTOP_AGENT_URL}/capabilities`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!capRes.ok) {
+      return false;
+    }
+
+    const capabilities = await capRes.json().catch(() => ({}));
+    const capabilityData = capabilities?.capabilities ?? capabilities?.result ?? capabilities;
+    const runtimeTools = Array.isArray(capabilities?.tool_names)
+      ? capabilities.tool_names.filter((name: unknown): name is string => typeof name === "string")
+      : [];
+    if (runtimeTools.length > 0) {
+      runtimeTools.forEach((name: string) => DESKTOP_TOOLS.add(name));
+      console.log(`[Desktop Agent] Capability contract loaded: ${runtimeTools.length} runtime tools.`);
+    }
+    const hasCapabilityData = !!(capabilityData && Object.keys(capabilityData).length > 0);
+    if (!hasCapabilityData || capabilities?.status === "ERROR") {
+      return false;
+    }
+
+    const diagRes = await fetch(`${DESKTOP_AGENT_URL}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(5000),
+      body: JSON.stringify({
+        tool: "desktopAgentDiagnostic",
+        args: { request_id: "startup-diagnostic", operation_id: "startup-diagnostic-desktop-agent" },
+      }),
+    });
+    if (!diagRes.ok) {
+      return false;
+    }
+
+    const diag = await diagRes.json().catch(() => ({}));
+    const result = diag?.result ?? diag?.data?.result ?? diag;
+    const verified = diag?.verified === true || result?.verification === "healthy" || result?.verification === true;
+    return verified === true;
+  } catch {
+    return false;
+  }
+}
+
+async function callDesktopAgentTransport(
   tool: string,
   args: Record<string, unknown>,
-): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+): Promise<{ ok: boolean; result?: unknown; error?: string; status?: string; verified?: boolean }> {
   // Lazy ensure: if we haven't verified the agent, try (re)starting it once.
   if (!desktopAgentVerified) {
     await ensureDesktopAgent();
   }
   try {
-    logCommand(`EXECUTE ${tool} ${JSON.stringify(args)}`);
+    const requestId = String(args.request_id || args.requestId || crypto.randomUUID());
+    const operationId = String(args.operation_id || args.operationId || `${requestId}-${tool}`);
+    const correlatedArgs = { ...args, request_id: requestId, operation_id: operationId };
+    logCommand(`EXECUTE request_id=${requestId} operation_id=${operationId} tool=${tool} ${JSON.stringify(args)}`);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DESKTOP_AGENT_TIMEOUT);
-
     const res = await fetch(`${DESKTOP_AGENT_URL}/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tool, args }),
+      body: JSON.stringify({ tool, args: correlatedArgs }),
       signal: controller.signal,
     });
     clearTimeout(timer);
 
+    const text = await res.text().catch(() => "");
+    const body = text ? JSON.parse(text) : {};
+
+    const structuredResult = body?.result ?? body;
+
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      logError(`AGENT_HTTP_${res.status} ${tool}: ${text.substring(0,200)}`);
-      return { ok: false, error: `Desktop agent HTTP ${res.status}: ${text}` };
+      const message = body?.detail || body?.error || text || `Desktop agent HTTP ${res.status}`;
+      logError(`AGENT_HTTP_${res.status} ${tool}: ${message.substring(0, 200)}`);
+      return {
+        ok: false,
+        result: structuredResult,
+        error: `Desktop agent HTTP ${res.status}: ${message}`,
+        status: String(structuredResult?.status || body?.status || "FAILED").toUpperCase(),
+        verified: structuredResult?.verified === true,
+      };
     }
-    return await res.json();
+
+    const canonicalStatus = String(
+      structuredResult?.status ||
+      body?.status ||
+      body?.result?.status ||
+      (body?.success === true || body?.ok === true || body?.result?.success === true ? "SUCCESS" : "UNCERTAIN"),
+    ).toUpperCase();
+    const verifiedValue = structuredResult?.verified === true || body?.verified === true || body?.result?.verified === true;
+
+    return {
+      ok: true,
+      result: structuredResult,
+      status: canonicalStatus,
+      verified: verifiedValue,
+      error: structuredResult?.error || body?.error || undefined,
+    };
   } catch (err: any) {
     desktopAgentVerified = false; // mark stale so next call retries the spawn
     const msg = err?.name === "AbortError"
@@ -341,6 +431,29 @@ async function callDesktopAgent(
     logError(`AGENT_UNREACHABLE ${tool}: ${msg}`);
     return { ok: false, error: msg };
   }
+}
+
+const desktopToolRouter = new ToolRouter({
+  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool),
+});
+desktopToolRouter.setAdapter(callDesktopAgentTransport);
+
+// Initialize Phase 3 execution orchestrator with verification
+const executionOrchestrator = initializeToolExecution(desktopToolRouter, DESKTOP_AGENT_URL);
+
+async function callDesktopAgent(
+  tool: string,
+  args: Record<string, unknown>,
+) {
+  const unified = await executionOrchestrator.executeWithVerification(tool, args);
+  const executionPayload = unified.executionResult ?? { result: unified.message };
+  return {
+    ok: unified.success,
+    result: unified.success ? executionPayload : unified,
+    error: unified.success ? undefined : unified.message,
+    canonical: unified,
+    unified,
+  };
 }
 
 async function callCompanionEndpoint(
@@ -465,6 +578,32 @@ async function startServer() {
       service_version: "1.0.0",
       protocol_version: "1"
     });
+  });
+
+  app.get("/api/desktop-agent/diagnostics", async (_req, res) => {
+    try {
+      const response = await fetch(`${DESKTOP_AGENT_URL}/capabilities/diagnostics`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      const contract = await response.json().catch(() => ({}));
+      const registered = Array.isArray(contract?.registered_tools) ? contract.registered_tools : [];
+      const bridge = Array.from(DESKTOP_TOOLS);
+      const registeredSet = new Set(registered);
+      const bridgeSet = new Set(bridge);
+      res.status(response.ok ? 200 : 503).json({
+        ...contract,
+        bridge_tools: bridge,
+        missing_tools: registered.filter((name: string) => !bridgeSet.has(name)),
+        extra_tools: bridge.filter((name) => !registeredSet.has(name)),
+        bridge_status: response.ok ? "CONNECTED" : "DEGRADED",
+      });
+    } catch (error: any) {
+      res.status(503).json({
+        status: "degraded",
+        bridge_status: "DISCONNECTED",
+        error: error?.message || String(error),
+      });
+    }
   });
 
   // Memory REST API Endpoints
@@ -2177,13 +2316,20 @@ async function startServer() {
             if (userTextOutput) {
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
-              await appendConversationMessage({
+              void handleLocalMemoryCommand(userTextOutput)
+                .then((localMemory) => {
+                  if (localMemory.handled) {
+                    clientWs.send(JSON.stringify({ type: "local_memory", ...localMemory }));
+                  }
+                })
+                .catch((error) => console.error("[Local Memory] Command failed:", error));
+              void appendConversationMessage({
                 id: newMessageId(),
                 conversationId: conversation.id,
                 role: "user",
                 content: userTextOutput,
                 timestamp: new Date().toISOString(),
-              });
+              }).catch((error) => console.error("[Transcription] DB write failed:", error));
             }
 
             if (message.toolCall?.functionCalls?.length) {
@@ -2312,17 +2458,24 @@ async function startServer() {
                             id: resultRequestId,
                           }],
                         });
+                          if (toolName === "openApplication") {
+                            try { clientWs.send(JSON.stringify({ type: "desktopEvent", event: "application_opened", tool: toolName, output })); } catch {}
+                          }
                         console.log(`[Desktop Agent] request_id=${resultRequestId} operation_id=${operationId} tool=${toolName} final=${finalStatus}`);
                       } else {
-                        const errMsg = agentResult.error || "Desktop agent error.";
+                        const structuredError = (agentResult.result ?? { status: "FAILED", error: agentResult.error || "Desktop agent tool execution failed." }) as any;
+                        const errMsg = agentResult.error || structuredError?.error || structuredError?.message || "Desktop agent tool execution failed.";
                         console.error(`[Desktop Agent] Error for ${toolName}:`, errMsg);
                         session.sendToolResponse({
                           functionResponses: [{
                             name: toolName,
-                            response: { output: { result: `Desktop control error: ${errMsg}` } },
+                            response: { output: { ...structuredError, result: structuredError.result || `Desktop control error: ${errMsg}` } },
                             id: fc.id,
                           }],
                         });
+                          if (toolName === "openApplication") {
+                            try { clientWs.send(JSON.stringify({ type: "desktopEvent", event: "application_open_failed", tool: toolName, application: (fc.args as any)?.name || (fc.args as any)?.application, output: structuredError })); } catch {}
+                          }
                       }
                     } catch (err: any) {
                       console.error(`[Desktop Agent] Exception for ${toolName}:`, err);

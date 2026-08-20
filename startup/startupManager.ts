@@ -88,6 +88,36 @@ function logError(message: string): void {
   console.error(`[SARA][ERROR] ${message}`);
 }
 
+function ensureProductionBundle(): boolean {
+  const bundlePath = path.join(PROJECT_ROOT, "dist", "server.cjs");
+  if (fs.existsSync(bundlePath)) {
+    return true;
+  }
+
+  logWarn("Production backend bundle is missing. Building it now...");
+  try {
+    execSync(
+      `${process.platform === "win32" ? "npm.cmd" : "npm"} run build`,
+      {
+        cwd: PROJECT_ROOT,
+        stdio: "inherit",
+        windowsHide: true,
+      },
+    );
+  } catch (error) {
+    logError(`Production build failed: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+
+  if (!fs.existsSync(bundlePath)) {
+    logError(`Production build completed without creating ${bundlePath}.`);
+    return false;
+  }
+
+  log("Production backend bundle is ready.");
+  return true;
+}
+
 // ============================================================
 // Health check
 // ============================================================
@@ -1121,8 +1151,9 @@ async function main(): Promise<void> {
       );
     }
   } else {
-    backendReady =
-      await startService({
+    const bundleReady = ensureProductionBundle();
+    backendReady = bundleReady
+      ? await startService({
         name: "Backend",
 
         port:
@@ -1175,7 +1206,12 @@ async function main(): Promise<void> {
 
         waitMs:
           30_000,
-      });
+      })
+      : {
+          healthy: false,
+          adopted: false,
+          retries: 0,
+        };
 
     if (
       !backendReady.healthy
@@ -1279,18 +1315,17 @@ async function main(): Promise<void> {
     const capabilities =
       await httpHealthCheck(
         config.agentPort,
-        "/capabilities",
+        "/health",
         3000,
       );
 
     if (
       capabilities.ok &&
-      capabilities.data?.status ===
-        "PROCESS_HEALTHY" &&
-      capabilities.data?.capabilities
+      Number(capabilities.data?.tool_count) > 0 &&
+      Array.isArray(capabilities.data?.tools)
     ) {
       log(
-        "Desktop Agent capabilities verified.",
+        `Desktop Agent capabilities verified (${capabilities.data.tool_count} tools).`,
       );
     } else {
       logWarn(

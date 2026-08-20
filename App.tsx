@@ -93,23 +93,49 @@ export default function App() {
       if (isElectron) {
         // Native Electron capture via IPC
         const res = await (window as any).sara.captureScreenFrame({ quality: 55, maxWidth: 960 });
-        if (res && res.ok && res.frame) {
-           if (sessionRef.current && stateRef.current !== "disconnected") {
-             sessionRef.current.sendVideoFrame(res.frame);
-           }
+        
+        if (!res) {
+          console.error("[Screen Capture] No response from captureScreenFrame");
+          return;
+        }
+        
+        if (!res.ok) {
+          console.error("[Screen Capture] Capture failed:", res.error);
+          return;
+        }
+        
+        if (!res.frame) {
+          console.error("[Screen Capture] No frame data in response");
+          return;
+        }
+        
+        console.log(`[Screen Capture] Frame captured: ${res.width}x${res.height}, ${res.frame.length} bytes`);
+        
+        if (sessionRef.current && stateRef.current !== "disconnected") {
+          sessionRef.current.sendVideoFrame(res.frame);
         }
       } else {
         // Fallback to browser video element capture
         const video = screenVideoRef.current;
-        if (!video) return;
-        if (video.videoWidth === 0 || video.videoHeight === 0) return;
+        if (!video) {
+          console.warn("[Screen Capture] No video element available");
+          return;
+        }
+        
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.warn("[Screen Capture] Video dimensions not ready");
+          return;
+        }
 
         if (!screenCanvasRef.current) {
           screenCanvasRef.current = document.createElement("canvas");
         }
         const canvas = screenCanvasRef.current;
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+        if (!ctx) {
+          console.error("[Screen Capture] Cannot get canvas context");
+          return;
+        }
 
         const maxDim = 960;
         let width = video.videoWidth;
@@ -137,7 +163,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error("[Screen Capture] Failed drawing/capturing frame:", err);
+      console.error("[Screen Capture] Failed to capture/send frame:", err);
     }
   };
 
@@ -148,10 +174,20 @@ export default function App() {
       
       if (isElectron) {
         // In native Electron, verify permission and immediately transition to sharing state
+        console.log("[Screen Sharing] Starting Electron native screen capture...");
+        
         const perm = await (window as any).sara.checkScreenPermission();
+        
+        console.log("[Screen Sharing] Permission check result:", perm);
+        
         if (!perm.ok) {
-           throw new Error(perm.message || "Native screen capture blocked by Windows privacy settings.");
+          const detailedError = perm.message || `Screen capture unavailable (sources: ${perm.sourcesFound}, thumbnail: ${perm.thumbnailOk})`;
+          console.error("[Screen Sharing] Permission denied:", detailedError);
+          throw new Error(detailedError);
         }
+        
+        console.log("[Screen Sharing] Permission granted, starting capture loop...");
+        
         setIsScreenSharing(true);
         setIsScreenSharingPaused(false);
         
@@ -168,6 +204,8 @@ export default function App() {
         
       } else {
         // Fallback for browser
+        console.log("[Screen Sharing] Starting browser screen capture...");
+        
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             width: { ideal: 1280 },
@@ -206,8 +244,23 @@ export default function App() {
       }
     } catch (e: any) {
       console.error("Screen sharing failed:", e);
-      if (e.name !== "NotAllowedError") {
-        setErrorText(`Could not capture screen: ${e.message || e}`);
+      
+      const errorMessage = e?.message || String(e);
+      
+      if ((window as any).sara?.isDesktop) {
+        // Electron-specific error messages
+        if (errorMessage.includes("sources")) {
+          setErrorText(`Desktop capture failed: No display sources found. Check Windows display settings or try restarting SARA.`);
+        } else if (errorMessage.includes("thumbnail")) {
+          setErrorText(`Desktop capture failed: Thumbnail generation failed. Your graphics driver may need updating.`);
+        } else {
+          setErrorText(`Desktop capture error: ${errorMessage}`);
+        }
+      } else {
+        // Browser error handling
+        if (e.name !== "NotAllowedError") {
+          setErrorText(`Could not capture screen: ${errorMessage}`);
+        }
       }
     }
   };
@@ -1329,7 +1382,7 @@ export default function App() {
               height: `min(${quickChatDockSize.h}px, calc(100vh - 2rem))`,
               transform: `translate3d(${quickChatDockPos.x}px, ${quickChatDockPos.y}px, 0)`,
             }}
-            className={`fixed left-4 top-4 sm:left-auto sm:top-auto z-50 rounded-3xl border border-white/12 bg-slate-950/80 backdrop-blur-2xl shadow-[0_20px_80px_rgba(0,0,0,0.45)] overflow-hidden ${quickChatPinned ? "ring-1 ring-cyan-400/25" : ""}`}
+            className={`fixed left-4 top-4 sm:left-auto sm:top-auto z-50 rounded-3xl border border-white/12 bg-slate-950/80 backdrop-blur-2xl shadow-[0_20px_80px_rgba(0,0,0,0.45)] overflow-hidden flex flex-col ${quickChatPinned ? "ring-1 ring-cyan-400/25" : ""}`}
           >
             <div className={`h-1 w-full bg-gradient-to-r transition-all duration-500 ${
               themeColor === "violet" ? "from-violet-400 via-cyan-300 to-fuchsia-400" :

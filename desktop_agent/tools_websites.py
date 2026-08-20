@@ -8,7 +8,6 @@ browser and the in-app holographic BrowserAgent).
 
 from __future__ import annotations
 
-import os
 import webbrowser
 from typing import Any, Dict
 from urllib.parse import quote
@@ -59,28 +58,10 @@ def _normalize_url(raw: str) -> str:
 def open_url(url: str) -> str:
     """Open a URL in the default browser; returns the resolved URL."""
     url = _normalize_url(url)
-    ok = False
-    if os.name == "nt":
-        try:
-            os.startfile(url)  # type: ignore[attr-defined]
-            ok = True
-        except Exception:
-            ok = False
-    if not ok:
-        ok = webbrowser.open(url, new=2)  # new tab in a new window group if possible
+    ok = webbrowser.open(url, new=2)  # new tab in a new window group if possible
     if not ok:
         raise ToolError(f"Failed to open default browser for {url}.")
     return url
-
-
-def open_named_site(name: str) -> str:
-    """Open a named site shortcut in the default browser and return the URL."""
-    key = str(name or "").strip().lower()
-    if not key:
-        raise ToolError("Provide a site name or URL.")
-    if key in SITE_URLS:
-        return open_url(SITE_URLS[key])
-    return open_url(key)
 
 
 @register("openWebsite")
@@ -88,8 +69,12 @@ def open_website(args: Dict[str, Any]) -> Dict[str, Any]:
     name = args.get("name")
     url = args.get("url")
     if name and not url:
-        url = open_named_site(str(name))
-        return {"result": f"Opened {url} in the default browser."}
+        key = str(name).strip().lower()
+        if key in SITE_URLS:
+            url = SITE_URLS[key]
+        else:
+            # Treat the name itself as a domain if it looks like one.
+            url = str(name)
     if not url and not name:
         raise ToolError("Provide 'name' (e.g. 'youtube') or 'url'.")
     resolved = open_url(url or str(name))
@@ -117,4 +102,4 @@ def _build_search_url(engine: str, query: str) -> str:
     return base[engine]
 
 
-__all__ = ["open_website", "open_url", "open_named_site", "SITE_URLS", "_build_search_url"]
+__all__ = ["open_website", "open_url", "SITE_URLS", "_build_search_url"]

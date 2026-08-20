@@ -19,8 +19,7 @@ def sara_agent_execute(args: Dict[str, Any]) -> Dict[str, Any]:
     if not goal:
         return {"result": "No goal was provided.", "ok": False}
     priority = int(args.get("priority") or 5)
-    external_plan = args.get("plan")
-    return {"result": MANAGER.execute_for_sara(goal, priority=priority, external_plan=external_plan)}
+    return {"result": MANAGER.execute_for_sara(goal, priority=priority)}
 
 
 @register("saraAgentStatus")

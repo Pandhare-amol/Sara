@@ -10,14 +10,21 @@ Provides full YouTube automation:
 from __future__ import annotations
 
 import json
+import inspect
 import os
+import time
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
 from .platform_core import MEMORY, VAULT
 from .registry import TOOLS, ToolError, register
 from .tools_websites import open_url
+
+
+def _sync_tool(name: str) -> Optional[Callable[[Dict[str, Any]], Dict[str, Any]]]:
+    """Return a synchronous tool handler for legacy YouTube call sites."""
+    return cast(Optional[Callable[[Dict[str, Any]], Dict[str, Any]]], TOOLS.get(name))
 
 
 def _get_youtube_api_key() -> str:
@@ -58,47 +65,112 @@ def youtube_search(args: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pass
 
-    # 2. Browser Search Fallback
-    search = TOOLS.get("desktopBrowserSearch")
-    if search is None:
-        from .tools_search import search_youtube
-        res = search_youtube({"query": query})
+    # 2. Real-browser fallback (preferred for normal YouTube use)
+    search = _sync_tool("searchYouTube")
+    if search is not None:
+        res = search({"query": query})
         MEMORY.remember("youtube_search", f"Searched YouTube for '{query}' via default browser", {})
         return res
-    res = search({"query": query, "engine": "youtube"})
-    MEMORY.remember("youtube_search", f"Searched YouTube for '{query}' via browser", {})
+
+    from .tools_search import search_youtube
+    res = search_youtube({"query": query})
+    MEMORY.remember("youtube_search", f"Searched YouTube for '{query}' via default browser", {})
     return res
 
 
 @register("youtube_play")
-def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
+async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
     url = str(args.get("url") or "").strip()
     query = str(args.get("query") or "").strip()
+    active_browser_page = False
 
     if not url and query:
-        search_res = youtube_search({"query": query})
-        videos = search_res.get("videos") or []
-        if videos:
-            url = videos[0]["url"]
+        browser_search = _sync_tool("desktopBrowserSearch")
+        browser_click = _sync_tool("desktopBrowserClick")
+        if browser_search is not None:
+            search_result = browser_search({"query": query, "engine": "youtube"})
+            if inspect.isawaitable(search_result):
+                search_result = await search_result
+            if isinstance(search_result, dict) and search_result.get("error"):
+                return {
+                    "error": str(search_result["error"]),
+                    "error_code": "YOUTUBE_NOT_FOUND",
+                    "status": "failed",
+                    "executed": True,
+                }
+            active_browser_page = True
+            if browser_click is not None:
+                try:
+                    click_result = browser_click({"selector": "a[href*='/watch']"})
+                    if inspect.isawaitable(click_result):
+                        click_result = await click_result
+                    if isinstance(click_result, dict) and click_result.get("error"):
+                        return {
+                            "error": str(click_result["error"]),
+                            "error_code": "YOUTUBE_NOT_FOUND",
+                            "status": "failed",
+                            "executed": True,
+                        }
+                except Exception:
+                    return {
+                        "error": "No YouTube video result could be selected.",
+                        "error_code": "YOUTUBE_NOT_FOUND",
+                        "status": "failed",
+                        "executed": True,
+                    }
+            else:
+                return {
+                    "error": "YouTube result selection is unavailable.",
+                    "error_code": "YOUTUBE_NOT_FOUND",
+                    "status": "failed",
+                    "executed": True,
+                }
         else:
-            q = urllib.parse.quote(query)
-            url = f"https://www.youtube.com/results?search_query={q}"
+            search_res = youtube_search({"query": query})
+            videos = search_res.get("videos") or []
+            if videos:
+                url = videos[0]["url"]
+            else:
+                q = urllib.parse.quote(query)
+                url = f"https://www.youtube.com/results?search_query={q}"
 
-    if not url:
+    if not url and not active_browser_page:
         raise ToolError("Provide a YouTube 'url' or 'query' to play.")
 
-    res = {"result": f"Opened {open_url(url)} in the default browser."}
+    browser_open = _sync_tool("desktopBrowserOpen")
+    browser_media = _sync_tool("desktopBrowserMedia")
+    if browser_open is not None:
+        opened = {"result": "Used the active Playwright browser page."}
+        if url:
+            opened_result = browser_open({"url": url})
+            opened = await opened_result if inspect.isawaitable(opened_result) else opened_result
+        res: Dict[str, Any] = {"result": "Opened YouTube video in the Playwright browser.", "url": url, "browser": opened}
+        if browser_media is not None:
+            media_result = browser_media({"action": "play"})
+            media_result = await media_result if inspect.isawaitable(media_result) else media_result
+            res["media"] = media_result
+            media_error = media_result.get("error") if isinstance(media_result, dict) else None
+            nested_error = media_result.get("result", {}).get("error") if isinstance(media_result, dict) and isinstance(media_result.get("result"), dict) else None
+            if media_error or nested_error:
+                return {
+                    "error": str(media_error or nested_error),
+                    "error_code": "PLAYBACK_NOT_STARTED",
+                    "status": "failed",
+                    "executed": True,
+                    "url": url,
+                    "media": media_result,
+                }
+    else:
+        res = {"result": f"Opened {open_url(url)} in the default browser.", "url": url}
     MEMORY.remember("youtube_playback", f"Playing YouTube video: {url}", {"url": url})
-    if isinstance(res, dict):
-        res.setdefault("verification", "UNCERTAIN")
-        res.setdefault("verified", False)
-        return res
-    return {"result": f"Opened YouTube video {url}.", "verification": "UNCERTAIN", "verified": False}
+    res.setdefault("verification", "UNCERTAIN")
+    res.setdefault("verified", False)
+    return res
 
 
 @register("youtube_pause")
 def youtube_pause(args: Dict[str, Any]) -> Dict[str, Any]:
-    media_h = TOOLS.get("desktopBrowserMedia")
+    media_h = _sync_tool("desktopBrowserMedia")
     if media_h:
         try:
             res = media_h({"action": "pause"})
@@ -109,7 +181,7 @@ def youtube_pause(args: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pass
 
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         res = key_h({"key": "k"})
         if isinstance(res, dict):
@@ -122,7 +194,7 @@ def youtube_pause(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_resume")
 def youtube_resume(args: Dict[str, Any]) -> Dict[str, Any]:
-    media_h = TOOLS.get("desktopBrowserMedia")
+    media_h = _sync_tool("desktopBrowserMedia")
     if media_h:
         try:
             res = media_h({"action": "play"})
@@ -133,7 +205,7 @@ def youtube_resume(args: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             pass
 
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         res = key_h({"key": "k"})
         if isinstance(res, dict):
@@ -149,7 +221,7 @@ def youtube_seek(args: Dict[str, Any]) -> Dict[str, Any]:
     seconds = int(args.get("seconds") or 10)
     direction = str(args.get("direction") or "forward").lower()
 
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         key = "l" if direction == "forward" else "j"
         presses = max(1, seconds // 10)
@@ -163,7 +235,7 @@ def youtube_seek(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("youtube_volume")
 def youtube_volume(args: Dict[str, Any]) -> Dict[str, Any]:
     action = str(args.get("action") or "up").lower()
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         key = "ArrowUp" if action == "up" else "ArrowDown" if action == "down" else "m"
         key_h({"key": key})
@@ -174,7 +246,7 @@ def youtube_volume(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_fullscreen")
 def youtube_fullscreen(args: Dict[str, Any]) -> Dict[str, Any]:
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         res = key_h({"key": "f"})
         if isinstance(res, dict):
@@ -186,7 +258,7 @@ def youtube_fullscreen(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_captions")
 def youtube_captions(args: Dict[str, Any]) -> Dict[str, Any]:
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         res = key_h({"key": "c"})
         if isinstance(res, dict):
@@ -198,7 +270,7 @@ def youtube_captions(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_transcript")
 def youtube_transcript(args: Dict[str, Any]) -> Dict[str, Any]:
-    read = TOOLS.get("desktopBrowserReadPage")
+    read = _sync_tool("desktopBrowserReadPage")
     if read is None:
         raise ToolError("Desktop page read handler unavailable.")
     res = read({"max_chars": int(args.get("max_chars", 20000))})
@@ -208,7 +280,7 @@ def youtube_transcript(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_get_info")
 def youtube_get_info(args: Dict[str, Any]) -> Dict[str, Any]:
-    read = TOOLS.get("desktopBrowserReadPage")
+    read = _sync_tool("desktopBrowserReadPage")
     if read is None:
         return {"result": "Browser unavailable to read video info."}
     res = read({"max_chars": 5000})
@@ -225,7 +297,7 @@ def youtube_get_info(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("youtube_add_to_watch_later")
 def youtube_add_to_watch_later(args: Dict[str, Any]) -> Dict[str, Any]:
-    key_h = TOOLS.get("desktopBrowserKey")
+    key_h = _sync_tool("desktopBrowserKey")
     if key_h:
         try:
             key_h({"key": "Shift+Save"})
@@ -235,7 +307,7 @@ def youtube_add_to_watch_later(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": "Added video to Watch Later."}
 
 
-@register("youtube_upload", permission_level="HIGH", risk_level="HIGH")
+@register("youtube_upload")
 def youtube_upload(args: Dict[str, Any]) -> Dict[str, Any]:
     file_path = str(args.get("file_path") or "").strip()
     title = str(args.get("title") or "New Video").strip()
@@ -244,7 +316,7 @@ def youtube_upload(args: Dict[str, Any]) -> Dict[str, Any]:
     if not file_path:
         raise ToolError("Parameter 'file_path' is required for video upload.")
 
-    open_h = TOOLS.get("desktopBrowserOpen")
+    open_h = _sync_tool("desktopBrowserOpen")
     if open_h:
         open_h({"url": "https://studio.youtube.com"})
 

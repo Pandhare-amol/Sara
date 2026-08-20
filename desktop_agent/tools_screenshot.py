@@ -1,4 +1,4 @@
-"""
+﻿"""
 Screenshot & screen-reading: capture, save, OCR, and read on-screen text.
 
   takeScreenshot    -> capture full screen, return metadata (+ small base64)
@@ -33,17 +33,7 @@ def _capture() -> "Any":
         img = ImageGrab.grab(all_screens=True)
         return img
     except Exception as e:  # noqa: BLE001
-        # Fallback: try mss which can capture on more environments
-        try:
-            import mss
-            from PIL import Image
-            with mss.mss() as s:
-                monitor = s.monitors[0]
-                sshot = s.grab(monitor)
-                img = Image.frombytes("RGB", sshot.size, sshot.rgb)
-                return img
-        except Exception:
-            raise ToolError(f"Screen capture failed: {e}")
+        raise ToolError(f"Screen capture failed: {e}")
 
 
 def _capture_region(bbox):
@@ -52,20 +42,7 @@ def _capture_region(bbox):
 
         return ImageGrab.grab(bbox=bbox, all_screens=False)
     except Exception as e:  # noqa: BLE001
-        # Fallback to mss region capture
-        try:
-            import mss
-            from PIL import Image
-            left, top, right, bottom = bbox
-            width = right - left
-            height = bottom - top
-            with mss.mss() as s:
-                monitor = {"left": int(left), "top": int(top), "width": int(width), "height": int(height)}
-                sshot = s.grab(monitor)
-                img = Image.frombytes("RGB", sshot.size, sshot.rgb)
-                return img
-        except Exception:
-            raise ToolError(f"Region capture failed: {e}")
+        raise ToolError(f"Region capture failed: {e}")
 
 
 def _active_window_bbox():
@@ -105,40 +82,6 @@ def _image_size_kb(img) -> int:
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return len(buf.getvalue()) // 1024
-
-
-def _mask_sensitive_data(img: "Any", patterns: list) -> "Any":
-    """Redact regions containing text that matches any of the given regex patterns.
-    Returns a new PIL Image with black rectangles over matched text.
-    """
-    try:
-        import re
-        from PIL import ImageDraw
-        data = _ocr_data(img)
-    except Exception as e:
-        raise ToolError(f"Masking failed: {e}")
-    # data is a dict from pytesseract.image_to_data
-    n = len(data.get("text", []))
-    draw = ImageDraw.Draw(img)
-    for i in range(n):
-        txt = data["text"][i].strip()
-        if not txt:
-            continue
-        # Check each pattern
-        for pat in patterns:
-            try:
-                if re.search(pat, txt, flags=re.IGNORECASE):
-                    left = int(data["left"][i])
-                    top = int(data["top"][i])
-                    w = int(data["width"][i])
-                    h = int(data["height"][i])
-                    # Draw a solid black rectangle over the region
-                    draw.rectangle([left, top, left + w, top + h], fill="black")
-                    break
-            except re.error:
-                # Invalid regex pattern – ignore
-                continue
-    return img
 
 
 def _run_ocr(img) -> str:
@@ -205,14 +148,7 @@ def take_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("saveScreenshot")
 def save_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        img = _capture()
-    except ToolError as e:
-        return {"result": f"Failed to capture screenshot: {e.message}", "error": str(e)}
-    # If privacy masking is requested, apply it before saving.
-    if args.get("mask_sensitive", False) and img is not None:
-        patterns = args.get("patterns") or []
-        img = _mask_sensitive_data(img, patterns)
+    img = _capture()
     SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     name = args.get("name")
@@ -248,22 +184,16 @@ def read_screen(args: Dict[str, Any]) -> Dict[str, Any]:
     else:
         img = _capture()
     try:
-        from .tools_windows import get_active_window
-        win_meta = get_active_window({}).get("window", {})
-    except Exception:
-        win_meta = {"title": title}
-        
-    try:
         text = _run_ocr(img)
         visible = _trim_ocr(text, int(args.get("max_chars", 1500))) or "(no readable text)"
     except ToolError as e:
         return {
             "result": f"Active window: {title or 'unknown'}. OCR unavailable: {e.message}",
-            "active_window": win_meta,
+            "active_window": title,
         }
     return {
         "result": f"Active window '{title or 'unknown'}' contains readable text.",
-        "active_window": win_meta,
+        "active_window": title,
         "text": visible,
     }
 

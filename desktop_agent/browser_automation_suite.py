@@ -205,10 +205,7 @@ class BrowserAutomationSuite:
             except Exception as exc:  # noqa: BLE001
                 last = {"error": str(exc), "action": action, "attempt": attempt + 1}
                 if attempt >= retries:
-                    # Ensure callers always receive a top-level 'result' key
-                    # containing the error information to keep a consistent
-                    # response shape for tests and callers.
-                    return {"result": {"error": str(exc)}, "error": str(exc), "action": action, "recovered": False}
+                    return {"error": str(exc), "action": action, "recovered": False}
         return last
 
     def _submit_form(self, args: Dict[str, Any]) -> Dict[str, Any]:

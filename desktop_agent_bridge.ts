@@ -10,10 +10,9 @@ import { appendToolCall, newToolCallId, newSessionId } from './server_state';
 
 export type AgentResult = { ok: boolean; result?: unknown; error?: string };
 
-// Placeholder bridge: actual callDesktopAgent is provided by server_full at runtime.
-// This function will be replaced by assignment when TaskManager is initialized.
+// The task runner must be explicitly wired to the live server bridge.
 export let callDesktopAgent: (tool: string, args: Record<string, unknown>) => Promise<AgentResult> = async () => {
-  return { ok: false, error: 'desktop agent bridge not initialized' };
+  throw new Error('Desktop Agent bridge is not initialized; refusing to execute a task.');
 };
 
 // Setter to allow runtime injection without assigning to the imported

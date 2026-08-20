@@ -39,14 +39,6 @@ cd C:\Users\MSI\Desktop\sara-ai-assistant
 
 ---
 
-## Memory Persistence & Prompt Integration
-
-The desktop agent stores SARA's durable memory locally, and it should use a durable store rather than only in-memory state.
-
-- `desktop_agent/sqlite_memory.py`: a helper for durable SQLite-backed memory facts and conversation logs.
-- `desktop_agent/platform_core.py`: still supports the existing JSON memory manager, but the SQLite helper is available as a next-step persistence migration.
-- For Gemini prompt usage, memory should be injected explicitly as "RELEVANT MEMORY" and conversation context as "CONVERSATION HISTORY" so the model treats it as ground truth.
-
 ## Run
 
 ```bash

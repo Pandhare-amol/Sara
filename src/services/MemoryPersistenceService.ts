@@ -80,8 +80,8 @@ export class MemoryPersistenceService {
       const filename = `memories-${timestamp}.json`;
       const filepath = path.join(this.config.dataDir, filename);
 
-      // Write main file
-      fs.writeFileSync(filepath, JSON.stringify(snapshot, null, 2), 'utf-8');
+      // Replace the snapshot atomically so a process crash cannot leave a partial JSON file.
+      this.writeJsonAtomically(filepath, snapshot);
       console.log(`[MemoryPersistence] Saved ${snapshot.metadata.totalMemories} memories to ${filename}`);
 
       // Create backup
@@ -108,12 +108,21 @@ export class MemoryPersistenceService {
     };
 
     try {
-      // Find most recent memory file
-      const files = fs.readdirSync(this.config.dataDir);
-      const memoryFiles = files
+      // Try main snapshots and backups from newest to oldest. A corrupt newest
+      // snapshot must not discard an otherwise recoverable memory history.
+      const mainFiles = fs
+        .readdirSync(this.config.dataDir)
         .filter((f) => f.startsWith('memories-') && f.endsWith('.json'))
-        .sort()
-        .reverse();
+        .map((filename) => path.join(this.config.dataDir, filename));
+      const backupDir = path.join(this.config.dataDir, 'backups');
+      const backupFiles = fs.existsSync(backupDir)
+        ? fs
+            .readdirSync(backupDir)
+            .filter((f) => f.startsWith('memories-') && f.endsWith('.json'))
+            .map((filename) => path.join(backupDir, filename))
+        : [];
+      const memoryFiles = [...mainFiles, ...backupFiles]
+        .sort((a, b) => path.basename(b).localeCompare(path.basename(a)));
 
       if (memoryFiles.length === 0) {
         console.log('[MemoryPersistence] No previous memories found, starting fresh');
@@ -123,23 +132,26 @@ export class MemoryPersistenceService {
         };
       }
 
-      const latestFile = memoryFiles[0];
-      const filepath = path.join(this.config.dataDir, latestFile);
-      const data = fs.readFileSync(filepath, 'utf-8');
-      const snapshot: MemorySnapshot = JSON.parse(data);
+      for (const filepath of memoryFiles) {
+        try {
+          const data = fs.readFileSync(filepath, 'utf-8');
+          const snapshot = this.parseSnapshot(data);
+          const store = this.restoreFromSnapshot(snapshot);
 
-      // Restore memories
-      const store = this.restoreFromSnapshot(snapshot);
+          result.success = true;
+          result.memoriesLoaded = snapshot.metadata.totalMemories;
+          result.timestamp = snapshot.timestamp;
 
-      result.success = true;
-      result.memoriesLoaded = snapshot.metadata.totalMemories;
-      result.timestamp = snapshot.timestamp;
+          console.log(
+            `[MemoryPersistence] Loaded ${result.memoriesLoaded} memories from ${path.basename(filepath)}`
+          );
+          return { store, result };
+        } catch (error) {
+          result.errors.push(`Failed to load ${path.basename(filepath)}: ${error}`);
+        }
+      }
 
-      console.log(
-        `[MemoryPersistence] Loaded ${result.memoriesLoaded} memories from ${latestFile}`
-      );
-
-      return { store, result };
+      return { store: this.createEmptyStore(), result };
     } catch (error) {
       result.errors.push(`Failed to load memories: ${error}`);
       console.error('[MemoryPersistence] Error loading memories:', error);
@@ -327,6 +339,41 @@ export class MemoryPersistenceService {
         lastUpdateTime: Date.now(),
       },
     };
+  }
+
+  private parseSnapshot(data: string): MemorySnapshot {
+    const snapshot = JSON.parse(data) as Partial<MemorySnapshot>;
+    const memoryTypes = [
+      'episodic',
+      'semantic',
+      'procedural',
+      'preference',
+      'failure',
+      'achievement',
+      'autobiographical',
+    ] as const;
+
+    if (!snapshot.metadata || typeof snapshot.timestamp !== 'number') {
+      throw new Error('Invalid memory snapshot metadata');
+    }
+    for (const type of memoryTypes) {
+      if (!Array.isArray(snapshot[type])) {
+        throw new Error(`Invalid memory snapshot section: ${type}`);
+      }
+    }
+    return snapshot as MemorySnapshot;
+  }
+
+  private writeJsonAtomically(filepath: string, value: unknown): void {
+    const tempPath = `${filepath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      fs.writeFileSync(tempPath, JSON.stringify(value, null, 2), 'utf-8');
+      fs.renameSync(tempPath, filepath);
+    } finally {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    }
   }
 
   private restoreFromSnapshot(snapshot: MemorySnapshot): MemoryStore {

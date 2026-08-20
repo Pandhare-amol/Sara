@@ -19,17 +19,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional
 
-from .registry import TOOLS, TOOL_REGISTRY, load_all
-from .tool_result import make_tool_result
-from .app_resolver import resolve_application
-from .platform_core import (EXPERIENCES, EVOLUTION, MEMORY, REINFORCEMENT, RECOVERY, SCHEDULER, SKILLS,
-                           STRATEGIES, SECURITY, WORKFLOWS, close_all_services)
-from .verification import VerificationEngine as CanonicalVerificationEngine
-
-
-# Use the canonical verification implementation
-VERIFICATION_ENGINE = CanonicalVerificationEngine()
-TOOL_REGISTRY = TOOL_REGISTRY
+from .registry import TOOLS
+from .platform_core import EXPERIENCES, EVOLUTION, MEMORY, REINFORCEMENT, RECOVERY, SCHEDULER, SKILLS, STRATEGIES, SECURITY, WORKFLOWS
 
 AgentStatus = Literal["idle", "initializing", "running", "paused", "stopped", "error"]
 TaskStatus = Literal[
@@ -163,20 +154,11 @@ class ToolAgent(BaseAgent):
                 errors=[f"Tool '{tool_name}' is not registered"],
                 confidence=0.0,
             )
-        operation_id = f"sara-op-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
-        try:
-            out = handler(task.args)
-            execution_status = "SUCCESS"
-            message = "Handler executed without exception."
-        except Exception as exc:  # noqa: BLE001
-            out = {"error": str(exc)}
-            execution_status = "FAILED"
-            message = str(exc)
+        out = handler(task.args)
         self.last_used = time.time()
-        tool_result = make_tool_result(tool_name, execution_status, "NOT_VERIFIED", message=message, details={"raw_result": out}, verification={}, operation_id=operation_id)
         return AgentResult(
-            status="completed" if execution_status == "SUCCESS" else "failed",
-            result=tool_result,
+            status="completed",
+            result=out,
             logs=[f"{self.name} executed {tool_name}"],
             confidence=0.9,
         )
@@ -262,29 +244,12 @@ class SystemControlAgent(BaseAgent):
                 errors=[f"Tool '{tool_name}' is not registered"],
                 confidence=0.0,
             )
-        operation_id = f"sara-op-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}"
-        # For Windows-app related actions, resolve aliases
-        if args is None:
-            args = {}
-        if tool_name.lower() in ("openapplication",) or args.get("name"):
-            name = args.get("name") or args.get("application") or ""
-            display, resolved = resolve_application(name)
-            if resolved:
-                args["resolved_name"] = resolved
-                args["resolved_display"] = display
-        try:
-            out = handler(args)
-            execution_status = "SUCCESS"
-            message = "Handler executed without exception."
-        except Exception as exc:  # noqa: BLE001
-            out = {"error": str(exc)}
-            execution_status = "FAILED"
-            message = str(exc)
+
+        out = handler(args)
         self.last_used = time.time()
-        tool_result = make_tool_result(tool_name, execution_status, "NOT_VERIFIED", message=message, details={"raw_result": out, "args": args}, verification={}, operation_id=operation_id)
         return AgentResult(
-            status="completed" if execution_status == "SUCCESS" else "failed",
-            result=tool_result,
+            status="completed",
+            result=out,
             logs=[f"{self.name} executed {tool_name}"],
             confidence=0.9,
         )
@@ -303,17 +268,9 @@ class TaskPlannerAgent(BaseAgent):
 class AgentManager:
     """Central manager reporting to SARA and controlling agent lifecycle."""
 
-    @staticmethod
-    def tool_registry_snapshot() -> Dict[str, Any]:
-        return {
-            "tool_count": len(TOOL_REGISTRY.tools),
-            "permissions": {name: data.get("permission_level") for name, data in TOOL_REGISTRY.tools.items()},
-        }
-
     def __init__(self, idle_timeout_seconds: int = 90) -> None:
         self.idle_timeout_seconds = idle_timeout_seconds
         self._lock = threading.RLock()
-        self._action_lock = threading.RLock()
         self._agents: Dict[str, BaseAgent] = {}
         self._tasks: Dict[str, AgentTask] = {}
         self._events: List[Dict[str, Any]] = []
@@ -374,10 +331,6 @@ class AgentManager:
                         "maximize_window": "maximizeWindow",
                         "close_window": "closeWindow",
                         "switch_application": "switchApplication",
-                        "list_windows": "listWindows",
-                        "get_active_window": "getActiveWindow",
-                        "focus_window": "focusWindow",
-                        "minimize_other_windows": "minimizeOtherWindows",
                         "restore_window": "restoreWindow",
                         "show_desktop": "showDesktop",
                         "restart_explorer": "restartExplorer",
@@ -512,7 +465,6 @@ class AgentManager:
                         "plan": "saraAppPlan",
                         "execute": "saraAppExecute",
                         "execute_goal": "saraAppExecuteGoal",
-                        "desktop_capability_matrix": "saraDesktopCapabilityMatrix",
                     },
                 )
             )
@@ -522,61 +474,10 @@ class AgentManager:
             self.register_agent(ToolAgent("window_agent", ["windows", "window_management"], {"minimize": "minimizeWindow", "maximize": "maximizeWindow", "restore": "restoreWindow", "close": "closeWindow"}))
             self.register_agent(ToolAgent("phone_agent", ["phone", "calls"], {"call": "saraAndroidExecute"}))
             self.register_agent(ToolAgent("sms_agent", ["sms", "text_messages"], {"send_sms": "saraAndroidExecute"}))
-            self.register_agent(
-                ToolAgent(
-                    "whatsapp_agent",
-                    ["whatsapp", "messaging", "chat"],
-                    {
-                        "send": "whatsapp_send",
-                        "open_chat": "whatsapp_open_chat",
-                        "list_chats": "whatsapp_list_chats",
-                        "read_messages": "whatsapp_read_messages",
-                        "reply": "whatsapp_reply",
-                        "send_media": "whatsapp_send_media",
-                        "group_send": "whatsapp_group_send",
-                        "schedule_send": "whatsapp_schedule_send",
-                        "search_messages": "whatsapp_search_messages",
-                        "resolve_contact": "whatsapp_resolve_contact",
-                    },
-                )
-            )
+            self.register_agent(ToolAgent("whatsapp_agent", ["whatsapp", "messaging"], {"message": "saraAndroidExecute"}))
             self.register_agent(ToolAgent("instagram_agent", ["instagram", "social_media"], {"post": "saraAndroidExecute"}))
-            self.register_agent(
-                ToolAgent(
-                    "youtube_agent",
-                    ["youtube", "media_playback", "video"],
-                    {
-                        "search": "youtube_search",
-                        "play": "youtube_play",
-                        "pause": "youtube_pause",
-                        "resume": "youtube_resume",
-                        "seek": "youtube_seek",
-                        "volume": "youtube_volume",
-                        "fullscreen": "youtube_fullscreen",
-                        "captions": "youtube_captions",
-                        "transcript": "youtube_transcript",
-                        "get_info": "youtube_get_info",
-                        "upload": "youtube_upload",
-                    },
-                )
-            )
-            self.register_agent(
-                ToolAgent(
-                    "email_agent",
-                    ["email", "mail", "inbox"],
-                    {
-                        "send": "email_send",
-                        "read": "email_read",
-                        "search": "email_search",
-                        "draft": "email_draft",
-                        "reply": "email_reply",
-                        "forward": "email_forward",
-                        "create_task": "email_create_task_from_email",
-                        "schedule_send": "email_schedule_send",
-                    },
-                )
-            )
-
+            self.register_agent(ToolAgent("youtube_agent", ["youtube", "media_playback"], {"search": "searchYouTube"}))
+            self.register_agent(ToolAgent("email_agent", ["email", "mail"], {"send_email": "saraAppExecuteGoal"}))
             self.register_agent(ToolAgent("calendar_agent", ["calendar", "events"], {"add_event": "saraAppExecuteGoal"}))
             self.register_agent(ToolAgent("camera_agent", ["camera", "capture"], {"take_screenshot": "takeScreenshot", "save_screenshot": "saveScreenshot"}))
             self.register_agent(ToolAgent("ocr_agent", ["ocr", "text_extraction"], {"read_screen": "readScreen", "analyze_screenshot": "analyzeScreenshot"}))
@@ -598,9 +499,9 @@ class AgentManager:
         self._agents[agent.name] = agent
         self._event("agent_registered", {"agent": agent.name, "capabilities": agent.capabilities})
 
-    def execute_for_sara(self, goal: str, priority: int = 5, external_plan: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def execute_for_sara(self, goal: str, priority: int = 5) -> Dict[str, Any]:
         root_id = self._new_id()
-        plan = external_plan if external_plan is not None else plan_goal(goal)
+        plan = plan_goal(goal)
         checkpoint = RECOVERY.latest_incomplete_for_goal(goal)
         resume_from = str((checkpoint or {}).get("payload", {}).get("resume_from") or "")
         if checkpoint:
@@ -636,7 +537,7 @@ class AgentManager:
         WORKFLOWS.learn(goal, plan, {"status": status, "workflow_id": root_id})
         if status == "completed":
             SKILLS.learn_from_workflow(goal, f"Learned workflow for {goal}", plan, {"workflow_id": root_id})
-        REINFORCEMENT.record(goal, status, [item["task"] for item in results], metadata={"workflow_id": root_id, "plan": plan})
+        REINFORCEMENT.record(goal, status, [item["task"] for item in results])
         total_duration = sum(int(item["task"].duration_ms or 0) for item in results)
         EXPERIENCES.record(
             task=goal,
@@ -744,14 +645,7 @@ class AgentManager:
         task.finished_at = time.time()
         task.duration_ms = int((task.finished_at - (task.started_at or task.finished_at)) * 1000)
         task.progress = result.progress
-        # Normalize result into standardized tool result contract
-        raw_result = result.result
-        if isinstance(raw_result, dict) and raw_result.get("execution_status"):
-            tool_result = raw_result
-        else:
-            exec_status = "SUCCESS" if result.status == "completed" else "FAILED"
-            tool_result = make_tool_result(self._resolve_tool_name(task), exec_status, "NOT_VERIFIED", message="handler returned", details={"raw_result": raw_result}, verification={}, operation_id=f"sara-op-{int(time.time()*1000)}-{uuid.uuid4().hex[:6]}")
-        task.result = tool_result
+        task.result = result.result
         task.confidence = result.confidence
         if result.status == "completed":
             task.status = "completed"
@@ -768,21 +662,6 @@ class AgentManager:
             },
         )
         self._persist_state()
-        # Save a checkpoint after the task outcome has been persisted and verified
-        try:
-            from .checkpoint_agent import CHECKPOINT
-            checkpoint_state = {
-                "goal": task.goal,
-                "task_id": task.id,
-                "agent": task.agent,
-                "action": task.action,
-                "result": task.result,
-                "status": result.status,
-                "timestamp": time.time(),
-            }
-            CHECKPOINT.save_checkpoint(checkpoint_state)
-        except Exception:
-            pass
         return result
 
     def _execute_with_retry(self, task: AgentTask, max_retries: int = 1) -> AgentResult:
@@ -793,39 +672,14 @@ class AgentManager:
             task.retry_count = attempts - 1
             result = self._execute_task(task)
             last_result = result
+            if result.status == "completed" and self._verify_result(task, result):
+                return result
             if result.status == "completed":
-                # verification may return SUCCESS / FAILED / UNCERTAIN
-                tool_name = self._resolve_tool_name(task)
-                verification = VERIFICATION_ENGINE.evaluate(result.result, tool_name, args=task.args)
-                if verification == "FAILED":
-                    # Execution occurred but verification proved failure
-                    result = AgentResult(status="failed", errors=["Verification failed after execution."], confidence=result.confidence * 0.5)
-                    last_result = result
-                else:
-                    # SUCCESS or UNCERTAIN -> accept execution but attach verification status
-                    # update the stored tool_result
-                    if isinstance(result.result, dict):
-                        if verification == "SUCCESS":
-                            result.result["verification_status"] = "VERIFIED"
-                        elif verification == "UNCERTAIN":
-                            result.result["verification_status"] = "UNCERTAIN"
-                        else:
-                            result.result["verification_status"] = "UNCERTAIN"
-                        result.result.setdefault("verification", {})
-                        result.result["verification"]["method"] = "engine.evaluate"
-                        result.result["verification"]["raw_verification"] = verification
-                    return result
+                result = AgentResult(status="failed", errors=["Verification failed after execution."], confidence=result.confidence * 0.5)
+                last_result = result
             if attempts <= max_retries:
                 self._event("task_retry", {"task": task.id, "attempt": attempts, "agent": task.agent})
         return last_result
-
-    def _resolve_tool_name(self, task: AgentTask) -> str:
-        agent = self._agents.get(task.agent)
-        if agent and hasattr(agent, "routes"):
-            for target_action, tool_name in agent.routes.items():
-                if target_action == task.action:
-                    return tool_name
-        return task.action
 
     def _verify_result(self, task: AgentTask, result: AgentResult) -> bool:
         payload = str(result.result or "")
@@ -833,47 +687,27 @@ class AgentManager:
             return False
         if result.status != "completed":
             return False
-        tool_name = self._resolve_tool_name(task)
-        # If the agent already returned a structured tool result, prefer its verification_status
-        verification = None
-        if isinstance(result.result, dict) and result.result.get("verification_status"):
-            vs = str(result.result.get("verification_status") or "").upper()
-            mapping = {
-                "VERIFIED": "SUCCESS",
-                "SUCCESS": "SUCCESS",
-                "FAILED": "FAILED",
-                "UNCERTAIN": "UNCERTAIN",
-                "NOT_VERIFIED": "UNCERTAIN",
-                "NOT_REQUIRED": "NOT_REQUIRED",
-            }
-            verification = mapping.get(vs, None)
-        if verification is None:
-            verification = VERIFICATION_ENGINE.evaluate(result.result, tool_name, args=task.args)
-        # attach verification metadata into the tool_result if possible
-        if isinstance(result.result, dict):
-            if verification == "SUCCESS":
-                result.result["verification_status"] = "VERIFIED"
-            elif verification == "FAILED":
-                result.result["verification_status"] = "FAILED"
-            else:
-                result.result["verification_status"] = "UNCERTAIN"
-            result.result.setdefault("verification", {})
-            result.result["verification"]["method"] = "engine.evaluate"
-            result.result["verification"]["raw_verification"] = verification
-
-        if verification == "SUCCESS":
-            # File creation empirical verification
-            if task.action in ("create_file", "write_code_file", "create_python_file", "create_folder"):
-                target_path = str(task.args.get("path") or task.args.get("file_path") or task.args.get("folder_path") or task.args.get("name") or "")
-                if target_path and not os.path.isabs(target_path):
-                    target_path = str(Path.cwd() / target_path)
-                if target_path and os.path.exists(target_path):
-                    return True
+        # File creation empirical verification
+        if task.action in ("create_file", "write_code_file", "create_python_file", "create_folder"):
+            target_path = str(task.args.get("path") or task.args.get("file_path") or task.args.get("folder_path") or task.args.get("name") or "")
+            if target_path and not os.path.isabs(target_path):
+                target_path = str(Path.cwd() / target_path)
+            if target_path and os.path.exists(target_path):
+                return True
+        checks = {
+            "open_application": lambda text: any(word in text.lower() for word in ("opened", "focused", "launched")),
+            "close_application": lambda text: any(word in text.lower() for word in ("closed", "force-closed")),
+            "open_website": lambda text: "opened" in text.lower(),
+            "search_web": lambda text: "search" in text.lower() or "opened" in text.lower(),
+            "take_screenshot": lambda text: "screenshot" in text.lower() or "saved" in text.lower(),
+            "open_camera": lambda text: "camera" in text.lower() or "open" in text.lower(),
+            "take_photo": lambda text: "photo" in text.lower() or "captured" in text.lower(),
+            "record_video": lambda text: "record" in text.lower(),
+        }
+        checker = checks.get(task.action)
+        if checker is None:
             return True
-        if verification == "FAILED":
-            return False
-        # UNCERTAIN: do not treat as failure; accept execution but mark unverified
-        return True
+        return checker(payload)
 
     def unload_idle_agents(self, force: bool = False) -> Dict[str, Any]:
         stopped: List[str] = []
@@ -1015,33 +849,9 @@ def plan_goal(goal: str) -> List[Dict[str, Any]]:
             direction = "up" if "up" in low else "down"
             return [{"agent": "browser_agent", "action": "scroll", "args": {"direction": direction, "amount": 700}}]
         return [{"agent": "browser_agent", "action": "open", "args": {"url": _website_url(low)}}]
-    if "whatsapp" in low or (("send message" in low or "message " in low) and "to " in low):
-        if "read" in low or "check" in low:
-            return [{"agent": "whatsapp_agent", "action": "read_messages", "args": {"contact": _after(low, ["from ", "with "])}}]
-        if "search" in low:
-            return [{"agent": "whatsapp_agent", "action": "search_messages", "args": {"query": _after(low, ["for ", "about "]) or text}}]
-        return [{"agent": "whatsapp_agent", "action": "send", "args": {"contact": _after(low, ["to "]), "message": text}}]
-    if any(word in low for word in ("email", "mail", "inbox", "gmail", "outlook")):
-        if "read" in low or "check" in low or "list" in low:
-            return [{"agent": "email_agent", "action": "read", "args": {"folder": "INBOX"}}]
-        if "search" in low:
-            return [{"agent": "email_agent", "action": "search", "args": {"query": _after(low, ["for ", "about "]) or text}}]
-        if "draft" in low:
-            return [{"agent": "email_agent", "action": "draft", "args": {"to": _after(low, ["to "]), "subject": "Draft", "body": text}}]
-        return [{"agent": "email_agent", "action": "send", "args": {"to": _after(low, ["to "]), "subject": "Notice from SARA", "body": text}}]
-    if "youtube" in low:
-        if "pause" in low:
-            return [{"agent": "youtube_agent", "action": "pause", "args": {}}]
-        if "resume" in low or "play video" in low:
-            return [{"agent": "youtube_agent", "action": "resume", "args": {}}]
-        if "transcript" in low or "summary" in low:
-            return [{"agent": "youtube_agent", "action": "transcript", "args": {}}]
-        if "search" in low or "find" in low:
-            return [{"agent": "youtube_agent", "action": "search", "args": {"query": _after(low, ["for ", "about ", "search "]) or text}}]
-        return [{"agent": "youtube_agent", "action": "play", "args": {"query": text}}]
     if any(word in low for word in ("screenshot", "screen", "ocr", "see this")):
         return [{"agent": "vision_agent", "action": "read_screen", "args": {}}]
-    if any(word in low for word in ("mobile", "android", "phone", "sms", "message", "notification", "flashlight", "battery", "camera", "contact")):
+    if any(word in low for word in ("mobile", "android", "phone", "sms", "message", "notification", "flashlight", "battery", "camera", "contact", "whatsapp", "telegram", "instagram")):
         return [{"agent": "mobile_control_agent", "action": "mobile_plan", "args": {"request": text}}]
     if any(word in low for word in ("open app", "launch", "start application", "calculator", "notepad")):
         app_name = text.replace("open", "").replace("launch", "").strip()
@@ -1051,7 +861,6 @@ def plan_goal(goal: str) -> List[Dict[str, Any]]:
     if any(word in low for word in ("code", "python", "script", "debug", "refactor")):
         return [{"agent": "coding_agent", "action": "create_project_folder", "args": {"name": "SaraGeneratedProject"}}]
     return [{"agent": "task_planner", "action": "plan", "args": {"goal": text}}]
-
 
 
 def _group_parallel_steps(steps: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
@@ -1167,4 +976,3 @@ def _website_url(text: str) -> str:
 
 
 MANAGER = AgentManager()
-load_all()

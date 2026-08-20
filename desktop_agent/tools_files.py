@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .registry import ToolError, register
-from .app_resolver import resolve_windows_folder
 
 HOME = Path(os.path.expanduser("~"))
 
@@ -52,26 +51,20 @@ FOLDER_ALIASES: Dict[str, Path] = {
 }
 
 
-def _resolve_folder(name_or_path: Optional[str]) -> Optional[Path]:
+def _resolve_folder(name_or_path: Optional[str]) -> Path:
     if not name_or_path:
         raise ToolError("Parameter 'name' or 'path' is required.")
-    raw = str(name_or_path).strip()
-    key = raw.lower()
+    key = str(name_or_path).strip().lower()
     if key in FOLDER_ALIASES:
         return FOLDER_ALIASES[key]
-    resolved, kind = resolve_windows_folder(raw)
-    if kind == "windows-app":
-        return None
-    if resolved is not None:
-        return resolved
-    return Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+    p = Path(os.path.expandvars(os.path.expanduser(str(name_or_path)))).resolve()
+    return p
 
 
 def _resolve_file(path: Optional[str], *, must_exist: bool = False) -> Path:
     if not path:
         raise ToolError("Parameter 'path' is required.")
-    raw = str(path).strip()
-    p = Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+    p = Path(os.path.expandvars(os.path.expanduser(str(path)))).resolve()
     if must_exist and not p.exists():
         raise ToolError(f"File does not exist: {p}")
     return p
@@ -109,8 +102,7 @@ def create_file(args: Dict[str, Any]) -> Dict[str, Any]:
         )
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(str(content), encoding="utf-8")
-    exists = p.exists()
-    return {"result": f"Created file: {p}" if exists else f"Requested creation of file: {p}", "path": str(p), "verified": exists, "verification": "VERIFIED" if exists else "UNCERTAIN", "preexisting": False}
+    return {"result": f"Created file: {p}", "path": str(p)}
 
 
 @register("readFile")
@@ -141,8 +133,7 @@ def rename_file(args: Dict[str, Any]) -> Dict[str, Any]:
     if target.exists():
         raise ToolError(f"A file already exists at the target name: {target}")
     p.rename(target)
-    verified = target.exists() and not p.exists()
-    return {"result": f"Renamed {p.name} -> {target.name}" if verified else f"Requested rename {p.name} -> {target.name}", "path": str(target), "old_path": str(p), "verified": verified, "verification": "VERIFIED" if verified else "UNCERTAIN"}
+    return {"result": f"Renamed {p.name} -> {target.name}", "path": str(target)}
 
 
 @register("deleteFile")
@@ -159,16 +150,14 @@ def delete_file(args: Dict[str, Any]) -> Dict[str, Any]:
             shutil.rmtree(p)
         else:
             p.unlink()
-        gone = not p.exists()
-        return {"result": f"Permanently deleted: {p}" if gone else f"Requested delete: {p}", "verified": gone, "verification": "VERIFIED" if gone else "UNCERTAIN", "path": str(p)}
+        return {"result": f"Permanently deleted: {p}"}
 
     # Prefer recycle bin.
     try:
         import send2trash  # type: ignore
 
         send2trash.send2trash(str(p))
-        gone = not p.exists()
-        return {"result": f"Moved to Recycle Bin: {p}" if gone else f"Requested move to Recycle Bin: {p}", "verified": gone, "verification": "VERIFIED" if gone else "UNCERTAIN", "path": str(p)}
+        return {"result": f"Moved to Recycle Bin: {p}"}
     except ImportError:
         raise ToolError(
             "Safe deletion requires the 'send2trash' package. Install it or pass "
@@ -193,16 +182,12 @@ def move_file(args: Dict[str, Any]) -> Dict[str, Any]:
         raise ToolError(f"Destination already exists: {dest}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     p.rename(dest)
-    verified = dest.exists() and not p.exists()
-    return {"result": f"Moved {p.name} -> {dest}" if verified else f"Requested move {p.name} -> {dest}", "path": str(dest), "source_path": str(p), "verified": verified, "verification": "VERIFIED" if verified else "UNCERTAIN"}
+    return {"result": f"Moved {p.name} -> {dest}", "path": str(dest)}
 
 
 @register("openFolder")
 def open_folder(args: Dict[str, Any]) -> Dict[str, Any]:
-    raw = str(args.get("name") or args.get("path") or "").strip()
-    folder = _resolve_folder(raw)
-    if folder is None:
-        raise ToolError(f"'{raw}' looks like a Windows app, not a folder. Use openApplication for app targets.")
+    folder = _resolve_folder(args.get("name") or args.get("path"))
     if not folder.exists():
         raise ToolError(f"Folder does not exist: {folder}")
     # Explorer on Windows, open elsewhere.
@@ -212,7 +197,7 @@ def open_folder(args: Dict[str, Any]) -> Dict[str, Any]:
         subprocess.Popen(["open", str(folder)], close_fds=True)
     else:
         subprocess.Popen(["xdg-open", str(folder)], close_fds=True)
-    return {"result": f"Opened folder: {folder}" if folder.exists() else f"Requested open folder: {folder}", "path": str(folder), "verification": "VERIFIED" if folder.exists() else "UNCERTAIN", "verified": folder.exists()}
+    return {"result": f"Opened folder: {folder}", "path": str(folder)}
 
 
 @register("listFiles")
@@ -231,8 +216,6 @@ def list_files(args: Dict[str, Any]) -> Dict[str, Any]:
         "result": f"{len(names)} item(s) in {folder}",
         "items": names[:500],
         "count": len(names),
-        "verified": True,
-        "verification": "VERIFIED",
     }
 
 
@@ -276,8 +259,6 @@ def search_files(args: Dict[str, Any]) -> Dict[str, Any]:
         "result": f"Found {len(matches)} file(s) matching '{pattern}' under {folder}",
         "matches": matches,
         "count": len(matches),
-        "verified": True,
-        "verification": "VERIFIED",
     }
 
 

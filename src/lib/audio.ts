@@ -86,6 +86,7 @@ export class SaraAudioSession {
   private onToolCall: (name: string, args: any, callback: (result: any) => void) => void;
   private onError: (error: string) => void;
   private onMemorySync?: (memories: any[]) => void;
+  private onDesktopEvent?: (event: any) => void;
   private onWake?: (info: { phrase?: string; confidence?: number } ) => void;
   
   private currentState: LiveState = "disconnected";
@@ -98,6 +99,7 @@ export class SaraAudioSession {
     onToolCall: (name: string, args: any, callback: (result: any) => void) => void;
     onError: (error: string) => void;
     onMemorySync?: (memories: any[]) => void;
+    onDesktopEvent?: (event: any) => void;
     onWake?: (info: { phrase?: string; confidence?: number }) => void;
   }) {
     this.onStateChange = handlers.onStateChange;
@@ -105,6 +107,7 @@ export class SaraAudioSession {
     this.onToolCall = handlers.onToolCall;
     this.onError = handlers.onError;
     this.onMemorySync = handlers.onMemorySync;
+    this.onDesktopEvent = handlers.onDesktopEvent;
     this.onWake = handlers.onWake;
   }
 
@@ -311,6 +314,19 @@ export class SaraAudioSession {
             if (this.onMemorySync) {
               this.onMemorySync(data.memories);
             }
+          }
+
+          if (data.type === "desktopEvent" && this.onDesktopEvent) {
+            this.onDesktopEvent(data);
+          }
+
+          if (data.type === "vision_action") {
+            window.dispatchEvent(new CustomEvent("sara-camera-action", {
+              detail: {
+                action: data.action === "start" ? "startCamera" : data.action === "stop" ? "stopCamera" : data.action === "analyze" ? "analyzeVision" : "statusVision",
+                question: data.question,
+              },
+            }));
           }
 
           // Handle Tool Calling

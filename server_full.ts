@@ -18,6 +18,10 @@ import {
 import { gatherBuildIdentity, loadBuildManifest } from "./src/security/buildIdentity";
 import { AuditLogger } from "./src/security/auditLogger";
 import cognitiveRoutes from "./src/cognitive/routes";
+import { ToolRouter } from "./src/core/tools/toolRouter";
+import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
+import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
+import { evaluateRetryPolicy } from "./src/core/tools/retryPolicy";
 import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
 
 const SARA_SYSTEM_PROMPT_BASE = `You are Sara, a young Indian female AI personal assistant aged 20 to 25.
@@ -146,6 +150,8 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // browser automation (Playwright â€” desktop-owned, separate from holographic UI)
   "desktopBrowserOpen", "desktopBrowserNavigate", "desktopBrowserOpenTab",
   "desktopBrowserCloseTab", "desktopBrowserSearch", "desktopBrowserClick",
+    "desktopBrowserMediaState",
+    "desktopLiveState",
   "desktopBrowserType", "desktopBrowserFillForm", "desktopBrowserGoBack",
   "desktopBrowserGoForward", "desktopBrowserScroll",
   // coding assistance
@@ -294,7 +300,7 @@ async function ensureDesktopAgent(): Promise<void> {
   console.warn("[Desktop Agent] Did not come online within 20s. Desktop control will be unavailable.");
 }
 
-async function callDesktopAgent(
+async function callDesktopAgentTransport(
   tool: string,
   args: Record<string, unknown>,
   originalArgs?: Record<string, unknown>,
@@ -314,7 +320,6 @@ async function callDesktopAgent(
         return { ok: false, error: String(e?.message || e) };
       }
     }
-
     if (t === 'whatsappincoming' || t === 'whatsapp.incoming' || t === 'whatsapp_incoming') {
       try {
         await Promise.resolve(whatsappClient.persistIncomingEvent(args || {}));
@@ -453,6 +458,32 @@ async function callDesktopAgent(
   }
 
   return { ok: false, error: "Desktop agent could not be reached after retry." };
+}
+
+const desktopToolRouter = new ToolRouter({
+  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool),
+});
+desktopToolRouter.setAdapter((tool, args) =>
+  callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined),
+);
+
+// Initialize Phase 3 execution orchestrator with verification
+const executionOrchestrator = initializeToolExecution(desktopToolRouter, DESKTOP_AGENT_URL);
+async function callDesktopAgent(
+  tool: string,
+  args: Record<string, unknown>,
+  originalArgs?: Record<string, unknown>,
+) {
+  const routedArgs = originalArgs ? { ...args, original_args: originalArgs } : args;
+  const unified = await executionOrchestrator.executeWithVerification(tool, routedArgs);
+  const executionPayload = unified.executionResult ?? { result: unified.message };
+  return {
+    ok: unified.success,
+    result: unified.success ? executionPayload : unified,
+    error: unified.success ? undefined : unified.message,
+    canonical: unified,
+    unified,
+  };
 }
 
 async function callCompanionEndpoint(
@@ -824,11 +855,10 @@ async function startServer() {
   // V2: Agent health proxy (for the Settings panel â€” avoids direct :8765 call
   // which may fail due to CORS when served on a different origin).
   app.get("/api/agent-health", async (_req, res) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 3000);
       const r = await fetch(`${DESKTOP_AGENT_URL}/health`, { signal: ctrl.signal });
-      clearTimeout(timer);
       if (r.ok) {
         const d = await r.json();
         res.json({ online: true, tool_count: d.tool_count });
@@ -837,6 +867,51 @@ async function startServer() {
       }
     } catch {
       res.json({ online: false });
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  app.post("/api/vision/analyze", async (req, res) => {
+    try {
+      const dataUrl = String(req.body?.dataUrl ?? "");
+      const question = String(req.body?.question ?? "Describe only visible, non-sensitive details.").trim();
+      const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) {
+        return res.status(400).json({ ok: false, error: "A valid camera image is required." });
+      }
+      if (match[2].length > 8 * 1024 * 1024) {
+        return res.status(413).json({ ok: false, error: "Camera image is too large." });
+      }
+
+      const apiKey = getGeminiApiKey();
+      if (!apiKey) {
+        return res.status(503).json({ ok: false, error: "Gemini API key is not configured." });
+      }
+
+      const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1].toLowerCase(),
+                data: match[2],
+              },
+            },
+            {
+              text: `Analyze this camera frame for the user's request: ${question}\nOnly report observable, non-sensitive details such as clothing colors, visible accessories, lighting, framing, posture, and image quality. Do not identify the person or infer health, identity, mood, religion, politics, sexuality, personality, or other sensitive traits. If the image is unclear, say what is missing and suggest a camera adjustment.`,
+            },
+          ],
+        }],
+        config: { maxOutputTokens: 300, temperature: 0.2 },
+      });
+
+      return res.json({ ok: true, text: String(response.text ?? "").trim() });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || "Vision analysis failed." });
     }
   });
 
@@ -1681,6 +1756,19 @@ async function startServer() {
 
       const toolName = last.toolName;
       const args = last.args || {};
+      const retryPolicy = evaluateRetryPolicy(
+        toolName,
+        req.body?.confirmDangerousRetry === true,
+      );
+      if (!retryPolicy.allowed) {
+        return res.status(409).json({
+          ok: false,
+          code: "RETRY_CONFIRMATION_REQUIRED",
+          error: retryPolicy.reason,
+          tool: toolName,
+          requiresConfirmation: true,
+        });
+      }
       const agentResult = await callDesktopAgent(toolName, args);
 
       // Append the retry tool call
@@ -1832,6 +1920,82 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: e?.message || "Failed to save image." });
     }
+  });
+
+  // Camera media API. These routes are part of the production backend because
+  // the active Electron renderer uses them for explicit save/gallery actions.
+  app.post("/api/camera/photo", async (req, res) => {
+    try {
+      const dataUrl = String(req.body?.dataUrl || "");
+      const match = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) return res.status(400).json({ error: "A valid image data URL is required." });
+      const mediaDir = dataFile("SARA_MEDIA");
+      const photosDir = path.join(mediaDir, "photos");
+      fs.mkdirSync(photosDir, { recursive: true });
+      const filename = `${Date.now()}.${match[1].toLowerCase() === "png" ? "png" : "jpg"}`;
+      const outPath = path.join(photosDir, filename);
+      fs.writeFileSync(outPath, Buffer.from(match[2], "base64"));
+      return res.json({ ok: true, path: outPath, filename });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to save photo." });
+    }
+  });
+
+  app.post("/api/camera/video", async (req, res) => {
+    try {
+      const dataBase64 = String(req.body?.dataBase64 || "");
+      if (!/^[A-Za-z0-9+/=]+$/.test(dataBase64)) return res.status(400).json({ error: "Valid video data is required." });
+      const videosDir = path.join(dataFile("SARA_MEDIA"), "videos");
+      fs.mkdirSync(videosDir, { recursive: true });
+      const filename = `${Date.now()}.webm`;
+      const outPath = path.join(videosDir, filename);
+      fs.writeFileSync(outPath, Buffer.from(dataBase64, "base64"));
+      return res.json({ ok: true, path: outPath, filename });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to save video." });
+    }
+  });
+
+  app.get("/api/camera/gallery", (_req, res) => {
+    const mediaDir = dataFile("SARA_MEDIA");
+    const photosDir = path.join(mediaDir, "photos");
+    const videosDir = path.join(mediaDir, "videos");
+    const list = (directory: string) => fs.existsSync(directory)
+      ? fs.readdirSync(directory).filter((file) => !file.startsWith("."))
+        .map((filename) => ({ filename, path: path.join(directory, filename) }))
+      : [];
+    res.json({ photos: list(photosDir), videos: list(videosDir) });
+  });
+
+  const safeMediaPath = (type: string, filename: string) => {
+    if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) return null;
+    return path.join(dataFile("SARA_MEDIA"), type === "video" ? "videos" : "photos", filename);
+  };
+
+  app.get("/api/camera/photo/:filename", (req, res) => {
+    const filePath = safeMediaPath("photo", String(req.params.filename || ""));
+    if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Not found");
+    return res.sendFile(filePath);
+  });
+
+  app.get("/api/camera/video/:filename", (req, res) => {
+    const filePath = safeMediaPath("video", String(req.params.filename || ""));
+    if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Not found");
+    return res.sendFile(filePath);
+  });
+
+  app.post("/api/camera/delete", async (req, res) => {
+    const filePath = safeMediaPath(String(req.body?.type || "photo"), String(req.body?.filename || ""));
+    if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: "File not found." });
+    fs.unlinkSync(filePath);
+    return res.json({ ok: true });
+  });
+
+  app.post("/api/camera/open-folder", async (req, res) => {
+    const filePath = safeMediaPath(String(req.body?.type || "photo"), String(req.body?.filename || ""));
+    if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: "File not found." });
+    const result = await callDesktopAgent("openFolder", { path: path.dirname(filePath) });
+    return result.ok ? res.json({ ok: true }) : res.status(502).json({ ok: false, error: result.error });
   });
 
   // Conversations persistence for mobile/desktop sync
@@ -2531,6 +2695,18 @@ async function startServer() {
             {
               functionDeclarations: [
                 {
+                  name: "camera_vision",
+                  description: "Explicitly start, stop, inspect status, or analyze the user's camera view. Never use without a direct camera request.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      action: { type: Type.STRING, enum: ["start", "stop", "analyze", "status"] },
+                      question: { type: Type.STRING, description: "Optional question about visible, non-sensitive details." },
+                    },
+                    required: ["action"],
+                  },
+                },
+                {
                   name: "browserOpen",
                   description: "Opens a designated website URL or interface tab inside Sara's web agent console.",
                   parameters: {
@@ -3128,6 +3304,13 @@ async function startServer() {
             if (userTextOutput) {
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
+              void handleLocalMemoryCommand(userTextOutput)
+                .then((localMemory) => {
+                  if (localMemory.handled) {
+                    clientWs.send(JSON.stringify({ type: "local_memory", ...localMemory }));
+                  }
+                })
+                .catch((error) => console.error("[Local Memory] Command failed:", error));
               // Defer DB write — do not block next audio packet
               (async () => {
                 try {
@@ -3164,7 +3347,17 @@ async function startServer() {
 
                 const args = (fc.args ?? {}) as Record<string, unknown>;
 
-                if (fc.name === "saveCustomMemory") {
+                if (fc.name === "camera_vision") {
+                  const action = String(args.action || "status");
+                  const allowed = new Set(["start", "stop", "analyze", "status"]);
+                  const result = allowed.has(action)
+                    ? { ok: true, action, message: action === "start" ? "Camera activation requested." : action === "stop" ? "Camera stop requested." : action === "analyze" ? "Camera analysis requested." : "Camera status requested." }
+                    : { ok: false, error: "Invalid camera vision action." };
+                  clientWs.send(JSON.stringify({ type: "vision_action", action, question: args.question || "" }));
+                  session.sendToolResponse({
+                    functionResponses: [{ name: fc.name, response: { output: { result } }, id: fc.id }],
+                  });
+                } else if (fc.name === "saveCustomMemory") {
                   try {
                     const category = typeof args.category === "string" ? (args.category as MemoryCategory) : undefined;
                     const text = typeof args.text === "string" ? args.text : undefined;

@@ -5,6 +5,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Memory, MemoryTransaction } from "./src/lib/memoryTypes";
 import { dataFile } from "./server_paths";
 
+export type StoredMemory = Memory & {
+  source?: "desktop" | "mobile";
+  lastReferencedAt?: string;
+  keywords?: string[];
+};
+
 const DESKTOP_MEMORY_FILE = dataFile("memories.json");
 const MOBILE_MEMORY_FILE = dataFile("memories_mobile.json");
 const MEMORY_DB_FILE = dataFile("sara_memory.db");
@@ -33,11 +39,6 @@ CREATE TABLE IF NOT EXISTS relationship_memory (id TEXT PRIMARY KEY, relation_na
 `;
 
 type MemorySource = "desktop" | "mobile";
-type StoredMemory = Memory & {
-  source?: MemorySource;
-  lastReferencedAt?: string;
-  keywords?: string[];
-};
 
 function memoryFileForSource(source: MemorySource): string {
   return source === "mobile" ? MOBILE_MEMORY_FILE : DESKTOP_MEMORY_FILE;

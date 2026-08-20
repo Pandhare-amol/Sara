@@ -1,3 +1,0 @@
-SARA Voice Tone Issue: TECH noticed variations in voice tone (sometimes soft, sometimes harsh).
-Automation Issue: Automation tasks are not completing correctly.
-Desktop Agent Issue: Issues with the desktop agent causing failures. 

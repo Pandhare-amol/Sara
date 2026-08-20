@@ -532,14 +532,20 @@ export default function App() {
             const takePhotoRe = /take (?:a )?(?:photo|picture)(?: in (\d+) seconds?)?/i;
             const startRecRe = /start (?:recording|video)(?: for (\d+) seconds?)?/i;
             const stopRecRe = /stop (?:recording|video)/i;
-            const startCamRe = /(?:open|show|start) camera/i;
-            const stopCamRe = /(?:close|stop|hide) camera/i;
+            const analyzeVisionRe = /how am i looking|what am i wearing|describe my appearance|check my appearance|check my outfit|what do you see/i;
+            const startCamRe = /(?:open|show|start|use) camera|see me|look at me|can you see me/i;
+            const stopCamRe = /(?:close|stop|hide|turn off) camera|stop seeing me|stop looking/i;
             const galleryRe = /(?:open|show) (?:camera )?gallery/i;
             const enableGestureRe = /enable hand gesture control|enable gestures|turn on gestures/i;
             const disableGestureRe = /disable hand gesture control|disable gestures|turn off gestures/i;
 
             let m = null;
-            if ((m = text.match(takePhotoRe))) {
+            if (analyzeVisionRe.test(text)) {
+              setShowCameraPanel(true);
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'analyzeVision' } }));
+              }, 0);
+            } else if ((m = text.match(takePhotoRe))) {
               const delay = m[1] ? parseInt(m[1], 10) : 0;
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'takePhoto', delay } }));
             } else if (startRecRe.test(text)) {
@@ -549,7 +555,10 @@ export default function App() {
             } else if (stopRecRe.test(text)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopRecording' } }));
             } else if (startCamRe.test(text)) {
-              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startCamera' } }));
+              setShowCameraPanel(true);
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startCamera' } }));
+              }, 0);
             } else if (stopCamRe.test(text)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopCamera' } }));
             } else if (galleryRe.test(text)) {
@@ -627,6 +636,17 @@ export default function App() {
         console.log("[App] WebSocket memories sync triggered:", updatedMemories);
         if (Array.isArray(updatedMemories)) {
           setMemories(updatedMemories);
+        }
+      }
+      ,
+      onDesktopEvent: (event) => {
+        if (event?.event === "application_opened") {
+          const output = event.output || {};
+          const label = output?.raw_result?.resolved?.label || output?.resolved?.label || output?.application || event.tool || "Application";
+          const title = output?.raw_result?.window?.title || output?.window?.title;
+          showToast(`SARA opened ${label}${title ? ` — ${title}` : ""}`);
+        } else if (event?.event === "application_open_failed") {
+          showToast(`SARA could not open ${event.application || event.tool || "the application"}`);
         }
       }
       ,

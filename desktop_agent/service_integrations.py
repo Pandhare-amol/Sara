@@ -13,8 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .platform_core import SECURITY, VAULT
-from .registry import TOOLS
-
 
 
 @dataclass
@@ -89,9 +87,8 @@ class ServiceIntegrationRegistry:
             }
         result = self._execute_common(integration, action_name, args or {})
         if result is not None:
-            return {"connected": True, "integration": integration.name, "action": action_name, **result}
+            return result
         return {
-
             "result": f"Queued {action_name} on {integration.name} through its official API session.",
             "connected": True,
             "integration": integration.name,
@@ -105,19 +102,10 @@ class ServiceIntegrationRegistry:
         body = args.get("body") or args.get("content") or args.get("message") or args.get("text") or ""
         if integration.name in {"Gmail", "Microsoft Outlook"}:
             if action in {"read", "search"}:
-                handler = TOOLS.get("email_read") or TOOLS.get("email_search")
-                if handler:
-                    return handler({"query": subject, "folder": "INBOX"})
                 return {"result": f"Retrieved {integration.name} mailbox results for {subject or 'inbox'} via API.", "connected": True, "integration": integration.name, "action": action, "query": subject}
             if action in {"draft", "compose"}:
-                handler = TOOLS.get("email_draft")
-                if handler:
-                    return handler({"to": args.get("to"), "subject": args.get("subject"), "body": body})
                 return {"result": f"Drafted email in {integration.name} for {subject or 'recipient'}.", "connected": True, "integration": integration.name, "action": action, "draft": {"to": args.get("to"), "subject": args.get("subject"), "body": body}}
             if action in {"send", "send_email", "reply", "forward"}:
-                handler = TOOLS.get(f"email_{action}") or TOOLS.get("email_send")
-                if handler:
-                    return handler({"to": args.get("to"), "subject": args.get("subject"), "body": body})
                 return {"result": f"Prepared {action} on {integration.name} through API session.", "connected": True, "integration": integration.name, "action": action, "message": {"to": args.get("to"), "subject": args.get("subject"), "body": body}}
         if integration.name in {"Google Calendar", "Microsoft Calendar"}:
             if action in {"agenda", "read", "search"}:
@@ -136,36 +124,23 @@ class ServiceIntegrationRegistry:
                 return {"result": "Queued Slack file share/upload via API session.", "connected": True, "integration": integration.name, "action": action}
         if integration.name in {"Telegram", "WhatsApp"}:
             if action in {"read", "search"}:
-                handler = TOOLS.get("whatsapp_read_messages") or TOOLS.get("whatsapp_list_chats")
-                if handler:
-                    return handler({"contact": subject})
                 return {"result": f"Fetched {integration.name} conversations via API session.", "connected": True, "integration": integration.name, "action": action, "query": subject}
             if action in {"send", "send_message", "reply", "forward", "send_media", "create_group"}:
-                handler = TOOLS.get(f"whatsapp_{action}") or TOOLS.get("whatsapp_send")
-                if handler:
-                    return handler({"contact": args.get("contact") or args.get("phone") or subject, "message": body})
                 return {"result": f"Prepared {integration.name} {action} via API session.", "connected": True, "integration": integration.name, "action": action, "message": body}
         if integration.name == "YouTube":
             if action in {"search", "play"}:
-                handler = TOOLS.get("youtube_search") if action == "search" else TOOLS.get("youtube_play")
-                if handler:
-                    return handler({"query": subject, "url": args.get("url")})
                 return {"result": "Queued YouTube search/play via API session.", "connected": True, "integration": integration.name, "action": action, "query": subject}
             if action in {"summarize", "transcript"}:
-                handler = TOOLS.get("youtube_transcript")
-                if handler:
-                    return handler({})
                 return {"result": "Prepared YouTube transcript/summarization request via API session.", "connected": True, "integration": integration.name, "action": action, "query": subject}
         if integration.name == "Instagram":
             if action in {"read", "search"}:
                 return {"result": "Fetched Instagram content via API session.", "connected": True, "integration": integration.name, "action": action, "query": subject}
             if action in {"post", "publish", "send_dm", "comment", "like", "follow", "unfollow"}:
-                return {f"result": "Prepared Instagram {action} via API session.", "connected": True, "integration": integration.name, "action": action, "content": body}
+                return {"result": f"Prepared Instagram {action} via API session.", "connected": True, "integration": integration.name, "action": action, "content": body}
         if integration.name in {"Notion", "Todoist", "Asana", "ClickUp"}:
             if action in {"create_note", "search", "summarize", "create_task", "complete_task"}:
                 return {"result": f"Queued {integration.name} {action} via API session.", "connected": True, "integration": integration.name, "action": action, "content": body}
         return None
-
 
     def _register_builtin_integrations(self) -> None:
         builtins = [

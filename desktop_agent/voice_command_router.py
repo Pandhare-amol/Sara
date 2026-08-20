@@ -40,54 +40,6 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
             response=f"I need confirmation before I {power} the computer.",
         )
 
-    # ------------------------------------------------------------------
-    # Gesture Control Commands
-    # ------------------------------------------------------------------
-    if any(term in low for term in (
-        "start gesture control", "enable gesture control", "turn on gesture control",
-        "start hand control", "enable hand control", "start hand gesture", "control by hand"
-    )):
-        return ParsedCommand("gesture.start", "gestureControlStart", {}, 0.95, response="Starting gesture control and camera.")
-
-    if any(term in low for term in (
-        "stop gesture control", "disable gesture control", "turn off gesture control", "stop hand control"
-    )):
-        return ParsedCommand("gesture.stop", "gestureControlStop", {}, 0.95, response="Stopping gesture control and releasing camera.")
-
-    if any(term in low for term in ("pause gesture control", "pause hand control")):
-        return ParsedCommand("gesture.pause", "gestureControlPause", {}, 0.95, response="Pausing gesture control.")
-
-    if any(term in low for term in ("resume gesture control", "continue gesture control", "resume hand control")):
-        return ParsedCommand("gesture.resume", "gestureControlResume", {}, 0.95, response="Resuming gesture control.")
-
-    if any(term in low for term in ("calibrate gesture control", "recalibrate gesture control", "calibrate hand control")):
-        return ParsedCommand("gesture.calibrate", "gestureControlCalibrate", {}, 0.95, response="Initiating gesture calibration.")
-
-    # ------------------------------------------------------------------
-    # Screen Monitoring Commands
-    # ------------------------------------------------------------------
-    if any(term in low for term in (
-        "start screen monitoring", "monitor my screen", "show my screen", "watch my screen",
-        "start screen monitor", "monitor screen", "watch screen", "continuous screen monitoring", "keep watching the screen"
-    )):
-        return ParsedCommand("screen.monitor_start", "saraScreenLiveStart", {}, 0.95, response="Starting continuous screen monitoring.")
-
-    if any(term in low for term in (
-        "stop screen monitoring", "stop monitoring", "stop watching screen",
-        "stop screen monitor", "stop watching the screen", "pause screen monitor"
-    )):
-        return ParsedCommand("screen.monitor_stop", "saraScreenLiveStop", {}, 0.95, response="Stopping screen monitoring.")
-
-    if any(term in low for term in ("pause screen monitoring", "pause screen monitor")):
-        return ParsedCommand("screen.monitor_pause", "saraScreenLivePause", {}, 0.95, response="Pausing screen monitoring.")
-
-    if any(term in low for term in ("resume screen monitoring", "resume screen monitor")):
-        return ParsedCommand("screen.monitor_resume", "saraScreenLiveResume", {}, 0.95, response="Resuming screen monitoring.")
-
-    if any(term in low for term in ("what application is active", "which window is open")):
-        return ParsedCommand("screen.active_window", "saraScreenGetActiveWindow", {}, 0.95, response="Checking active window.")
-
-
     if low in {"show desktop", "go to desktop", "show the desktop"}:
         return ParsedCommand("agent.execute", "saraAgentExecute", {"goal": raw}, 0.96, response="Iâ€™ll route that through SARAâ€™s system-control flow.")
     if low.startswith(("show ", "focus ", "bring ")) and any(app in low for app in ["chrome", "vscode", "code", "spotify", "explorer", "terminal", "notepad", "calculator", "task manager", "settings"]):
@@ -146,94 +98,6 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
         return ParsedCommand("camera.stop_recording", "stopVideoRecording", {}, 0.9, response="Stopping the recording.")
     if "scan qr" in low or "scan barcode" in low:
         return ParsedCommand("camera.scan_qr", "scanQrCode", {}, 0.9, response="Scanning for a QR code or barcode.")
-
-    # Real WhatsApp Voice Commands with Confirmation
-    if "whatsapp" in low or (("send message" in low or "message " in low) and "to " in low):
-        if "to " in low and any(delim in low for delim in (" saying ", " that ", " with ", " text ")):
-            match = re.search(
-                r"(?:send whatsapp message|whatsapp|send message|message)\s+to\s+([a-zA-Z0-9\s]+?)\s+(?:saying|that|with|text)\s+(.+)",
-                raw,
-                re.IGNORECASE,
-            )
-            if match:
-                contact = match.group(1).strip()
-                msg = match.group(2).strip()
-                return ParsedCommand(
-                    intent="whatsapp.send",
-                    tool="whatsapp_send",
-                    args={"contact": contact, "message": msg},
-                    confidence=0.95,
-                    requires_confirmation=True,
-                    response=f"Send this to {contact}: '{msg}'?",
-                )
-        if any(term in low for term in ("search whatsapp", "find whatsapp", "search messages")):
-            query = _after(raw, ["search whatsapp for ", "search whatsapp messages for ", "search whatsapp ", "search messages for "]) or raw
-            return ParsedCommand(
-                intent="whatsapp.search",
-                tool="whatsapp_search_messages",
-                args={"query": query},
-                confidence=0.92,
-                response=f"Searching WhatsApp messages for '{query}'.",
-            )
-        if any(term in low for term in ("check whatsapp", "list whatsapp", "read whatsapp", "check my messages")):
-            return ParsedCommand(
-                intent="whatsapp.list",
-                tool="whatsapp_list_chats",
-                args={},
-                confidence=0.92,
-                response="Checking WhatsApp messages.",
-            )
-
-    # Real Email Voice Commands with Confirmation
-    if any(term in low for term in ("email", "mail", "inbox", "gmail")):
-        if "to " in low and any(delim in low for delim in (" saying ", " that ", " text ", " subject ")):
-            match = re.search(
-                r"(?:send email|email|send mail)\s+to\s+([a-zA-Z0-9@\.\s]+?)\s+(?:saying|that|text|subject)\s+(.+)",
-                raw,
-                re.IGNORECASE,
-            )
-            if match:
-                recipient = match.group(1).strip()
-                body = match.group(2).strip()
-                return ParsedCommand(
-                    intent="email.send",
-                    tool="email_send",
-                    args={"to": recipient, "subject": "Notice from SARA", "body": body},
-                    confidence=0.95,
-                    requires_confirmation=True,
-                    response=f"Send email to {recipient}: '{body}'?",
-                )
-        if any(term in low for term in ("search email", "find email", "search mail")):
-            query = _after(raw, ["search email for ", "search mail for ", "find email about ", "search email "]) or raw
-            return ParsedCommand(
-                intent="email.search",
-                tool="email_search",
-                args={"query": query},
-                confidence=0.92,
-                response=f"Searching emails for '{query}'.",
-            )
-        if any(term in low for term in ("check email", "read email", "check my inbox", "read my emails")):
-            return ParsedCommand(
-                intent="email.read",
-                tool="email_read",
-                args={"folder": "INBOX"},
-                confidence=0.92,
-                response="Checking your email inbox.",
-            )
-
-    # Real YouTube Voice Commands
-    if "youtube" in low or any(term in low for term in ("pause video", "resume video", "play video", "toggle captions")):
-        if "pause" in low:
-            return ParsedCommand("youtube.pause", "youtube_pause", {}, 0.95, response="Pausing YouTube video.")
-        if any(term in low for term in ("resume", "play video", "unpause")):
-            return ParsedCommand("youtube.resume", "youtube_resume", {}, 0.95, response="Resuming YouTube video.")
-        if any(term in low for term in ("fullscreen", "full screen")):
-            return ParsedCommand("youtube.fullscreen", "youtube_fullscreen", {}, 0.94, response="Toggling fullscreen.")
-        if "caption" in low or "subtitle" in low:
-            return ParsedCommand("youtube.captions", "youtube_captions", {}, 0.94, response="Toggling captions.")
-        if any(term in low for term in ("video info", "video details", "about this video")):
-            return ParsedCommand("youtube.info", "youtube_get_info", {}, 0.92, response="Fetching video information.")
-
 
     if _is_browser_suite_goal(low):
         requires_confirmation = any(word in low for word in ("send", "submit", "purchase", "pay", "checkout", "delete account", "change password"))
@@ -332,12 +196,12 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
 
     if low.startswith(("search google", "google ")):
         query = _after(raw, ["search google for ", "google "])
-        return ParsedCommand("browser.search", "searchWeb", {"engine": "google", "query": query}, 0.9, response=f"Searching Google for {query}.")
+        return ParsedCommand("browser.search", "desktopBrowserSearch", {"engine": "google", "query": query}, 0.9, response=f"Searching Google for {query}.")
     if low.startswith(("search youtube", "youtube search")) or ("youtube" in low and "search" in low):
         query = _after(raw, ["search youtube for ", "youtube search ", "for "])
-        return ParsedCommand("browser.search", "searchYouTube", {"query": query}, 0.9, response=f"Searching YouTube for {query}.")
+        return ParsedCommand("browser.search", "desktopBrowserSearch", {"engine": "youtube", "query": query}, 0.9, response=f"Searching YouTube for {query}.")
     if low.startswith(("open youtube", "open google", "open github", "open gmail", "open chatgpt")):
-        return ParsedCommand("browser.open", "openWebsite", {"url": _site_url(low)}, 0.91, response="Opening it in the browser.")
+        return ParsedCommand("browser.open", "desktopBrowserOpen", {"url": _site_url(low)}, 0.91, response="Opening it in the browser.")
     if low.startswith(("open instagram", "open insta")):
         return ParsedCommand("browser.open", "desktopBrowserOpen", {"url": "https://www.instagram.com"}, 0.92, response="Opening Instagram.")
     if "now open the sara project" in low or "open the sara project" in low:
@@ -370,6 +234,10 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
 
     if "see what's in this" in low or "what's in this" in low or "what is in this" in low or "see what is on this screen" in low:
         return ParsedCommand("vision.read_screen", "readScreen", {}, 0.92, response="Reading what is visible on the screen.")
+    if any(term in low for term in ("start screen monitor", "monitor screen", "watch screen", "continuous screen monitoring", "keep watching the screen")):
+        return ParsedCommand("screen.monitor_start", "saraScreenMonitorStart", {}, 0.91, response="Starting continuous screen monitoring.")
+    if any(term in low for term in ("stop screen monitor", "stop watching the screen", "pause screen monitor")):
+        return ParsedCommand("screen.monitor_stop", "saraScreenMonitorStop", {}, 0.91, response="Stopping screen monitoring.")
     if any(term in low for term in ("screen monitor status", "monitor status", "screen status")):
         return ParsedCommand("screen.monitor_status", "saraScreenMonitorStatus", {}, 0.9, response="Checking screen monitor status.")
     if any(term in low for term in ("sample screen", "screen sample", "check the screen now")):

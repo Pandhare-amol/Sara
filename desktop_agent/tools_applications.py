@@ -16,7 +16,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     import psutil
@@ -24,7 +24,6 @@ except Exception:  # noqa: BLE001
     psutil = None
 
 from .registry import ToolError, register
-from .app_resolver import resolve_windows_application
 from .tools_windows import SW_RESTORE, _find_window_by_title, _focus, _show_window
 
 # Canonical app key -> (launch_command, kind)
@@ -87,19 +86,8 @@ def _universal_launch(name: str) -> None:
         subprocess.Popen(["cmd", "/c", "start", "", name], close_fds=True)
         return
     subprocess.Popen([name], close_fds=True)
-# Extensions to strip when the AI passes e.g. 'notepad.py', 'chrome.exe'
-_STRIP_EXTENSIONS = {".exe", ".py", ".bat", ".cmd", ".lnk", ".app", ".msi", ".ps1"}
-
-
 def _resolve_app(key: str) -> Dict[str, str]:
     norm = (key or "").strip().lower()
-
-    # Strip any file extension the AI may have appended.
-    for ext in _STRIP_EXTENSIONS:
-        if norm.endswith(ext):
-            norm = norm[: -len(ext)].strip()
-            break
-
     if norm in APP_COMMANDS:
         return APP_COMMANDS[norm]
     # Allow loose aliases (e.g. "code", "visual studio code").
@@ -128,12 +116,6 @@ def _resolve_app(key: str) -> Dict[str, str]:
         "docker": "docker desktop",
         "libre office": "libreoffice",
         "vlc player": "vlc",
-        "mspaint": "paint",
-        "ms paint": "paint",
-        "terminal": "powershell",
-        "windows terminal": "powershell",
-        "notepad++": "notepad",
-        "textedit": "notepad",
     }
     if norm in aliases and aliases[norm] in APP_COMMANDS:
         return APP_COMMANDS[aliases[norm]]
@@ -173,10 +155,6 @@ def _launch(spec: Dict[str, str]) -> None:
         raise ToolError(f"Could not launch {spec.get('label')}: {e}") from e
 
 
-def _launch_result(spec: Dict[str, str], name: str) -> Dict[str, Any]:
-    return {"result": f"Requested Windows to open: {name}.", "resolved": spec, "launch_requested": True}
-
-
 def _is_running(spec: Dict[str, str]) -> bool:
     image = (spec.get("image") or "").lower()
     if not image or psutil is None:
@@ -191,19 +169,6 @@ def _is_running(spec: Dict[str, str]) -> bool:
     return False
 
 
-def _verify_app_visible(spec: Dict[str, str], timeout: float = 2.5) -> bool:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if _is_running(spec) and _focus_running_app(spec):
-            return True
-        time.sleep(0.15)
-    return _is_running(spec)
-
-
-def _close_result(spec: Dict[str, str], label: str, closed: bool, verified: Optional[bool]) -> Dict[str, Any]:
-    return {"result": f"Closed {label}" if closed else f"Requested close for {label}.", "closed": closed, "verified": verified}
-
-
 def _focus_running_app(spec: Dict[str, str]) -> bool:
     label = spec.get("label", "")
     target_candidates = [label, label.lower(), spec.get("image", "")]
@@ -213,14 +178,8 @@ def _focus_running_app(spec: Dict[str, str]) -> bool:
         hwnd = _find_window_by_title(str(candidate))
         if hwnd:
             _show_window(hwnd, SW_RESTORE)
-            try:
-                _focus(hwnd)
-                return True
-            except Exception:
-                # If focusing fails (e.g., in CI/test env where win32 isn't
-                # fully functional), don't raise — indicate we couldn't
-                # focus so the caller will launch the app instead.
-                return False
+            _focus(hwnd)
+            return True
     return False
 
 
@@ -232,17 +191,13 @@ def open_application(args: Dict[str, Any]) -> Dict[str, Any]:
     try:
         spec = _resolve_app(str(name))
     except ToolError:
-        resolved = resolve_windows_application(str(name))
-        if resolved.get("kind") == "unknown":
-            _universal_launch(str(name))
-            return {"result": f"Requested Windows to open: {name}.", "universal": True, "verification": "UNCERTAIN"}
-        spec = {"label": resolved["display"], "kind": resolved["kind"], "exe": resolved["launch"], "image": resolved["launch"], "shell": resolved["launch"]}
+        _universal_launch(str(name))
+        return {"result": f"Requested Windows to open: {name}.", "universal": True}
     if _is_running(spec):
         if _focus_running_app(spec):
-            return {"result": f"{spec['label']} is already running and was focused.", "verified": True, "verification": "VERIFIED"}
+            return {"result": f"{spec['label']} is already running and was focused."}
     _launch(spec)
-    verified = _verify_app_visible(spec)
-    return {"result": f"{spec['label']} opened." if verified else f"Requested {spec['label']} to open.", "verified": verified, "verification": "VERIFIED" if verified else "UNCERTAIN"}
+    return {"result": f"{spec['label']} opened."}
 
 
 @register("closeApplication")
@@ -255,10 +210,7 @@ def close_application(args: Dict[str, Any]) -> Dict[str, Any]:
     try:
         spec = _resolve_app(str(name))
     except ToolError:
-        res = _close_universal_application(str(name), force=force or kill)
-        res["verification"] = "UNCERTAIN"
-        res["verified"] = False
-        return res
+        return _close_universal_application(str(name), force=force or kill)
     image = spec["image"]
     try:
         if kill or force:
@@ -269,8 +221,7 @@ def close_application(args: Dict[str, Any]) -> Dict[str, Any]:
                 timeout=10,
             )
             time.sleep(0.2)
-            closed = not _is_running(spec)
-            return {"result": f"Force-closed {spec['label']}", "closed": True, "verified": closed, "verification": "VERIFIED" if closed else "UNCERTAIN"}
+            return {"result": f"Force-closed {spec['label']}"}
 
         subprocess.run(
             f'taskkill /IM "{image}"',
@@ -282,8 +233,7 @@ def close_application(args: Dict[str, Any]) -> Dict[str, Any]:
         raise ToolError(f"Could not close {spec['label']}: {e}") from e
     # Give the OS a moment to actually tear it down.
     time.sleep(0.2)
-    closed = not _is_running(spec)
-    return {"result": f"Closed {spec['label']}" if closed else f"Requested close for {spec['label']}.", "closed": closed, "verified": closed, "verification": "VERIFIED" if closed else "UNCERTAIN"}
+    return {"result": f"Closed {spec['label']}"}
 
 
 
@@ -325,5 +275,6 @@ def close_any_application(args: Dict[str, Any]) -> Dict[str, Any]:
     return close_application(args)
 
 __all__ = ["open_application", "close_application", "open_any_application", "close_any_application", "APP_COMMANDS"]
+
 
 

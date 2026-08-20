@@ -48,7 +48,40 @@ export async function checkBackend(port = 3000): Promise<HealthStatus> {
  * Check the Python desktop agent.
  */
 export async function checkDesktopAgent(port = 8765): Promise<HealthStatus> {
-  return checkHttp("Desktop Agent", `http://127.0.0.1:${port}/health`);
+  const start = Date.now();
+  const health = await checkHttp("Desktop Agent", `http://127.0.0.1:${port}/health`);
+  if (!health.ok) {
+    return health;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`http://127.0.0.1:${port}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        tool: "desktopAgentDiagnostic",
+        args: { request_id: "health-check", operation_id: "health-check-desktop-agent" },
+      }),
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: `HTTP ${res.status}` };
+    }
+    const payload = await res.json().catch(() => ({}));
+    const result = payload?.result ?? payload?.data?.result ?? payload;
+    const verified = payload?.verified === true || result?.verification === "healthy" || result?.verification === true;
+    return {
+      service: "Desktop Agent",
+      ok: verified,
+      latencyMs: Date.now() - start,
+      reason: verified ? undefined : "desktopAgentDiagnostic did not verify",
+    };
+  } catch (e: any) {
+    return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: e.message };
+  }
 }
 
 /**

@@ -8,22 +8,17 @@ discovery, and security audit logs for the SARA agent manager.
 
 from __future__ import annotations
 
-import atexit
 import hashlib
 import json
-import logging
 import math
 import os
 import re
-import sqlite3
 import time
 import uuid
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
-
-from .sqlite_memory import SqliteMemoryManager
 
 try:
     from cryptography.fernet import Fernet
@@ -47,8 +42,6 @@ TEXT_SUFFIXES = {
     ".log",
     ".xml",
     ".eml",
-    ".pdf",
-    ".docx",
 }
 DEFAULT_REWARD_CONFIG = {
     "completed": 2,
@@ -61,20 +54,7 @@ DEFAULT_REWARD_CONFIG = {
 
 def data_root() -> Path:
     configured = os.environ.get("SARA_DATA_DIR")
-    if configured:
-        root = Path(configured)
-    else:
-        try:
-            if os.name == "nt":
-                appdata = os.environ.get("APPDATA")
-                if appdata:
-                    root = Path(appdata) / "Sara"
-                else:
-                    root = Path.home() / "AppData" / "Roaming" / "Sara"
-            else:
-                root = Path.home() / ".sara"
-        except Exception:
-            root = Path.cwd() / "logs"
+    root = Path(configured) if configured else Path.cwd() / "logs"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -121,308 +101,80 @@ class MemoryItem:
     updated_at: float = field(default_factory=time.time)
 
 
-class MemoryManager(SqliteMemoryManager):
-    """Compatibility wrapper with local-first long-term memory features.
-
-    This keeps the existing SQLite-based persistence layer intact while adding the
-    typed-memory metadata, deduplication, relationship linking, exact-ID lookup,
-    checkpoint and session context restoration expected by the SARA memory system.
-    """
-
-    MEMORY_TYPES = {
-        "FACT",
-        "PREFERENCE",
-        "USER_PROFILE",
-        "PROJECT",
-        "TASK",
-        "DECISION",
-        "EVENT",
-        "CONVERSATION_SUMMARY",
-        "RELATIONSHIP",
-        "SKILL",
-        "PROCEDURE",
-        "LEARNED_PATTERN",
-        "FAILURE_PATTERN",
-        "CONTEXT_CHECKPOINT",
-    }
-
+class MemoryManager:
     def __init__(self) -> None:
-        super().__init__()
-        self._hot_cache: Dict[str, Dict[str, Any]] = {}
-
-    def _memory_type_from_text(self, content: str, kind: str = "") -> str:
-        text = (content or "").lower()
-        if kind and kind.upper() in self.MEMORY_TYPES:
-            return kind.upper()
-        if any(p in text for p in ("prefer", "like", "want", "favorite", "default", "always")):
-            return "PREFERENCE"
-        if any(p in text for p in ("project", "workspace", "milestone", "feature", "initiative")):
-            return "PROJECT"
-        if any(p in text for p in ("task", "todo", "next step", "follow up", "reminder")):
-            return "TASK"
-        if any(p in text for p in ("decision", "choose", "selected", "prefer", "instead of")):
-            return "DECISION"
-        if any(p in text for p in ("checkpoint", "state", "restore", "current status")):
-            return "CONTEXT_CHECKPOINT"
-        if any(p in text for p in ("fail", "wrong", "bug", "error", "issue", "does not")):
-            return "FAILURE_PATTERN"
-        if any(p in text for p in ("remember", "learned", "pattern", "workflow", "procedure")):
-            return "LEARNED_PATTERN"
-        if any(p in text for p in ("meeting", "event", "today", "later", "once")):
-            return "EVENT"
-        return "FACT"
-
-    def _infer_topic(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
-        md = dict(metadata or {})
-        if md.get("topic"):
-            return str(md["topic"])
-        tokens = [t for t in re.findall(r"[A-Za-z0-9_]+", content.lower()) if len(t) > 3]
-        if not tokens:
-            return "general"
-        return tokens[0]
-
-    def _canonical_memory(self, kind: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        md = dict(metadata or {})
-        now = time.time()
-        memory_type = str(md.get("memory_type") or self._memory_type_from_text(content, kind)).upper()
-        topic = str(md.get("topic") or self._infer_topic(content, md)).strip() or "general"
-        title = str(md.get("title") or md.get("name") or content[:80]).strip() or "Memory"
-        record = {
-            "id": md.get("id") or uuid.uuid4().hex,
-            "memory_type": memory_type,
-            "human_id": str(md.get("human_id") or f"MEM-{int(now * 1000) % 1000000:06d}")[:32],
-            "kind": kind or "memory",
-            "content": str(content),
-            "topic": topic,
-            "title": title,
-            "category": str(md.get("category") or kind or memory_type.lower()),
-            "project_id": md.get("project_id"),
-            "session_id": md.get("session_id"),
-            "source": md.get("source") or "local",
-            "status": md.get("status") or "active",
-            "importance": float(md.get("importance", 0.5)),
-            "confidence": float(md.get("confidence", 0.7)),
-            "created_at": float(md.get("created_at") or now),
-            "updated_at": now,
-            "last_accessed_at": float(md.get("last_accessed_at") or now),
-            "access_count": int(md.get("access_count") or 1),
-            "linked_to": list(md.get("linked_to") or []),
-            "relations": dict(md.get("relations") or {}),
-            "version": int(md.get("version") or 1),
-            "metadata": {k: v for k, v in md.items() if k not in {"id", "human_id", "memory_type", "kind", "content", "topic", "title", "category", "project_id", "session_id", "source", "status", "importance", "confidence", "created_at", "updated_at", "last_accessed_at", "access_count", "linked_to", "relations", "version"}},
-        }
-        return record
-
-    def _merge_with_existing(self, existing: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
-        merged = dict(existing)
-        merged["content"] = incoming["content"]
-        merged["updated_at"] = time.time()
-        merged["last_accessed_at"] = time.time()
-        merged["access_count"] = int(existing.get("access_count", 1)) + 1
-        merged["importance"] = max(float(existing.get("importance", 0.5)), float(incoming.get("importance", 0.5)))
-        merged["confidence"] = max(float(existing.get("confidence", 0.7)), float(incoming.get("confidence", 0.7)))
-        merged["topic"] = incoming.get("topic") or existing.get("topic")
-        merged["project_id"] = incoming.get("project_id") or existing.get("project_id")
-        merged["session_id"] = incoming.get("session_id") or existing.get("session_id")
-        merged["version"] = int(existing.get("version", 1)) + 1
-        merged["relations"] = {**existing.get("relations", {}), **incoming.get("relations", {})}
-        merged["linked_to"] = list(dict.fromkeys((existing.get("linked_to") or []) + (incoming.get("linked_to") or [])))
-        merged["metadata"] = {**existing.get("metadata", {}), **incoming.get("metadata", {})}
-        return merged
-
-    def _deduplicate(self, memory_record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        if not self._conn:
-            return None
-        rows = self._conn.execute("SELECT * FROM memory_facts ORDER BY updated_at DESC").fetchall()
-        for row in rows:
-            item = self._row_to_item(row)
-            payload = dict(item.metadata or {})
-            if str(payload.get("topic") or "").lower() != str(memory_record["topic"]).lower():
-                continue
-            existing_text = str(item.content).lower()
-            incoming_text = str(memory_record["content"]).lower()
-            if existing_text == incoming_text or _score(incoming_text, existing_text) > 0.65:
-                merged = self._merge_with_existing(payload, memory_record)
-                return merged
-        return None
-
-    def _ensure_connection(self) -> None:
-        if self._conn is not None:
-            return
-        try:
-            if self._in_memory:
-                self._conn = sqlite3.connect(":memory:", check_same_thread=False)
-            else:
-                self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
-        except Exception:
-            self._conn = sqlite3.connect(":memory:", check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._ensure_schema()
-        self._import_legacy_json()
+        self.path = data_root() / "sara_memory.json"
+        self.items: List[MemoryItem] = [MemoryItem(**item) for item in _read_json(self.path, [])]
 
     def remember(self, kind: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        self._ensure_connection()
-        record = self._canonical_memory(kind, str(content), metadata)
-        existing = self._deduplicate(record)
-        if existing:
-            item = MemoryItem(
-                id=str(existing.get("id") or record["id"]),
-                kind=str(existing.get("kind") or record["kind"]),
-                content=str(existing.get("content") or record["content"]),
-                metadata=dict(existing),
-                created_at=float(existing.get("created_at") or record["created_at"]),
-                updated_at=float(existing.get("updated_at") or time.time()),
-            )
-            self._conn.execute(
-                "INSERT OR REPLACE INTO memory_facts (id, kind, content, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (item.id, item.kind, item.content, json.dumps(item.metadata, sort_keys=True), item.created_at, item.updated_at),
-            )
-            self.persist()
-            self._hot_cache[item.id] = dict(item.metadata)
-            return asdict(item)
-
-        item = MemoryItem(
-            id=str(record["id"]),
-            kind=str(record["kind"]),
-            content=str(record["content"]),
-            metadata=dict(record),
-            created_at=float(record["created_at"]),
-            updated_at=float(record["updated_at"]),
-        )
-        self._conn.execute(
-            "INSERT INTO memory_facts (id, kind, content, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (item.id, item.kind, item.content, json.dumps(item.metadata, sort_keys=True), item.created_at, item.updated_at),
-        )
+        item = MemoryItem(id=uuid.uuid4().hex, kind=kind, content=content, metadata=metadata or {})
+        self.items.append(item)
         self.persist()
-        self._hot_cache[item.id] = dict(item.metadata)
         return asdict(item)
 
-    def get_by_id(self, memory_id: str) -> Optional[Dict[str, Any]]:
-        self._ensure_connection()
-        if memory_id in self._hot_cache:
-            return dict(self._hot_cache[memory_id])
-        row = self._conn.execute("SELECT * FROM memory_facts WHERE id = ? LIMIT 1", (memory_id,)).fetchone()
-        if row is not None:
-            payload = json.loads(row["metadata"] or "{}")
-            self._hot_cache[memory_id] = payload
-            return dict(payload)
-        for item in self._conn.execute("SELECT * FROM memory_facts").fetchall():
-            payload = json.loads(item["metadata"] or "{}")
-            if str(payload.get("human_id") or "").lower() == str(memory_id).lower():
-                self._hot_cache[str(item["id"])] = payload
-                return dict(payload)
-        return None
+    def remember_preference(self, subject: str, preference: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        payload = {"subject": subject, "preference": preference}
+        if metadata:
+            payload.update(metadata)
+        return self.remember("preference", f"{subject}: {preference}", payload)
 
-    def search(self, query: str, limit: int = 5, kind: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        query_text = str(query or "").strip()
-        if not query_text:
-            return []
-        self._ensure_connection()
+    def remember_habit(self, habit: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("habit", habit, metadata or {})
 
-        exact = self.get_by_id(query_text)
-        if exact:
-            exact = dict(exact)
-            exact["score"] = 1.0
-            return [exact]
+    def remember_project(self, project: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("project", project, metadata or {})
 
-        base = super().search(query_text, limit=max(limit, 5), kind=kind)
-        ranked: List[Dict[str, Any]] = []
-        seen = set()
-        for item in base:
-            payload = dict(item.get("metadata") or {})
-            if not payload:
-                payload = {
-                    "id": item.get("id"),
-                    "kind": item.get("kind"),
-                    "content": item.get("content"),
-                    "topic": item.get("kind") or "general",
-                    "title": item.get("kind"),
-                    "memory_type": self._memory_type_from_text(str(item.get("content") or ""), str(item.get("kind") or "")),
-                    "category": item.get("kind"),
-                    "status": "active",
-                    "importance": 0.5,
-                    "confidence": 0.7,
-                    "created_at": item.get("created_at") or time.time(),
-                    "updated_at": item.get("updated_at") or time.time(),
-                    "last_accessed_at": item.get("updated_at") or time.time(),
-                    "access_count": 1,
-                    "relations": {},
-                    "version": 1,
-                    "metadata": {},
-                }
-            score = _score(query_text, str(payload.get("content") or item.get("content") or ""))
-            if payload.get("topic"):
-                score += 0.2 * _score(query_text, str(payload.get("topic")))
-            if payload.get("project_id"):
-                if metadata and metadata.get("project_id") == payload.get("project_id"):
-                    score += 0.3
-            if payload.get("memory_type"):
-                score += 0.1 if str(payload.get("memory_type")).upper() in self.MEMORY_TYPES else 0
-            if item.get("id") not in seen:
-                ranked.append({**payload, "score": float(score), "_score": score})
-                seen.add(item.get("id"))
-        ranked.sort(key=lambda x: x.get("_score", 0.0), reverse=True)
-        return [{k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]]
+    def remember_short_term(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("short_term", content, (metadata or {}) | {"tier": "short_term"})
 
-    def link(self, source_id: str, target_id: str, relation: str = "related_to") -> Dict[str, Any]:
-        self._ensure_connection()
-        source = self.get_by_id(source_id)
-        target = self.get_by_id(target_id)
-        if source is None or target is None:
-            raise KeyError(f"Missing memory record: {source_id} or {target_id}")
+    def remember_episodic(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("episodic", content, (metadata or {}) | {"tier": "episodic"})
 
-        relations = dict(source.get("relations") or {})
-        relations.setdefault(relation, [])
-        if target_id not in relations[relation]:
-            relations[relation].append(target_id)
-        source["relations"] = relations
-        source["linked_to"] = list(dict.fromkeys((source.get("linked_to") or []) + [target_id]))
-        source["updated_at"] = time.time()
-        self._conn.execute(
-            "INSERT OR REPLACE INTO memory_facts (id, kind, content, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (source["id"], source["kind"], source["content"], json.dumps(source, sort_keys=True), source.get("created_at") or time.time(), source["updated_at"]),
-        )
+    def remember_semantic(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("semantic", content, (metadata or {}) | {"tier": "semantic"})
+
+    def remember_procedural(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("procedural", content, (metadata or {}) | {"tier": "procedural"})
+
+    def remember_contact(self, name: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.remember("contact", name, metadata or {})
+
+    def search(self, query: str, limit: int = 5, kind: Optional[str] = None) -> List[Dict[str, Any]]:
+        candidates = [item for item in self.items if not kind or item.kind == kind]
+        ranked = sorted(candidates, key=lambda item: _score(query, item.content), reverse=True)
+        return [asdict(item) | {"score": _score(query, item.content)} for item in ranked[:limit]]
+
+    def persist(self) -> None:
+        _write_json(self.path, [asdict(item) for item in self.items])
+
+    def forget(self, query: str, kind: Optional[str] = None) -> Dict[str, Any]:
+        before = len(self.items)
+        kept: List[MemoryItem] = []
+        removed: List[Dict[str, Any]] = []
+        for item in self.items:
+            if kind and item.kind != kind:
+                kept.append(item)
+                continue
+            haystack = f"{item.kind} {item.content} {json.dumps(item.metadata, sort_keys=True)}".lower()
+            if query.lower() in haystack:
+                removed.append(asdict(item))
+            else:
+                kept.append(item)
+        self.items = kept
         self.persist()
-        return {"source": source_id, "target": target_id, "relation": relation, "ok": True}
+        return {"removed": len(removed), "remaining": len(self.items), "items": removed}
 
-    def checkpoint(self, project_id: str, title: str, state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        payload = {
-            "project_id": project_id,
-            "title": title,
-            "state": state or {},
-            "memory_type": "CONTEXT_CHECKPOINT",
-            "topic": project_id,
-            "status": "active",
-            "importance": 0.9,
-            "confidence": 0.95,
-            "source": "system",
-        }
-        return self.remember("context_checkpoint", title, payload)
-
-    def restore_session_context(self, project_id: Optional[str] = None, topic: Optional[str] = None, limit: int = 8) -> List[Dict[str, Any]]:
-        candidates: List[Dict[str, Any]] = []
-        q = topic or project_id or "active project"
-        if project_id:
-            candidates.extend(self.search(q, limit=limit, metadata={"project_id": project_id}))
-        if not candidates:
-            candidates.extend(self.search(q, limit=limit))
-        return candidates[:limit]
-
-    def stats(self) -> Dict[str, Any]:
-        self._ensure_connection()
-        rows = self._conn.execute("SELECT kind, COUNT(1) FROM memory_facts GROUP BY kind ORDER BY COUNT(1) DESC").fetchall()
-        total = self._conn.execute("SELECT COUNT(1) FROM memory_facts").fetchone()[0]
-        return {
-            "total": total,
-            "by_kind": {row[0]: row[1] for row in rows},
-            "cache": len(self._hot_cache),
-        }
-
-    def retrieve_context(self, query: str, limit: int = 5, metadata: Optional[Dict[str, Any]] = None) -> str:
-        hits = self.search(query, limit=limit, metadata=metadata)
-        if not hits:
-            return ""
-        return "\n\n".join(f"[{hit.get('topic', 'memory')}] {hit.get('content', '')}" for hit in hits)
+    def consolidate(self, max_items: int = 250, archive_path: Optional[Path] = None) -> Dict[str, Any]:
+        archive_path = archive_path or (data_root() / "sara_memory_archive.json")
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        items = sorted(self.items, key=lambda item: (item.kind, item.updated_at))
+        archived = []
+        if len(items) > max_items:
+            archived = [asdict(item) for item in items[:-max_items]]
+            self.items = items[-max_items:]
+            _write_json(archive_path, archived)
+            self.persist()
+        return {"archived": len(archived), "active": len(self.items), "archive_path": str(archive_path)}
 
 
 class EmbeddingManager:
@@ -582,22 +334,6 @@ class RagEngine:
                     except Exception:
                         continue
                 return "\n".join(parts)
-            except Exception:
-                return file_path.read_text(encoding="utf-8", errors="replace")
-        if file_path.suffix.lower() == ".docx":
-            try:
-                import docx
-
-                doc = docx.Document(str(file_path))
-                return "\n".join([paragraph.text for paragraph in doc.paragraphs])
-            except Exception:
-                return file_path.read_text(encoding="utf-8", errors="replace")
-        if file_path.suffix.lower() == ".html":
-            try:
-                from bs4 import BeautifulSoup
-
-                soup = BeautifulSoup(file_path.read_text(encoding="utf-8", errors="replace"), "html.parser")
-                return soup.get_text(separator="\n", strip=True)
             except Exception:
                 return file_path.read_text(encoding="utf-8", errors="replace")
         return file_path.read_text(encoding="utf-8", errors="replace")
@@ -1429,34 +1165,3 @@ KNOWLEDGE_PIPELINE = KnowledgePipeline(RAG, EXPERIENCES)
 DIAGNOSTICS = DiagnosticAgent()
 HEALTH = HealthAgent(DIAGNOSTICS)
 
-
-def close_all_services() -> None:
-    try:
-        SqliteMemoryManager.close_all()
-    except Exception:
-        pass
-    try:
-        from . import agents
-        if hasattr(agents, 'VERIFICATION_ENGINE') and hasattr(agents.VERIFICATION_ENGINE, 'close'):
-            agents.VERIFICATION_ENGINE.close()
-    except Exception:
-        pass
-    for logger_name in ["sara.gesture", "sara.gesture_engine", "sara.screen_monitor", "sara.vision", "sara.voice", "sara.agent"]:
-        logger = logging.getLogger(logger_name)
-        for handler in list(logger.handlers):
-            try:
-                handler.flush()
-                handler.close()
-            except Exception:
-                pass
-            logger.removeHandler(handler)
-    for service in (MEMORY, RAG, REINFORCEMENT, WORKFLOWS, SKILLS, PLUGINS, SECURITY, VAULT, SCHEDULER, GOALS, KNOWLEDGE_GRAPH, RECOVERY, LEARNING, COMPANION, EXPERIENCES, EVOLUTION, KNOWLEDGE_PIPELINE, DIAGNOSTICS, HEALTH):
-        close = getattr(service, "close", None)
-        if callable(close):
-            try:
-                close()
-            except Exception:
-                pass
-
-
-atexit.register(close_all_services)

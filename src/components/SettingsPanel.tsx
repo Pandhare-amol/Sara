@@ -97,65 +97,34 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
     enumerate();
   }, [isOpen]);
 
-  // Probe desktop agent health (port 8765) via the server-side logs/health proxy.
-  // FIXED: Use AbortController to prevent overlapping requests causing Chromium OnSizeReceived -2 error.
+  // Probe desktop agent health through the same-origin server proxy.
   useEffect(() => {
     if (!isOpen) return;
     let abortController: AbortController | null = null;
     let isPending = false;
 
     const probe = async () => {
-      // Prevent overlapping requests (fixes OnSizeReceived -2 error)
       if (isPending) return;
       
       isPending = true;
+      abortController?.abort();
+      abortController = new AbortController();
+      const timeoutId = window.setTimeout(() => abortController?.abort(), 3500);
       try {
-        // Cancel previous request if still pending
-        abortController?.abort();
-        abortController = new AbortController();
-
-        try {
-          // Try local agent directly (same machine, same browser).
-          const res = await Promise.race([
-            fetch("http://127.0.0.1:8765/health", {
-              cache: "no-store",
-              signal: abortController.signal,
-            }),
-            new Promise<Response>((_r, rej) =>
-              setTimeout(() => rej(new Error("timeout")), 3500)
-            ),
-          ]);
-          if (!res.ok) {
-            setAgentHealth({ online: false });
-            return;
-          }
-          const data = await res.json();
-          setAgentHealth({ online: true, toolCount: data.tool_count });
-        } catch (directErr: any) {
-          // Cross-origin may fail; try the server proxy as a fallback.
-          if (directErr?.name !== "AbortError") {
-            try {
-              const res2 = await Promise.race([
-                fetch("/api/agent-health", {
-                  cache: "no-store",
-                  signal: abortController.signal,
-                }),
-                new Promise<Response>((_r, rej) =>
-                  setTimeout(() => rej(new Error("timeout")), 3500)
-                ),
-              ]);
-              if (res2.ok) {
-                const d = await res2.json();
-                setAgentHealth({ online: !!d.online, toolCount: d.tool_count });
-                return;
-              }
-            } catch {
-              /* ignore fallback failure */
-            }
-          }
+        const response = await fetch("/api/agent-health", {
+          cache: "no-store",
+          signal: abortController.signal,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAgentHealth({ online: !!data.online, toolCount: data.tool_count });
+        } else {
           setAgentHealth({ online: false });
         }
+      } catch (error: any) {
+        if (error?.name !== "AbortError") setAgentHealth({ online: false });
       } finally {
+        window.clearTimeout(timeoutId);
         isPending = false;
       }
     };

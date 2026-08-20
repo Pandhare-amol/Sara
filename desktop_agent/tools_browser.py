@@ -14,11 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import threading
-import time
 from typing import Any, Dict, Optional
 from urllib.parse import quote_plus
 
-from .browser_session import SESSION_MANAGER, browser_environment_summary
 from .registry import STATE, ToolError, register
 
 # A dedicated event loop + thread runs all Playwright coroutines, because
@@ -77,31 +75,10 @@ async def _ensure_browser_async() -> Any:
         STATE.playwright = await async_playwright().start()
 
     if STATE.browser is None:
-        try:
-            STATE.browser = await STATE.playwright.chromium.launch(
-                headless=False,
-                args=["--start-maximized", "--no-sandbox"],
-            )
-        except Exception as e:
-            # Fallback 1: Try system installed Google Chrome
-            try:
-                STATE.browser = await STATE.playwright.chromium.launch(
-                    channel="chrome",
-                    headless=False,
-                    args=["--start-maximized", "--no-sandbox"],
-                )
-            except Exception:
-                # Fallback 2: Try system installed Microsoft Edge
-                try:
-                    STATE.browser = await STATE.playwright.chromium.launch(
-                        channel="msedge",
-                        headless=False,
-                        args=["--start-maximized", "--no-sandbox"],
-                    )
-                except Exception:
-                    raise ToolError(
-                        f"Browser executable not found. Install Chrome/Edge or run 'npx playwright install': {e}"
-                    )
+        STATE.browser = await STATE.playwright.chromium.launch(
+            headless=False,
+            args=["--start-maximized", "--no-sandbox"],
+        )
         STATE.context = await STATE.browser.new_context(viewport=None)
 
     if STATE.context is None:
@@ -128,170 +105,18 @@ def _normalize_url(raw: str) -> str:
     return url
 
 
-def _prefer_firefox_for_url(url: str, browser_mode: Optional[str] = None) -> bool:
-    mode = str(browser_mode or "").strip().lower()
-    if mode in {"chromium", "embedded", "automation_chromium"}:
-        return False
-    # Prefer the real Firefox/browser-session path by default so normal web
-    # opens do not silently fall back to the embedded Chromium automation
-    # browser. Individual callers can still opt out explicitly via browser_mode.
-    return True
-
-
-async def _page_snapshot(page: Any, *, body_timeout_ms: int = 4000) -> Dict[str, Any]:
-    snapshot: Dict[str, Any] = {
-        "closed": False,
-        "url": "",
-        "title": "",
-        "ready_state": None,
-        "body_available": False,
-        "body_text_length": 0,
-        "body_text_sample": "",
-        "body_read_error": None,
-        "page_error": None,
-    }
-    try:
-        snapshot["closed"] = bool(page.is_closed())
-    except Exception as e:  # noqa: BLE001
-        snapshot["page_error"] = str(e)
-        snapshot["closed"] = True
-        return snapshot
-    if snapshot["closed"]:
-        return snapshot
-    try:
-        snapshot["url"] = page.url
-    except Exception as e:  # noqa: BLE001
-        snapshot["page_error"] = str(e)
-    try:
-        snapshot["title"] = await page.title(timeout=2000)
-    except Exception as e:  # noqa: BLE001
-        snapshot["page_error"] = snapshot["page_error"] or str(e)
-    try:
-        snapshot["ready_state"] = await page.evaluate("() => document.readyState")
-    except Exception as e:  # noqa: BLE001
-        snapshot["page_error"] = snapshot["page_error"] or str(e)
-    try:
-        body = page.locator("body")
-        count = await body.count()
-        snapshot["body_available"] = count > 0
-        if snapshot["body_available"]:
-            text = await body.inner_text(timeout=body_timeout_ms)
-            snapshot["body_text_length"] = len(text or "")
-            snapshot["body_text_sample"] = (text or "")[:400]
-    except Exception as e:  # noqa: BLE001
-        snapshot["body_read_error"] = str(e)
-    return snapshot
-
-
-def _whatsapp_state(snapshot: Dict[str, Any]) -> str:
-    if snapshot.get("closed"):
-        return "closed"
-    url = str(snapshot.get("url") or "").lower()
-    title = str(snapshot.get("title") or "").lower()
-    text = str(snapshot.get("body_text_sample") or "").lower()
-    body_ok = bool(snapshot.get("body_available"))
-    if "whatsapp.com" not in url and "whatsapp" not in title and "whatsapp" not in text:
-        return "unknown"
-    if not body_ok:
-        return "loading_shell"
-    if any(marker in text for marker in ("scan the qr code", "use whatsapp on your phone", "keep your phone connected", "link a device")):
-        return "login_required"
-    if any(marker in text for marker in ("loading", "connecting", "checking", "opening whatsapp")):
-        return "loading_shell"
-    return "authenticated_or_readable"
-
-
-async def _wait_for_usable_page(page: Any, timeout_ms: int = 8000) -> Dict[str, Any]:
-    deadline = time.monotonic() + max(timeout_ms, 0) / 1000.0
-    last_snapshot: Dict[str, Any] = {}
-    attempts = 0
-    while time.monotonic() < deadline and attempts < 2:
-        attempts += 1
-        remaining_ms = max(int((deadline - time.monotonic()) * 1000), 500)
-        last_snapshot = await _page_snapshot(page, body_timeout_ms=min(4000, remaining_ms))
-        if last_snapshot.get("closed"):
-            break
-        if last_snapshot.get("body_available") and str(last_snapshot.get("url") or "").strip() and str(last_snapshot.get("url")) != "about:blank":
-            return last_snapshot
-        try:
-            await page.wait_for_load_state("domcontentloaded", timeout=min(2500, remaining_ms))
-        except Exception:
-            pass
-        await asyncio.sleep(0.4)
-    if not last_snapshot:
-        last_snapshot = await _page_snapshot(page, body_timeout_ms=1500)
-    return last_snapshot
-
-
 # --- Handlers ---------------------------------------------------------------
 
 
 @register("desktopBrowserOpen")
 async def browser_open(args: Dict[str, Any]) -> Dict[str, Any]:
     url = _normalize_url(args.get("url") or "https://www.google.com")
-    browser_mode = args.get("browser_mode")
-    purpose = str(args.get("purpose") or ("email" if "mail" in url.lower() else "whatsapp" if "whatsapp" in url.lower() else "browser"))
-    if _prefer_firefox_for_url(url, browser_mode):
-        session = await SESSION_MANAGER.connect_or_launch(url=url, purpose=purpose, prefer_real=True, allow_fallback=True)
-        if not session.get("ok"):
-            return {
-                "result": session.get("reason") or "Firefox session unavailable.",
-                "browser_environment": browser_environment_summary(),
-                "browser_mode": session.get("browser_mode"),
-                "profile": session.get("profile"),
-                "diagnostics": session.get("diagnostics"),
-                "verified": False,
-                "verification": "UNCERTAIN",
-        }
-        page = session.get("page")
-        STATE.page = page
-        STATE.browser_mode = session.get("browser_mode")
-        STATE.browser_session = session
-        snapshot = await SESSION_MANAGER.snapshot(purpose=purpose)
-        usable = bool(snapshot.get("body_available")) and not snapshot.get("page_closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-        return {
-            "result": f"Opened {url} in the Firefox browser session." if usable else f"Navigation attempted for {url}.",
-            "url": snapshot.get("url") or url,
-            "title": snapshot.get("title"),
-            "ready_state": snapshot.get("ready_state"),
-            "page_state": snapshot,
-            "browser_environment": browser_environment_summary(),
-            "browser_mode": session.get("browser_mode"),
-            "profile": session.get("profile"),
-            "verified": usable,
-            "verification": "VERIFIED" if usable else "UNCERTAIN",
-        }
     page = await _page()
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     except Exception as e:  # noqa: BLE001
-        snapshot = await _wait_for_usable_page(page, timeout_ms=7000)
-        snapshot["navigation_error"] = str(e)
-        snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-        usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-        if usable:
-            return {
-                "result": f"Navigation timed out, but the browser page is usable at {snapshot.get('url')}.",
-                "url": snapshot.get("url"),
-                "title": snapshot.get("title"),
-                "ready_state": snapshot.get("ready_state"),
-                "page_state": snapshot,
-                "verified": True,
-                "verification": "VERIFIED",
-            }
-        raise ToolError(f"Could not open {url}: {e}; page_state={snapshot}")
-    snapshot = await _wait_for_usable_page(page, timeout_ms=3000)
-    snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-    usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-    return {
-        "result": f"Opened {url} in the automation browser." if usable else f"Navigation attempted for {url}.",
-        "url": snapshot.get("url") or page.url,
-        "title": snapshot.get("title"),
-        "ready_state": snapshot.get("ready_state"),
-        "page_state": snapshot,
-        "verified": usable,
-        "verification": "VERIFIED" if usable else "UNCERTAIN",
-    }
+        raise ToolError(f"Could not open {url}: {e}")
+    return {"result": f"Opened {url} in the automation browser.", "url": page.url}
 
 
 @register("desktopBrowserNavigate")
@@ -303,50 +128,6 @@ async def browser_navigate(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("desktopBrowserOpenTab")
 async def browser_open_tab(args: Dict[str, Any]) -> Dict[str, Any]:
     url = _normalize_url(args.get("url") or "about:blank")
-    browser_mode = args.get("browser_mode")
-    purpose = str(args.get("purpose") or ("email" if "mail" in url.lower() else "whatsapp" if "whatsapp" in url.lower() else "browser"))
-    if _prefer_firefox_for_url(url, browser_mode):
-        session = await SESSION_MANAGER.connect_or_launch(url=None, purpose=purpose, prefer_real=True, allow_fallback=True)
-        if not session.get("ok"):
-            raise ToolError(session.get("reason") or "Firefox session unavailable.")
-        page = session.get("page")
-        if page is None:
-            raise ToolError("Firefox session did not provide a page.")
-        STATE.page = page
-        STATE.browser_mode = session.get("browser_mode")
-        STATE.browser_session = session
-        try:
-            await page.goto(url, wait_until="commit", timeout=20000)
-        except Exception as e:  # noqa: BLE001
-            snapshot = await SESSION_MANAGER.snapshot(purpose=purpose)
-            snapshot["navigation_error"] = str(e)
-            usable = bool(snapshot.get("body_available")) and not snapshot.get("page_closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-            if usable:
-                return {
-                    "result": f"Opened new Firefox tab and recovered usable state at {snapshot.get('url')}.",
-                    "url": snapshot.get("url"),
-                    "title": snapshot.get("title"),
-                    "ready_state": snapshot.get("ready_state"),
-                    "page_state": snapshot,
-                    "browser_mode": session.get("browser_mode"),
-                    "profile": session.get("profile"),
-                    "verified": True,
-                    "verification": "VERIFIED",
-                }
-            raise ToolError(f"Opened tab but navigation failed: {e}; page_state={snapshot}")
-        snapshot = await SESSION_MANAGER.snapshot(purpose=purpose)
-        usable = bool(snapshot.get("body_available")) and not snapshot.get("page_closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-        return {
-            "result": f"New Firefox tab opened at {url}.",
-            "url": snapshot.get("url") or page.url,
-            "title": snapshot.get("title"),
-            "ready_state": snapshot.get("ready_state"),
-            "page_state": snapshot,
-            "browser_mode": session.get("browser_mode"),
-            "profile": session.get("profile"),
-            "verified": usable,
-            "verification": "VERIFIED" if usable else "UNCERTAIN",
-        }
     await _ensure_browser_async()
     ctx = STATE.context
     page = await ctx.new_page()
@@ -355,25 +136,8 @@ async def browser_open_tab(args: Dict[str, Any]) -> Dict[str, Any]:
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=20000)
         except Exception as e:  # noqa: BLE001
-            snapshot = await _wait_for_usable_page(page, timeout_ms=7000)
-            snapshot["navigation_error"] = str(e)
-            snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-            usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-            if usable:
-                return {
-                    "result": f"Opened new tab and recovered usable state at {snapshot.get('url')}.",
-                    "url": snapshot.get("url"),
-                    "title": snapshot.get("title"),
-                    "ready_state": snapshot.get("ready_state"),
-                    "page_state": snapshot,
-                    "verified": True,
-                    "verification": "VERIFIED",
-                }
-            raise ToolError(f"Opened tab but navigation failed: {e}; page_state={snapshot}")
-    snapshot = await _wait_for_usable_page(page, timeout_ms=3000)
-    snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-    usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-    return {"result": f"New tab opened at {url}.", "url": page.url, "title": snapshot.get("title"), "ready_state": snapshot.get("ready_state"), "page_state": snapshot, "verified": usable, "verification": "VERIFIED" if usable else "UNCERTAIN"}
+            raise ToolError(f"Opened tab but navigation failed: {e}")
+    return {"result": f"New tab opened at {url}.", "url": url}
 
 
 @register("desktopBrowserCloseTab")
@@ -386,8 +150,8 @@ async def browser_close_tab(args: Dict[str, Any]) -> Dict[str, Any]:
     pages = STATE.context.pages if STATE.context else []
     STATE.page = pages[-1] if pages else None
     if STATE.page is None:
-        return {"result": "Closed the last tab; browser now empty.", "verified": True, "verification": "VERIFIED"}
-    return {"result": f"Closed tab. Active tab now: {STATE.page.url}", "verified": True, "verification": "VERIFIED"}
+        return {"result": "Closed the last tab; browser now empty."}
+    return {"result": f"Closed tab. Active tab now: {STATE.page.url}"}
 
 
 @register("desktopBrowserSearch")
@@ -406,57 +170,12 @@ async def browser_search(args: Dict[str, Any]) -> Dict[str, Any]:
     }.get(engine)
     if not url:
         raise ToolError(f"Unsupported engine '{engine}'.")
-    browser_mode = args.get("browser_mode")
-    if _prefer_firefox_for_url(url, browser_mode):
-        session = await SESSION_MANAGER.connect_or_launch(url=url, purpose="browser", prefer_real=True, allow_fallback=True)
-        if not session.get("ok"):
-            return {
-                "result": session.get("reason") or "Firefox session unavailable.",
-                "browser_environment": browser_environment_summary(),
-                "browser_mode": session.get("browser_mode"),
-                "profile": session.get("profile"),
-                "diagnostics": session.get("diagnostics"),
-                "verified": False,
-                "verification": "UNCERTAIN",
-            }
-        snapshot = await SESSION_MANAGER.snapshot(purpose="browser")
-        STATE.browser_mode = session.get("browser_mode")
-        STATE.browser_session = session
-        usable = bool(snapshot.get("body_available")) and not snapshot.get("page_closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-        return {
-            "result": f"Searched {engine} for '{query}'.",
-            "url": snapshot.get("url") or url,
-            "title": snapshot.get("title"),
-            "ready_state": snapshot.get("ready_state"),
-            "page_state": snapshot,
-            "browser_mode": session.get("browser_mode"),
-            "profile": session.get("profile"),
-            "verified": usable,
-            "verification": "VERIFIED" if usable else "UNCERTAIN",
-        }
     page = await _page()
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     except Exception as e:  # noqa: BLE001
-        snapshot = await _wait_for_usable_page(page, timeout_ms=7000)
-        snapshot["navigation_error"] = str(e)
-        snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-        usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-        if usable:
-            return {
-                "result": f"Search navigation timed out but page is usable at {snapshot.get('url')}.",
-                "url": snapshot.get("url"),
-                "title": snapshot.get("title"),
-                "ready_state": snapshot.get("ready_state"),
-                "page_state": snapshot,
-                "verified": True,
-                "verification": "VERIFIED",
-            }
-        raise ToolError(f"Search navigation failed: {e}; page_state={snapshot}")
-    snapshot = await _wait_for_usable_page(page, timeout_ms=3000)
-    snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-    usable = bool(snapshot.get("body_available")) and not snapshot.get("closed") and str(snapshot.get("url") or "").strip() not in {"", "about:blank"}
-    return {"result": f"Searched {engine} for '{query}'.", "url": page.url, "title": snapshot.get("title"), "ready_state": snapshot.get("ready_state"), "page_state": snapshot, "verified": usable, "verification": "VERIFIED" if usable else "UNCERTAIN"}
+        raise ToolError(f"Search navigation failed: {e}")
+    return {"result": f"Searched {engine} for '{query}'.", "url": page.url}
 
 
 @register("desktopBrowserClick")
@@ -473,7 +192,7 @@ async def browser_click(args: Dict[str, Any]) -> Dict[str, Any]:
             raise ToolError("Provide 'selector' or 'text' to click.")
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Click failed: {e}")
-    return {"result": f"Clicked {selector or text}.", "verified": True, "verification": "UNCERTAIN"}
+    return {"result": f"Clicked {selector or text}."}
 
 
 @register("desktopBrowserType")
@@ -494,7 +213,7 @@ async def browser_type(args: Dict[str, Any]) -> Dict[str, Any]:
             await page.keyboard.type(str(text))
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Type failed: {e}")
-    return {"result": f"Typed {len(str(text))} characters.", "verified": True, "verification": "UNCERTAIN"}
+    return {"result": f"Typed {len(str(text))} characters."}
 
 
 @register("desktopBrowserFillForm")
@@ -515,7 +234,7 @@ async def browser_fill_form(args: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Form fill failed after {filled} field(s): {e}")
     extra = " and submitted." if submit else "."
-    return {"result": f"Filled {filled} field(s){extra}", "verified": True, "verification": "VERIFIED"}
+    return {"result": f"Filled {filled} field(s){extra}"}
 
 
 @register("desktopBrowserGoBack")
@@ -525,7 +244,7 @@ async def browser_go_back(args: Dict[str, Any]) -> Dict[str, Any]:
         await page.go_back(timeout=15000)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Back failed: {e}")
-    return {"result": f"Went back. Now on {page.url}.", "verified": True, "verification": "VERIFIED"}
+    return {"result": f"Went back. Now on {page.url}."}
 
 
 @register("desktopBrowserGoForward")
@@ -535,7 +254,7 @@ async def browser_go_forward(args: Dict[str, Any]) -> Dict[str, Any]:
         await page.go_forward(timeout=15000)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Forward failed: {e}")
-    return {"result": f"Went forward. Now on {page.url}.", "verified": True, "verification": "VERIFIED"}
+    return {"result": f"Went forward. Now on {page.url}."}
 
 
 @register("desktopBrowserScroll")
@@ -548,19 +267,19 @@ async def browser_scroll(args: Dict[str, Any]) -> Dict[str, Any]:
         await page.mouse.wheel(0, delta)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Scroll failed: {e}")
-    return {"result": f"Scrolled {direction} {amount}px.", "verified": True, "verification": "UNCERTAIN"}
+    return {"result": f"Scrolled {direction} {amount}px."}
 
 @register("desktopBrowserReload")
 async def browser_reload(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     await page.reload(wait_until="domcontentloaded", timeout=20000)
-    return {"result": "Refreshed the current page.", "verified": True, "verification": "VERIFIED"}
+    return {"result": "Refreshed the current page."}
 
 @register("desktopBrowserKey")
 async def browser_key(args: Dict[str, Any]) -> Dict[str, Any]:
     key = str(args.get("key") or "Enter")
     await (await _page()).keyboard.press(key)
-    return {"result": f"Pressed {key}.", "verified": True, "verification": "UNCERTAIN"}
+    return {"result": f"Pressed {key}."}
 
 @register("desktopBrowserZoom")
 async def browser_zoom(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -571,141 +290,20 @@ async def browser_zoom(args: Dict[str, Any]) -> Dict[str, Any]:
     else:
         factor = 1.1 if action == "in" else 0.9
         await page.evaluate("(f) => { document.documentElement.style.zoom = `${(parseFloat(getComputedStyle(document.documentElement).zoom) || 1) * f * 100}%`; }", factor)
-    return {"result": f"Zoom {action}.", "verified": True, "verification": "VERIFIED"}
+    return {"result": f"Zoom {action}."}
 
 @register("desktopBrowserMedia")
 async def browser_media(args: Dict[str, Any]) -> Dict[str, Any]:
     action = str(args.get("action") or "play").lower()
     page = await _page()
     await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'play') v.play(); else if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); }", action)
-    return {"result": f"Media action '{action}' executed.", "verified": False, "verification": "UNCERTAIN"}
-
-@register("browserOpen")
-async def browser_open_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(args)
-    if "url" not in payload and "name" in payload:
-        payload["url"] = payload["name"]
-    return await browser_open(payload)
-
-@register("browserSearch")
-async def browser_search_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(args)
-    if "query" not in payload and "q" in payload:
-        payload["query"] = payload["q"]
-    if "query" not in payload and "text" in payload:
-        payload["query"] = payload["text"]
-    return await browser_search(payload)
-
-@register("browserClick")
-async def browser_click_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(args)
-    if "selector" not in payload and "text" in payload:
-        payload["text"] = payload["text"]
-    return await browser_click(payload)
-
-@register("browserType")
-async def browser_type_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    payload = dict(args)
-    if "text" not in payload and "value" in payload:
-        payload["text"] = payload["value"]
-    return await browser_type(payload)
-
-@register("browserScroll")
-async def browser_scroll_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    return await browser_scroll(args)
-
-@register("browserGoBack")
-async def browser_go_back_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    return await browser_go_back(args)
-
-@register("browserMediaControl")
-async def browser_media_control_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    action = str(args.get("action") or args.get("command") or "play").lower()
-    payload = {"action": action}
-    if "value" in args:
-        payload["value"] = args["value"]
-    return await browser_media(payload)
-
-@register("browserTabAction")
-async def browser_tab_action_alias(args: Dict[str, Any]) -> Dict[str, Any]:
-    action = str(args.get("action") or "new").lower()
-    if action == "new":
-        return await browser_open_tab({"url": args.get("url") or "about:blank"})
-    if action == "close":
-        return await browser_close_tab({})
-    if action == "switch":
-        if args.get("tabId"):
-            # Playwright tab switching is coordinated by context pages, so just make the requested tab active if it exists.
-            try:
-                tabs = STATE.context.pages if STATE.context else []
-                idx = int(args.get("tabId", 0)) if str(args.get("tabId")).isdigit() else 0
-                if tabs and idx < len(tabs):
-                    STATE.page = tabs[idx]
-                    return {"result": f"Switched browser focus to tab index {idx}.", "url": STATE.page.url, "verified": True, "verification": "VERIFIED"}
-            except Exception:
-                pass
-        return {"result": "Browser tab switch requested; active tab remains unchanged.", "verified": False, "verification": "UNCERTAIN"}
-    return {"result": f"Unsupported browser tab action: {action}", "verified": False, "verification": "UNCERTAIN"}
+    return {"result": f"Media action '{action}' executed."}
 
 @register("desktopBrowserReadPage")
 async def browser_read_page(args: Dict[str, Any]) -> Dict[str, Any]:
-    browser_mode = args.get("browser_mode")
-    if _prefer_firefox_for_url(str(args.get("url") or ""), browser_mode) or str(getattr(STATE, "browser_mode", "")).lower() in {"firefox", "real_user_browser", "sara_persistent_browser"}:
-        snapshot = await SESSION_MANAGER.snapshot(purpose="email" if "mail" in str(args.get("url") or "").lower() else "whatsapp")
-        snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-        if snapshot.get("page_closed"):
-            raise ToolError(f"Cannot read page because it is closed: {snapshot}")
-        max_chars = int(args.get("max_chars", 5000))
-        if not snapshot.get("body_available"):
-            return {
-                "result": "",
-                "url": snapshot.get("url"),
-                "title": snapshot.get("title"),
-                "page_state": snapshot,
-                "browser_mode": snapshot.get("browser_mode"),
-                "verified": False,
-                "verification": "UNCERTAIN",
-            }
-        text = snapshot.get("body_text_sample") or ""
-        if len(text) > max_chars:
-            text = text[:max_chars]
-        return {
-            "result": text,
-            "url": snapshot.get("url"),
-            "title": snapshot.get("title"),
-            "ready_state": snapshot.get("ready_state"),
-            "page_state": snapshot,
-            "browser_mode": snapshot.get("browser_mode"),
-            "verified": True,
-            "verification": "VERIFIED",
-        }
     page = await _page()
-    snapshot = await _wait_for_usable_page(page, timeout_ms=6000)
-    snapshot["whatsapp_state"] = _whatsapp_state(snapshot)
-    if snapshot.get("closed"):
-        raise ToolError(f"Cannot read page because it is closed: {snapshot}")
-    max_chars = int(args.get("max_chars", 5000))
-    if not snapshot.get("body_available"):
-        return {
-            "result": "",
-            "url": snapshot.get("url") or page.url,
-            "title": snapshot.get("title"),
-            "page_state": snapshot,
-            "verified": False,
-            "verification": "UNCERTAIN",
-        }
-    text = snapshot.get("body_text_sample") or ""
-    if len(text) > max_chars:
-        text = text[:max_chars]
-    return {
-        "result": text,
-        "url": snapshot.get("url") or page.url,
-        "title": snapshot.get("title"),
-        "ready_state": snapshot.get("ready_state"),
-        "page_state": snapshot,
-        "verified": True,
-        "verification": "VERIFIED",
-    }
+    text = await page.locator("body").inner_text(timeout=10000)
+    return {"result": text[:int(args.get("max_chars", 5000))], "url": page.url, "title": await page.title()}
 
 @register("desktopBrowserScreenshot")
 async def browser_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -718,13 +316,7 @@ async def browser_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
 # Each @register'd async function above is replaced by a sync wrapper below.
 def _sync_wrap(async_fn):
     def wrapper(args: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            return _run(async_fn(args))
-        except Exception as e:  # noqa: BLE001
-            # Convert unexpected browser errors into a stable payload
-            # so callers (and tests) always receive a dict with a 'result'
-            # key rather than an exception being raised.
-            return {"result": {"error": str(e)}, "error": str(e)}
+        return _run(async_fn(args))
 
     wrapper.__name__ = async_fn.__name__
     wrapper.__doc__ = async_fn.__doc__
@@ -749,14 +341,6 @@ for _name in [
     "desktopBrowserScroll",
     "desktopBrowserReload", "desktopBrowserKey", "desktopBrowserZoom",
     "desktopBrowserMedia", "desktopBrowserReadPage", "desktopBrowserScreenshot",
-    "browserOpen",
-    "browserSearch",
-    "browserClick",
-    "browserType",
-    "browserScroll",
-    "browserGoBack",
-    "browserMediaControl",
-    "browserTabAction",
 ]:
     _orig = TOOLS[_name]
     if asyncio.iscoroutinefunction(_orig):
@@ -799,11 +383,5 @@ __all__ = [
     "browser_go_back",
     "browser_go_forward",
     "browser_scroll",
-    "browser_open_alias",
-    "browser_search_alias",
-    "browser_click_alias",
-    "browser_type_alias",
-    "browser_media_control_alias",
-    "browser_tab_action_alias",
     "shutdown_browser",
 ]

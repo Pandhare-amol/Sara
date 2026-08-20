@@ -1,9 +1,9 @@
 [
   {
-    "event_id": "audit-1786973892445-a2y1q8mg",
+    "event_id": "audit-1787156883791-549mbht5",
     "previous_event_hash": null,
-    "event_hash": "1dc1d24f4309aa7ffcfb0d7287905db143ffc77bce61d8632334e7a143c5134d",
-    "timestamp": "2026-08-17T13:38:12.445Z",
+    "event_hash": "ea1b4d7719f308977cd22bc3ea5365e6c9638e18b6706c8e80435af324c1d355",
+    "timestamp": "2026-08-19T16:28:03.791Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -15,35 +15,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:12.335Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-19T16:28:03.693Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:12.335Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-19T16:28:03.693Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973894114-ibnzvz91",
+    "event_id": "audit-1787186633565-2g1h4c9d",
     "previous_event_hash": null,
-    "event_hash": "677bc01827bca42ed96f318d8d22b9529b6692989fd0309819b6eef93bfba951",
-    "timestamp": "2026-08-17T13:38:14.114Z",
+    "event_hash": "31ffa2c086456c0f75bef6a47a2877363b2b662b313360951851325f66df7ede",
+    "timestamp": "2026-08-20T00:43:53.564Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -55,35 +55,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:13.997Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T00:43:53.402Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:13.997Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T00:43:53.402Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973894912-xi98pg89",
+    "event_id": "audit-1787186634196-r1futyx4",
     "previous_event_hash": null,
-    "event_hash": "d51c09048643077dc8a7a05fb8a010d073a496b96225afa83911c1fa1064eab0",
-    "timestamp": "2026-08-17T13:38:14.912Z",
+    "event_hash": "9b4f7f9d4602aad12d89cd28c3e5435d12c01091f28403af42033b349102ff6a",
+    "timestamp": "2026-08-20T00:43:54.196Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -95,35 +95,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:14.815Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T00:43:54.111Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:14.815Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T00:43:54.111Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973895664-j2jm63ee",
+    "event_id": "audit-1787187277185-74ed5jxv",
     "previous_event_hash": null,
-    "event_hash": "37a90d128fa301d226b2dbbd2d1f43ab3ef4c3bd71e493022216cbf0afd62db0",
-    "timestamp": "2026-08-17T13:38:15.664Z",
+    "event_hash": "09406c6395faa8ddded1e85816fab559b3032d3e57aaabc4353855a6a4f19976",
+    "timestamp": "2026-08-20T00:54:37.185Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -135,35 +135,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:15.548Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T00:54:37.052Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:15.548Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T00:54:37.052Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973897255-5k51j0fp",
+    "event_id": "audit-1787187333729-6ljx0ivk",
     "previous_event_hash": null,
-    "event_hash": "d60bdff46eee506591d9be48a8dbfa7faadd3b1a835395c294cb7cd5c38df894",
-    "timestamp": "2026-08-17T13:38:17.255Z",
+    "event_hash": "4a140ff688f105110e3aab43fe5f39b37e869fecd0dd85eb823e9237a3a2a454",
+    "timestamp": "2026-08-20T00:55:33.728Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -175,35 +175,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:17.106Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T00:55:33.595Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:17.106Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T00:55:33.595Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973897769-4psj94pa",
+    "event_id": "audit-1787187485971-izltn8yd",
     "previous_event_hash": null,
-    "event_hash": "93fc50b9adb2a4acd0310d1bc163ef26bdd49ff5f2aa94e694dd6e68209fb62f",
-    "timestamp": "2026-08-17T13:38:17.769Z",
+    "event_hash": "ccc0ead105a8403af1ad753c7cce46eae831111bb9802e3abd6892e6a9a658a5",
+    "timestamp": "2026-08-20T00:58:05.971Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -215,35 +215,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:17.641Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T00:58:05.851Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:17.641Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T00:58:05.851Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973898883-mrwaun38",
+    "event_id": "audit-1787187657711-bn2cdu27",
     "previous_event_hash": null,
-    "event_hash": "a29705cd3424f135a9ccc30253cb59e2fc227d770e29bac157450e0dfc28bb75",
-    "timestamp": "2026-08-17T13:38:18.883Z",
+    "event_hash": "c883ab6bb2a3d5cde036f019b54dcd505b2a0c73353180ff2e1fb02a78f0b07d",
+    "timestamp": "2026-08-20T01:00:57.711Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -255,35 +255,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:18.760Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:00:57.595Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:18.760Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T01:00:57.595Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973899939-wtrjw1di",
+    "event_id": "audit-1787187713067-wkvl4h72",
     "previous_event_hash": null,
-    "event_hash": "d5bb5c267352eae421fda45be9db75d010a8dc7c8540196596286735b13622cc",
-    "timestamp": "2026-08-17T13:38:19.939Z",
+    "event_hash": "2a4feb370ecf73ccd7205fba2faf1ec52e1ca4bd992aa297dc205be66630d4ce",
+    "timestamp": "2026-08-20T01:01:53.067Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -295,35 +295,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:19.834Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:01:53.018Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:19.834Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T01:01:53.018Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973900204-sgfex8ia",
+    "event_id": "audit-1787187868906-8uambw8l",
     "previous_event_hash": null,
-    "event_hash": "af99cc1d9a0717426183e7ab7b9c8c2299b2bfa34227e7b62d1360a4723cb4cb",
-    "timestamp": "2026-08-17T13:38:20.204Z",
+    "event_hash": "40c4ee0ba5e101bcd40104fb1794ee8454d4d7511c7f96b48fe1461c419e58ed",
+    "timestamp": "2026-08-20T01:04:28.906Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -335,35 +335,35 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:20.087Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:04:28.838Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:20.087Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T01:04:28.838Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973901937-ysuoo4q1",
+    "event_id": "audit-1787187942602-3il83cno",
     "previous_event_hash": null,
-    "event_hash": "e929521ddd0b8744105cba2e626dd8243929bf54d983d684ea66ab7bddca39d4",
-    "timestamp": "2026-08-17T13:38:21.937Z",
+    "event_hash": "78f598fa505ae2267f3031af0a0bfe0667f92282248c1e3afc2a5ee65c690d19",
+    "timestamp": "2026-08-20T01:05:42.602Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -375,1427 +375,89 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:21.814Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:05:42.534Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:21.814Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T01:05:42.534Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786973902343-ka6bn4hh",
+    "event_id": "audit-1787187951267-s496u9jm",
     "previous_event_hash": null,
-    "event_hash": "ad51eb3843f14a1ab44752142b5cab04ccf31b76e1ba0286d9c3d9f37c07c59a",
-    "timestamp": "2026-08-17T13:38:22.343Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:22.219Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:22.219Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973903578-xku1cdft",
-    "previous_event_hash": null,
-    "event_hash": "bab4115ac5af86923b40ff6905b7f964a4b51d4d0498475645ce1a8d92a2abde",
-    "timestamp": "2026-08-17T13:38:23.577Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:23.423Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:23.423Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973905471-p9o6w6r5",
-    "previous_event_hash": null,
-    "event_hash": "72fa17aa2498928d2b5ab139526997ab648732bbbd2f68ab8f2432579bfd19c8",
-    "timestamp": "2026-08-17T13:38:25.471Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:25.329Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:25.329Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973905672-g9r6hao6",
-    "previous_event_hash": null,
-    "event_hash": "a53212df20e0ddbd6714d88309d33759b915084d6c4f5a29467c7fa6c5bfb2be",
-    "timestamp": "2026-08-17T13:38:25.672Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:25.489Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:25.489Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973906540-myp1jc0g",
-    "previous_event_hash": null,
-    "event_hash": "ae73267b7d94eac653eee47a8f07ad8e9c1792eb9555c6e27cd7da27d0cb8fdb",
-    "timestamp": "2026-08-17T13:38:26.540Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:26.326Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:26.326Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973906780-e1xqtqcv",
-    "previous_event_hash": null,
-    "event_hash": "0adf776d746edb0006e5aa2b4164524f2280a8dc180dd2f852cdb0456e237ebd",
-    "timestamp": "2026-08-17T13:38:26.780Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:26.539Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:26.539Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973906961-pdlqiohw",
-    "previous_event_hash": null,
-    "event_hash": "32a376412792fa4238158b119e78cedd033f50cc5d32af458ce5836e479517f2",
-    "timestamp": "2026-08-17T13:38:26.961Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:26.835Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:26.835Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973908630-bzfair14",
-    "previous_event_hash": null,
-    "event_hash": "d66b14a9fcb4b7557cf6470d0191f23ea676dba30c5d2d5a381826682d67b1bc",
-    "timestamp": "2026-08-17T13:38:28.630Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:28.523Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:28.523Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973909455-3r2m7t8o",
-    "previous_event_hash": null,
-    "event_hash": "a303b570b320dfd18e54385a74c3e167055091b5f97204f0428f3c41dc844dad",
-    "timestamp": "2026-08-17T13:38:29.455Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:29.328Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:29.328Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973911964-0c8w3ghc",
-    "previous_event_hash": null,
-    "event_hash": "2693fc176947aa307f320ef8f73baa700e41211aa472b1c2134a373886878034",
-    "timestamp": "2026-08-17T13:38:31.964Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:31.843Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:31.843Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973912064-7v1pi0ds",
-    "previous_event_hash": null,
-    "event_hash": "4ebc4f9a1cd74c58c6f3afa5d72e4f2e00e3f179b0d1087a451919a4c2d9fad3",
-    "timestamp": "2026-08-17T13:38:32.064Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:31.928Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:31.928Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973912379-s0euhsrr",
-    "previous_event_hash": null,
-    "event_hash": "473999b435fcc10c687af0832239d6bf1854aafb0c32ade35aae0579c0087486",
-    "timestamp": "2026-08-17T13:38:32.379Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:32.238Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:32.238Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973912802-1cqgxguv",
-    "previous_event_hash": null,
-    "event_hash": "b4fd4f4bea338d251803d6e316ab025f636e2565c065facbd59ebf33ed26ab9a",
-    "timestamp": "2026-08-17T13:38:32.802Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:32.679Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:32.679Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973913406-k8ordgnv",
-    "previous_event_hash": null,
-    "event_hash": "697ae7249cbe39aa204c2fd8111cbd4e110be2fcb34bebe9022266be834a6c74",
-    "timestamp": "2026-08-17T13:38:33.406Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:33.282Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:33.282Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973914635-ut4eaqry",
-    "previous_event_hash": null,
-    "event_hash": "5f36631245fb084f232fd4e442c3928c6a7285a861466511342a97d38fb62d74",
-    "timestamp": "2026-08-17T13:38:34.634Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:34.513Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:34.513Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973915259-1jrnx047",
-    "previous_event_hash": null,
-    "event_hash": "fc9944354fe974aa245545d5274655386eee59774706c864227478ebac30afb2",
-    "timestamp": "2026-08-17T13:38:35.259Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:35.167Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:35.167Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973916410-oedxvnx1",
-    "previous_event_hash": null,
-    "event_hash": "4e757afed80c0993eeaf89f04c861471258b3bb081f478b17cfd44443a45c47a",
-    "timestamp": "2026-08-17T13:38:36.410Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:36.275Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:36.275Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973917880-hzxt0hlj",
-    "previous_event_hash": null,
-    "event_hash": "f41bc24ab3e2af0aca6b120fb193af1159d25bcf1715eb383410a258744d4215",
-    "timestamp": "2026-08-17T13:38:37.879Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:37.727Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:37.727Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973917966-qf3w86jf",
-    "previous_event_hash": null,
-    "event_hash": "cd642c27f345529548ce947b6b4b28f6ff0a107778c7b065ef889a581a976fa0",
-    "timestamp": "2026-08-17T13:38:37.966Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:37.788Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:37.788Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973918659-w42kuamc",
-    "previous_event_hash": null,
-    "event_hash": "3188e7976cbd7193f4d7e02886878268dbadacbf102da521791a57db63999f6c",
-    "timestamp": "2026-08-17T13:38:38.659Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:38.550Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:38.550Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973922331-kr92e4kt",
-    "previous_event_hash": null,
-    "event_hash": "2c0c7d83a088769d7912efbe63438cec8742b4350c837d8451e18e2486b71af0",
-    "timestamp": "2026-08-17T13:38:42.331Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:42.220Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:42.220Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973923442-fwmy9mxv",
-    "previous_event_hash": null,
-    "event_hash": "862bd72af2dcec98fcbd8c2e2017bb2970e9a16abb34e2b55fe93a19ee3832c7",
-    "timestamp": "2026-08-17T13:38:43.442Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:43.316Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:43.316Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973923830-3wzi2iw5",
-    "previous_event_hash": null,
-    "event_hash": "a5a7c3e0c8d1d2ee86047fed0e0feaa3becf6cce5156760146d61c4707ec88cb",
-    "timestamp": "2026-08-17T13:38:43.830Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:43.715Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:43.715Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786973924937-2z7bk83m",
-    "previous_event_hash": null,
-    "event_hash": "98ec1c72f222610052da77e3de0458b139d4a2bd2c9d7c96151e280059d4d56a",
-    "timestamp": "2026-08-17T13:38:44.937Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:38:44.863Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:38:44.863Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786974099519-1zy0eyya",
-    "previous_event_hash": null,
-    "event_hash": "4b2fcfbc46c2474bf527a7b68ea6190bb717ad4e391797f41d4dfbfe1a864220",
-    "timestamp": "2026-08-17T13:41:39.519Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T13:41:39.475Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T13:41:39.475Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786975942057-t35me5c9",
-    "previous_event_hash": null,
-    "event_hash": "03a33cee12a682d543530ff7603f01cbc8900f5a1ba7136f4bd8f396d361c67e",
-    "timestamp": "2026-08-17T14:12:22.057Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T14:12:21.898Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T14:12:21.898Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786976271940-macaws15",
-    "previous_event_hash": null,
-    "event_hash": "973c114916959936a9da0b6352beed6be8c405a9587d8eeac56a51526d25a214",
-    "timestamp": "2026-08-17T14:17:51.940Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T14:17:51.796Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T14:17:51.796Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786976612008-hojix9w1",
-    "previous_event_hash": null,
-    "event_hash": "005b156032560f6c12d4d98f6708173f67e06adece85d7c924394cc7caed530d",
-    "timestamp": "2026-08-17T14:23:32.008Z",
-    "session_id": "sess-1786976580488-mmigjrlf",
+    "event_hash": "457beea6bfe452ded7de8f0d4acfe06721610a2f69b58f09efa1ee23674e8bce",
+    "timestamp": "2026-08-20T01:05:51.267Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
     "task_id": null,
     "agent_id": null,
     "event_type": "SESSION_CREATED",
     "status": null,
     "duration_ms": null,
     "metadata": {
-      "conversationId": "conv-1786976577120-xo5vufpw",
+      "conversationId": "conv-1787021577058-afipj425",
       "device": "browser",
       "connectionStatus": "online"
     },
     "severity": null
   },
   {
-    "event_id": "audit-1786976614831-lxr6hdo9",
+    "event_id": "audit-1787187968130-oscih0i7",
     "previous_event_hash": null,
-    "event_hash": "9b0b302c0c6ef7c02535ea4e5c9b02920b1943ede5ace1cd2ecbb8621ac993cf",
-    "timestamp": "2026-08-17T14:23:34.831Z",
-    "session_id": "sess-1786976609092-i5x8tir8",
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "SESSION_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "conversationId": "conv-1786539198375-fzxoosra",
-      "device": "browser",
-      "connectionStatus": "online"
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786978870918-d1cww66w",
-    "previous_event_hash": null,
-    "event_hash": "1d0ffb9e84a8a1493e4be9b47e136bf385912f4edadfaa1c6db6076961c1d335",
-    "timestamp": "2026-08-17T15:01:10.918Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T15:01:10.801Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T15:01:10.801Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786979737377-o41zsn9b",
-    "previous_event_hash": null,
-    "event_hash": "51b26d4302e75d162694bc41c6a7c4aad0c0ceac457a9429d82b694685cfaefe",
-    "timestamp": "2026-08-17T15:15:37.377Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T15:15:37.190Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T15:15:37.190Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786980944340-n5bnniq0",
-    "previous_event_hash": null,
-    "event_hash": "eb2dae0d16f190c32a533726707c61919969e4062aa52589d6a50df34bc25b46",
-    "timestamp": "2026-08-17T15:35:44.340Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T15:35:44.258Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T15:35:44.258Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786982289806-4e6a8yba",
-    "previous_event_hash": null,
-    "event_hash": "89bbebf8da955aaed111ebf0a3f6a97143516de1e400dfea564733fab3f1c013",
-    "timestamp": "2026-08-17T15:58:09.806Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T15:58:09.770Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T15:58:09.770Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786983235512-outu6ed0",
-    "previous_event_hash": null,
-    "event_hash": "5ef204c7e46de2eaee6bdc705bf2ea0555e61528968c88e6d6b1cd13b947f3f4",
-    "timestamp": "2026-08-17T16:13:55.512Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T16:13:55.474Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T16:13:55.474Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786984017461-hx1tu455",
-    "previous_event_hash": null,
-    "event_hash": "814abf4904e04f1c68291919e644994fe96f153cc283d16c140ab570f8a9137c",
-    "timestamp": "2026-08-17T16:26:57.461Z",
-    "session_id": null,
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "BUILD_IDENTITY_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "build": {
-        "SARA_NAME": "SARA",
-        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
-        "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-17T16:26:57.429Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
-        "BUILD_MODE": "PRODUCTION",
-        "author": "********",
-        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
-        "application": "SARA",
-        "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-17T16:26:57.429Z",
-        "source_revision": "5cb1f9c0",
-        "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
-          "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
-        },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
-      }
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786984027635-cw2pcc22",
-    "previous_event_hash": null,
-    "event_hash": "a5350ef8af92eac24155fd6d918280308725bef1ad809fa3c1e461b8ac64acc4",
-    "timestamp": "2026-08-17T16:27:07.635Z",
-    "session_id": "sess-1786984027632-u0258v6i",
-    "task_id": null,
-    "agent_id": null,
-    "event_type": "SESSION_CREATED",
-    "status": null,
-    "duration_ms": null,
-    "metadata": {
-      "conversationId": "conv-1786984027626-h8v6wrnv",
-      "device": "browser",
-      "connectionStatus": "online"
-    },
-    "severity": null
-  },
-  {
-    "event_id": "audit-1786984054679-78upn76g",
-    "previous_event_hash": null,
-    "event_hash": "d2a30e132e59501b72c659723502f018077f009493ad7441b31244ccad459479",
-    "timestamp": "2026-08-17T16:27:34.679Z",
-    "session_id": "sess-1786984027632-u0258v6i",
+    "event_hash": "2518bb718f26fdf1a8bb69050c4be77aa9053dcf631eb05c0e52b928c7708633",
+    "timestamp": "2026-08-20T01:06:08.130Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
     "task_id": null,
     "agent_id": null,
     "event_type": "SESSION_UPDATED",
     "status": null,
     "duration_ms": null,
     "metadata": {
-      "conversationId": "conv-1786984027626-h8v6wrnv",
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787187970049-9ygsmaoj",
+    "previous_event_hash": null,
+    "event_hash": "41e62b6214363b596b783b8232aa55b83eb365087da2e45a63b2c6f5c18a4c91",
+    "timestamp": "2026-08-20T01:06:10.049Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
       "device": "browser",
       "connectionStatus": "offline"
     },
     "severity": null
   },
   {
-    "event_id": "audit-1787015753704-uslv9w6i",
+    "event_id": "audit-1787188145310-zz8ijg5w",
     "previous_event_hash": null,
-    "event_hash": "e841f37536c34fbcafb6f0de1d4ea618be5ed58a1a13a928e7dd372f341090dc",
-    "timestamp": "2026-08-18T01:15:53.704Z",
+    "event_hash": "8d20e4ed41dea56f7227d27a560caac1b300f470fece16dc4cc81a5c72724464",
+    "timestamp": "2026-08-20T01:09:05.310Z",
     "session_id": null,
     "task_id": null,
     "agent_id": null,
@@ -1807,26 +469,657 @@
         "SARA_NAME": "SARA",
         "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
         "SARA_VERSION": "1.0.0",
-        "BUILD_ID": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
-        "BUILD_TIMESTAMP": "2026-08-18T01:15:53.606Z",
-        "BUILD_HASH": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:09:05.223Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
         "BUILD_MODE": "PRODUCTION",
         "author": "********",
         "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
         "application": "SARA",
         "version": "1.0.0",
-        "build_id": "bd9df68b-58bf-4e2e-af31-00f1cb811c08e",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
         "release_id": "v1.0.0-production",
-        "build_timestamp": "2026-08-18T01:15:53.606Z",
-        "source_revision": "5cb1f9c0",
+        "build_timestamp": "2026-08-20T01:09:05.223Z",
+        "source_revision": "13bd0422",
         "git_info": {
-          "commit_hash": "5cb1f9c0f1a6928ff66a6e17120c1a2f91455c7b",
-          "branch": "master",
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
           "author": "********",
-          "timestamp": "2026-08-11T06:52:52+05:30"
+          "timestamp": "2026-08-18T08:02:01+05:30"
         },
-        "installation_id": "51492c83-99cb-46a3-9c80-8498017188a5",
-        "integrity_hash": "3840b09d05cf38fecf8734bf6b808887e1381c2272f44140f722ba9f039b52bc"
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787188213780-sxae61wv",
+    "previous_event_hash": null,
+    "event_hash": "cd272381f10f7d75a0631aec7b960aaf8433c808e85479b549aff56552350083",
+    "timestamp": "2026-08-20T01:10:13.780Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:10:13.717Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T01:10:13.717Z",
+        "source_revision": "13bd0422",
+        "git_info": {
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-18T08:02:01+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189046137-jt1xkfs4",
+    "previous_event_hash": null,
+    "event_hash": "89085e26447acd97243447ebaad8e106fa5f3b1f8e054811fe7949deda8b70f7",
+    "timestamp": "2026-08-20T01:24:06.137Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:24:06.038Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T01:24:06.038Z",
+        "source_revision": "13bd0422",
+        "git_info": {
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-18T08:02:01+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189091455-kox1u1xa",
+    "previous_event_hash": null,
+    "event_hash": "539131b9c616dd36d6b9aec5b30bb08401b9f3818fdd92ba8819843cd5788925",
+    "timestamp": "2026-08-20T01:24:51.455Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "reconnecting"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189100172-pgbx5l2w",
+    "previous_event_hash": null,
+    "event_hash": "83aff44eecf193edc431d5adb12cf1e45a8de9a6fc89ec68b6fa932b0e91c072",
+    "timestamp": "2026-08-20T01:25:00.172Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189107915-ymim15bl",
+    "previous_event_hash": null,
+    "event_hash": "9a0d967a3a8f4baf2fc9a802bac6922b960ad38b5e87b7c8292e27d3adc74da0",
+    "timestamp": "2026-08-20T01:25:07.909Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "takeScreenshot",
+      "args": {
+        "include_image": true
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189120889-xgjxgsys",
+    "previous_event_hash": null,
+    "event_hash": "1cec2aa579eb45153e087ffad93e5f4f7ce18d63f2ac72dfe07381e60ce6955c",
+    "timestamp": "2026-08-20T01:25:20.889Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189135356-xzy0228i",
+    "previous_event_hash": null,
+    "event_hash": "4b4fc8bd7d68123314a132cd7c6322bb7ce640d077d722258513d6767a369d47",
+    "timestamp": "2026-08-20T01:25:35.356Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189152936-vlgmgguw",
+    "previous_event_hash": null,
+    "event_hash": "bbe7a50283a54dad3d6d0cfc94625f887d811b35d151a9af07f9e978a54788a1",
+    "timestamp": "2026-08-20T01:25:52.936Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189158583-cqkj5xen",
+    "previous_event_hash": null,
+    "event_hash": "9d69f894ba491ac0b33702e1f2eb6711f27da9903f3ef9ba17e556a1e0900e43",
+    "timestamp": "2026-08-20T01:25:58.583Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189165158-iysdwczq",
+    "previous_event_hash": null,
+    "event_hash": "9951c895084ae3c599da610323b994a10b0240336498c9b19f33cc8f5380eed7",
+    "timestamp": "2026-08-20T01:26:05.158Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189190970-2agr3nbr",
+    "previous_event_hash": null,
+    "event_hash": "d8a2b90c6755c8f27cb0f3172e89e78d40e26a36317d9320967d96052cd9f651",
+    "timestamp": "2026-08-20T01:26:30.970Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189253538-0hoeyhdo",
+    "previous_event_hash": null,
+    "event_hash": "17d8acd69f5283f438c35e1b136da41830390a8a28f5ee66468b2b0fe14ea73e",
+    "timestamp": "2026-08-20T01:27:33.538Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189271169-teielvib",
+    "previous_event_hash": null,
+    "event_hash": "ac7613283115d8f82d2dd59fbdc1c37aa0c56fd8188bdfba35296b90c9a6513e",
+    "timestamp": "2026-08-20T01:27:51.169Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189283160-97bft7oy",
+    "previous_event_hash": null,
+    "event_hash": "4a05ddf86e8fadb8776dd00e6ea34d3b7d2a97adc989437d265368a5009535d9",
+    "timestamp": "2026-08-20T01:28:03.160Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189299932-hac7h29i",
+    "previous_event_hash": null,
+    "event_hash": "78e82e16a81b475ba12714c96f1d26e76a38287695eff4109994d39d05fe038d",
+    "timestamp": "2026-08-20T01:28:19.932Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189305796-6dxs4ii0",
+    "previous_event_hash": null,
+    "event_hash": "21c2091a85dc540cca897987b4767ef4d9b3fe658ea329ef44ee681682762c8d",
+    "timestamp": "2026-08-20T01:28:25.788Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "saveScreenshot",
+      "args": {}
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189316076-a8uhs17p",
+    "previous_event_hash": null,
+    "event_hash": "9b064c85b11b31bb7ef754f87a7966b04730918dd35c0c0b7415ac2d6bef484b",
+    "timestamp": "2026-08-20T01:28:36.076Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189320194-i2juiavi",
+    "previous_event_hash": null,
+    "event_hash": "816444cbc6038acc4121bcfa6f24a3bb86a164e834074dcc46a80863e5e3cb71",
+    "timestamp": "2026-08-20T01:28:40.188Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "openFolder",
+      "args": {
+        "name": "pictures"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189330874-p4xl9fqw",
+    "previous_event_hash": null,
+    "event_hash": "a5cdfe6021732a42c2d3adcd5725c6b557759999751d88b40b273db63cb660ee",
+    "timestamp": "2026-08-20T01:28:50.874Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189345430-b4pe0q7x",
+    "previous_event_hash": null,
+    "event_hash": "910275a5762fc2516c115a7b26563cfce8ba7a090de78eecd17ebeb63082bb37",
+    "timestamp": "2026-08-20T01:29:05.430Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189360470-mw1de6xh",
+    "previous_event_hash": null,
+    "event_hash": "59107bc24263f355d19d6fdfee7e7c3c9ff7636c92e5413985bbed18e9ad610c",
+    "timestamp": "2026-08-20T01:29:20.470Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189380108-ccihawzw",
+    "previous_event_hash": null,
+    "event_hash": "1ac1e8e625ae3b63ce45acac0cb7b6c0d0ad3417c9d708c92f7c4d4a6dcb56fe",
+    "timestamp": "2026-08-20T01:29:40.106Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "requestPowerAction",
+      "args": {
+        "action": "shutdown"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189396155-gpd0j32h",
+    "previous_event_hash": null,
+    "event_hash": "0bc4b3bce7da04169716cc95ed52df387503cfc82e5ede6c705a1c966a1c7510",
+    "timestamp": "2026-08-20T01:29:56.155Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189401545-adldrw3x",
+    "previous_event_hash": null,
+    "event_hash": "c237678be857bc60cc3b82ee41668b8a1cfd438dcbae483cb3c816b974a93b12",
+    "timestamp": "2026-08-20T01:30:01.522Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "openApplication",
+      "args": {
+        "name": "taskmgr"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189416684-a9jh28nd",
+    "previous_event_hash": null,
+    "event_hash": "252e985594f3127da57e3de9f91c553592d4ea39ef96a56e16d458c84663ad59",
+    "timestamp": "2026-08-20T01:30:16.684Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189429389-a1hy2fm9",
+    "previous_event_hash": null,
+    "event_hash": "c1d25866ef97ae61b0c7b2bb67fa7c77da7d0cfc69f54cef31ad567a85a97e03",
+    "timestamp": "2026-08-20T01:30:29.389Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189436906-6eqh3kf0",
+    "previous_event_hash": null,
+    "event_hash": "aac7f4c5acfcf77e4207a06f0193aea42aedd62cc9cc19219f9d692d6459c70e",
+    "timestamp": "2026-08-20T01:30:36.906Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787189438715-gf3afsiz",
+    "previous_event_hash": null,
+    "event_hash": "91b9ae086563b088bdd7eb967128ea5c8ae3609c9caef23904743436e46549b3",
+    "timestamp": "2026-08-20T01:30:38.715Z",
+    "session_id": "sess-1787187951263-ybvycxsg",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "conv-1787021577058-afipj425",
+      "device": "browser",
+      "connectionStatus": "offline"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787190533858-j37mw3x8",
+    "previous_event_hash": null,
+    "event_hash": "fa6035dd4b109b216a90fcdc2fb474cde4b3499fc1cd5cf23b53f50374f9911b",
+    "timestamp": "2026-08-20T01:48:53.857Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:48:53.800Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T01:48:53.800Z",
+        "source_revision": "13bd0422",
+        "git_info": {
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-18T08:02:01+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787190760943-9nwrwqpu",
+    "previous_event_hash": null,
+    "event_hash": "9d5220d10ce1af1d0c44b282001f81438c179e7cfa3841ac555a54964cf41562",
+    "timestamp": "2026-08-20T01:52:40.942Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "BUILD_TIMESTAMP": "2026-08-20T01:52:40.871Z",
+        "BUILD_HASH": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "266310fa-8e1a-420c-a4cc-1b8f204256fa9",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T01:52:40.871Z",
+        "source_revision": "13bd0422",
+        "git_info": {
+          "commit_hash": "13bd0422500678940b040dfda54fbd4af6b0cde1",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-18T08:02:01+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "31d49ba867ee565bdcd935d4ccd0f9a9f333f73b4698d3e7d05c6f33ef38c38a"
       }
     },
     "severity": null

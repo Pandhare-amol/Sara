@@ -1,1 +1,0 @@
-SARA Startup Integrity Check Failed and Electron Exit with Code 1. Visual data shows multiple modified files and security warning [NODE-4120]. Startup logs list changed files and mention 'Tamper event has been recorded'. Terminal output has been fully observed via screen vision.

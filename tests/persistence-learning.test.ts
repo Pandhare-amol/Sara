@@ -117,6 +117,26 @@ test('MemoryPersistenceService: should create backups', async () => {
   }
 });
 
+test('MemoryPersistenceService: should recover from a corrupt newest snapshot', async () => {
+  const recoveryDir = path.join(testDataDir, 'recovery-memories');
+  const recoveryService = new MemoryPersistenceService({ dataDir: recoveryDir });
+  const store = createMemoryStore();
+  const episodic = createEpisodicMemory('recovery-event', Date.now(), 'success', 'Recovery test', 0.9);
+  store.episodic.set(episodic.id, episodic);
+
+  assert.equal(await recoveryService.saveMemories(store), true);
+  const snapshotFiles = fs
+    .readdirSync(recoveryDir)
+    .filter((file) => file.startsWith('memories-') && file.endsWith('.json'));
+  assert.equal(snapshotFiles.length, 1);
+  fs.writeFileSync(path.join(recoveryDir, snapshotFiles[0]), '{corrupt', 'utf-8');
+
+  const loaded = await recoveryService.loadMemories();
+  assert.equal(loaded.result.success, true);
+  assert.equal(loaded.store.episodic.size, 1);
+  assert(loaded.result.errors.length >= 1);
+});
+
 // Tests for AdvancedLearningService
 test('AdvancedLearningService: should extract skills from completed tasks', async () => {
   const goal = {
