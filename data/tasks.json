@@ -1,0 +1,66 @@
+[
+  {
+    "taskId": "SARA-AUTO-55354A",
+    "conversationId": "desktop-1787189208245-2gsuk6u4",
+    "description": "openWebsite background automation",
+    "status": "failed",
+    "priority": 2,
+    "assignedAgent": "AutomationOrchestrator",
+    "createdAt": "2026-08-20T16:07:01.391Z",
+    "updatedAt": "2026-08-20T16:07:02.769Z",
+    "retryCount": 0,
+    "checkpoint": {
+      "current_task": "openWebsite",
+      "task_progress": 100,
+      "last_action": "openWebsite",
+      "recent_summary": "FAILED"
+    },
+    "metadata": {
+      "automation": true,
+      "tool": "openWebsite",
+      "args": {
+        "name": "youtube",
+        "request_id": "fc_1432208518108000576",
+        "operation_id": "fc_1432208518108000576-openWebsite"
+      },
+      "priority": "HIGH",
+      "sessionId": "sess-1787233146246-bipuzf6u",
+      "conversationId": "desktop-1787189208245-2gsuk6u4"
+    },
+    "startedAt": "2026-08-20T16:07:01.360Z",
+    "completedAt": "2026-08-20T16:07:02.764Z",
+    "error": "Could not verify screen state for openWebsite"
+  },
+  {
+    "taskId": "SARA-AUTO-C7E38C",
+    "conversationId": "desktop-1787189208245-2gsuk6u4",
+    "description": "searchYouTube background automation",
+    "status": "failed",
+    "priority": 2,
+    "assignedAgent": "AutomationOrchestrator",
+    "createdAt": "2026-08-20T16:08:44.098Z",
+    "updatedAt": "2026-08-20T16:08:44.313Z",
+    "retryCount": 0,
+    "checkpoint": {
+      "current_task": "searchYouTube",
+      "task_progress": 100,
+      "last_action": "searchYouTube",
+      "recent_summary": "FAILED"
+    },
+    "metadata": {
+      "automation": true,
+      "tool": "searchYouTube",
+      "args": {
+        "query": "cute cat videos",
+        "request_id": "fc_7230948452813307502",
+        "operation_id": "fc_7230948452813307502-searchYouTube"
+      },
+      "priority": "HIGH",
+      "sessionId": "sess-1787233146246-bipuzf6u",
+      "conversationId": "desktop-1787189208245-2gsuk6u4"
+    },
+    "startedAt": "2026-08-20T16:08:44.073Z",
+    "completedAt": "2026-08-20T16:08:44.308Z",
+    "error": "Could not verify screen state for searchYouTube"
+  }
+]

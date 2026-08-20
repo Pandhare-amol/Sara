@@ -1,0 +1,14 @@
+{
+  "quiet_mode": true,
+  "last_proactive_at": 0.0,
+  "last_topic": "",
+  "ignored_count": 1,
+  "emotional_state": {
+    "state": "QUIET",
+    "intensity": 0.8,
+    "confidence": 0.7,
+    "trigger": "user_requested_silence",
+    "previous_state": "SUPPORTIVE",
+    "updated_at": 1787241315.6903703
+  }
+}

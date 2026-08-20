@@ -20,6 +20,7 @@ import { AuditLogger } from "./src/security/auditLogger";
 import cognitiveRoutes from "./src/cognitive/routes";
 import { ToolRouter } from "./src/core/tools/toolRouter";
 import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
+import { AutomationOrchestrator, isAsyncAutomationTool } from "./src/core/automation/automationOrchestrator";
 import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
 import { evaluateRetryPolicy } from "./src/core/tools/retryPolicy";
 import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
@@ -73,6 +74,7 @@ import {
   getOrCreateConversation,
   loadSessions,
   loadTasks,
+  loadUnfinishedTasks,
   getLastSession,
   getRecentConversationMessages,
   upsertSession,
@@ -83,6 +85,7 @@ import {
   appendAuditEvent,
 } from "./server_state";
 import * as whatsappClient from './src/whatsapp_client';
+import { redactSecrets } from './src/security/auditLogger';
 
 dotenv.config();
 
@@ -170,6 +173,7 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // Multi-agent & system orchestration tools
   "saraAgentExecute", "saraAgentEmergencyStop", "saraMemoryRemember",
   "saraMemorySearch", "saraRagIndex", "saraRagRetrieve", "saraSecurityAssess",
+  "saraProactiveEvaluate", "saraProactiveRecordOutcome", "saraEmotionalState", "saraQuietMode",
 ]);
 
 /**
@@ -463,6 +467,11 @@ async function callDesktopAgentTransport(
 const desktopToolRouter = new ToolRouter({
   isKnownTool: (tool) => DESKTOP_TOOLS.has(tool),
 });
+desktopToolRouter.registry.registerRuntimeTools(DESKTOP_TOOLS, {
+  version: "1.0",
+  supportsCancellation: false,
+  allowedContexts: ["voice", "chat", "task", "api"],
+});
 desktopToolRouter.setAdapter((tool, args) =>
   callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined),
 );
@@ -485,6 +494,93 @@ async function callDesktopAgent(
     unified,
   };
 }
+
+const automationOrchestrator = new AutomationOrchestrator(async (tool, args) => {
+  const result = await callDesktopAgent(tool, args);
+  if (!result.ok) {
+    throw new Error(result.error || `Automation failed for ${tool}`);
+  }
+  return result.result;
+});
+
+const automationPersistence = new Map<string, Promise<void>>();
+const priorityNumber: Record<string, number> = { CRITICAL: 1, HIGH: 2, NORMAL: 5, LOW: 7, BACKGROUND: 9 };
+
+function persistAutomationEvent(event: { type: string; task: any }): void {
+  const task = event.task;
+  const previous = automationPersistence.get(task.task_id) || Promise.resolve();
+  const next = previous.then(async () => {
+    const now = new Date().toISOString();
+    const metadata = {
+      automation: true,
+      tool: task.tool,
+      args: redactSecrets(task.args),
+      priority: task.priority,
+      sessionId: task.sessionId,
+      conversationId: task.conversationId,
+    };
+    if (event.type === "automation:queued") {
+      const existing = (await loadTasks()).find((item) => item.taskId === task.task_id);
+      if (!existing) {
+        await createTask({
+          taskId: task.task_id,
+          conversationId: task.conversationId || "automation",
+          description: `${task.tool} background automation`,
+          priority: priorityNumber[task.priority] || 5,
+          assignedAgent: "AutomationOrchestrator",
+          metadata,
+        });
+      }
+      return;
+    }
+    const status = task.status === "COMPLETED"
+      ? "completed"
+      : task.status === "CANCELLED"
+        ? "cancelled"
+        : task.status === "FAILED"
+          ? "failed"
+          : task.status === "STARTING"
+            ? "planning"
+            : "running";
+    await updateTask(task.task_id, {
+      status,
+      startedAt: task.started_at,
+      completedAt: task.completed_at,
+      result: task.result === undefined ? undefined : JSON.stringify(redactSecrets(task.result)),
+      error: task.error,
+      checkpoint: {
+        current_task: task.tool,
+        task_progress: task.progress,
+        last_action: task.tool,
+        recent_summary: task.status,
+      },
+      metadata,
+      updatedAt: now,
+    } as any);
+  }).catch((error) => {
+    logError(`AUTOMATION_PERSISTENCE_FAILED task=${task.task_id}: ${String(error)}`);
+  });
+  automationPersistence.set(task.task_id, next);
+  void next;
+}
+
+automationOrchestrator.on(persistAutomationEvent);
+void loadUnfinishedTasks().then((tasks) => {
+  const restorable = tasks
+    .filter((task) => task.metadata?.automation === true && typeof task.metadata?.tool === "string")
+    .map((task) => ({
+      task_id: task.taskId,
+      tool: String(task.metadata?.tool),
+      args: (task.metadata?.args || {}) as Record<string, unknown>,
+      priority: (task.metadata?.priority || "NORMAL") as any,
+      status: undefined,
+      progress: Number(task.checkpoint?.task_progress || 0),
+      created_at: task.createdAt,
+      sessionId: String(task.metadata?.sessionId || "") || undefined,
+      conversationId: task.conversationId,
+    }));
+  automationOrchestrator.restore(restorable);
+}).catch((error) => logError(`AUTOMATION_RESTORE_FAILED: ${String(error)}`));
 
 async function callCompanionEndpoint(
   path: string,
@@ -1225,6 +1321,61 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  app.get("/api/tools/metadata", (_req, res) => {
+    res.json({ ok: true, version: "1", tools: desktopToolRouter.registry.listMetadata() });
+  });
+
+  app.post("/api/proactive/evaluate", async (req, res) => {
+    try {
+      const context = req.body?.context && typeof req.body.context === "object"
+        ? req.body.context
+        : req.body || {};
+      const result = await callDesktopAgent("saraProactiveEvaluate", { context });
+      return result.ok ? res.json({ ok: true, result: result.result }) : res.status(502).json({ ok: false, error: "Proactive evaluation unavailable." });
+    } catch {
+      return res.status(502).json({ ok: false, error: "Proactive evaluation unavailable." });
+    }
+  });
+
+  app.get("/api/proactive/state", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("saraEmotionalState", {});
+      return result.ok ? res.json({ ok: true, result: result.result }) : res.status(502).json({ ok: false, error: "Proactive state unavailable." });
+    } catch {
+      return res.status(502).json({ ok: false, error: "Proactive state unavailable." });
+    }
+  });
+
+  app.post("/api/proactive/quiet", async (req, res) => {
+    try {
+      const enabled = req.body?.enabled !== false;
+      const result = await callDesktopAgent("saraQuietMode", { enabled });
+      return result.ok ? res.json({ ok: true, result: result.result }) : res.status(502).json({ ok: false, error: "Quiet mode unavailable." });
+    } catch {
+      return res.status(502).json({ ok: false, error: "Quiet mode unavailable." });
+    }
+  });
+
+  app.get("/api/automation/tasks", (_req, res) => {
+    res.json({ ok: true, tasks: automationOrchestrator.listTasks() });
+  });
+
+  app.get("/api/automation/tasks/:taskId", (req, res) => {
+    const task = automationOrchestrator.getTask(String(req.params.taskId || ""));
+    if (!task) return res.status(404).json({ ok: false, error: "Automation task not found." });
+    return res.json({ ok: true, task });
+  });
+
+  app.post("/api/automation/tasks/:taskId/cancel", (req, res) => {
+    const taskId = String(req.params.taskId || "");
+    const cancelled = automationOrchestrator.cancelTask(taskId);
+    if (!cancelled) {
+      const task = automationOrchestrator.getTask(taskId);
+      return res.status(task ? 409 : 404).json({ ok: false, error: task ? "Running task cannot be interrupted by the current tool contract." : "Automation task not found.", task });
+    }
+    return res.json({ ok: true, task: automationOrchestrator.getTask(taskId) });
   });
 
   app.get("/api/tasks", async (_req, res) => {
@@ -2586,6 +2737,15 @@ async function startServer() {
       reconnectAttempts,
     });
 
+    const unsubscribeAutomation = automationOrchestrator.on((event) => {
+      if (event.task.sessionId !== sessionId || clientWs.readyState !== clientWs.OPEN) return;
+      try {
+        clientWs.send(JSON.stringify({ type: event.type, task: event.task }));
+      } catch {
+        // A disconnected UI must not affect the background task.
+      }
+    });
+
     if (!apiKey) {
       console.error("No Gemini API key configured.");
       clientWs.send(JSON.stringify({
@@ -2682,6 +2842,8 @@ async function startServer() {
       // Track running transcription state for auto memory consolidation
       let dialogueHistory: { role: string; text: string }[] = [];
       let currentModelResponseText = "";
+      let responseStartedAt = 0;
+      let firstAudioLogged = false;
       
       const session = await ai.live.connect({
         model: "gemini-3.1-flash-live-preview",
@@ -3230,6 +3392,48 @@ async function startServer() {
                   name: "saraScreenLiveStatus",
                   description: "Check the status of the live screen capture loop.",
                   parameters: { type: Type.OBJECT, properties: {} }
+                },
+                {
+                  name: "saraProactiveEvaluate",
+                  description: "Evaluate whether a grounded, useful proactive interaction is appropriate. Prefer WAIT during quiet or focused work.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      context: { type: Type.OBJECT, description: "Compact context: activity, idle duration, current task, previous topic, relevant memory, quiet mode, or important event." }
+                    }
+                  }
+                },
+                {
+                  name: "saraProactiveRecordOutcome",
+                  description: "Record whether the user engaged with a proactive interaction so future timing can improve.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      accepted: { type: Type.BOOLEAN },
+                      topic: { type: Type.STRING, description: "Optional non-sensitive topic label." }
+                    },
+                    required: ["accepted"]
+                  }
+                },
+                {
+                  name: "saraEmotionalState",
+                  description: "Read or update SARA's computational emotional state. This is simulated interaction state, not a claim of biological emotion.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      event: { type: Type.STRING },
+                      confidence: { type: Type.NUMBER }
+                    }
+                  }
+                },
+                {
+                  name: "saraQuietMode",
+                  description: "Enable or disable proactive speech while preserving critical safety behavior.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { enabled: { type: Type.BOOLEAN } },
+                    required: ["enabled"]
+                  }
                 }
               ]
             }
@@ -3240,6 +3444,10 @@ async function startServer() {
             // ── Audio chunk: forward IMMEDIATELY, zero blocking ──────────────
             const audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audio) {
+              if (!firstAudioLogged && responseStartedAt > 0) {
+                firstAudioLogged = true;
+                appendLog("voice.log", `first_audio_latency_ms=${Date.now() - responseStartedAt} session=${sessionId}`);
+              }
               clientWs.send(JSON.stringify({ type: "audio", audio }));
             }
 
@@ -3302,6 +3510,8 @@ async function startServer() {
             // User transcription — forward immediately, defer DB write
             const userTextOutput = (message.serverContent as any)?.userTurn?.parts?.[0]?.text;
             if (userTextOutput) {
+              responseStartedAt = Date.now();
+              firstAudioLogged = false;
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
               void handleLocalMemoryCommand(userTextOutput)
@@ -3336,14 +3546,14 @@ async function startServer() {
                 }
 
                 console.log(`[Function Call]: ${fc.name}`, fc.args);
-                await appendToolCall({
+                void appendToolCall({
                   id: fc.id || newToolCallId(),
                   sessionId,
                   conversationId: conversation.id,
                   toolName: fc.name,
                   args: fc.args ?? {},
                   timestamp: new Date().toISOString(),
-                });
+                }).catch((error) => console.error("[Tool Call] Deferred persistence failed:", error));
 
                 const args = (fc.args ?? {}) as Record<string, unknown>;
 
@@ -3445,6 +3655,30 @@ async function startServer() {
                   }
                 } else if (DESKTOP_TOOLS.has(fc.name)) {
                   const toolName = fc.name;
+                  if (isAsyncAutomationTool(toolName)) {
+                    const requestId = fc.id || newToolCallId();
+                    const operationId = `${requestId}-${toolName}`;
+                    const payloadArgs = { ...(fc.args as Record<string, unknown>), request_id: requestId, operation_id: operationId };
+                    const queued = automationOrchestrator.submit({
+                      tool: toolName,
+                      args: payloadArgs,
+                      priority: toolName.startsWith("youtube_") || toolName.startsWith("browser") ? "NORMAL" : "HIGH",
+                      sessionId,
+                      conversationId: conversation.id,
+                    });
+                    session.sendToolResponse({
+                      functionResponses: [{
+                        name: toolName,
+                        response: { output: {
+                          status: "QUEUED",
+                          task_id: queued.task_id,
+                          result: `${toolName} queued for background execution.`,
+                        } },
+                        id: fc.id,
+                      }],
+                    });
+                    continue;
+                  }
                   toolResponsePromises.push((async () => {
                     console.log(`[Desktop Agent] Routing ${toolName} to Python backend...`);
                     try {
@@ -3502,6 +3736,7 @@ async function startServer() {
           },
           onclose: async () => {
             console.log("Gemini Live session closed");
+            unsubscribeAutomation();
             await upsertSession({
               sessionId,
               conversationId: conversation.id,

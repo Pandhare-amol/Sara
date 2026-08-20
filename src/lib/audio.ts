@@ -87,6 +87,7 @@ export class SaraAudioSession {
   private onError: (error: string) => void;
   private onMemorySync?: (memories: any[]) => void;
   private onDesktopEvent?: (event: any) => void;
+  private onAutomationEvent?: (event: any) => void;
   private onWake?: (info: { phrase?: string; confidence?: number } ) => void;
   
   private currentState: LiveState = "disconnected";
@@ -100,6 +101,7 @@ export class SaraAudioSession {
     onError: (error: string) => void;
     onMemorySync?: (memories: any[]) => void;
     onDesktopEvent?: (event: any) => void;
+    onAutomationEvent?: (event: any) => void;
     onWake?: (info: { phrase?: string; confidence?: number }) => void;
   }) {
     this.onStateChange = handlers.onStateChange;
@@ -108,6 +110,7 @@ export class SaraAudioSession {
     this.onError = handlers.onError;
     this.onMemorySync = handlers.onMemorySync;
     this.onDesktopEvent = handlers.onDesktopEvent;
+    this.onAutomationEvent = handlers.onAutomationEvent;
     this.onWake = handlers.onWake;
   }
 
@@ -318,6 +321,10 @@ export class SaraAudioSession {
 
           if (data.type === "desktopEvent" && this.onDesktopEvent) {
             this.onDesktopEvent(data);
+          }
+
+          if (typeof data.type === "string" && data.type.startsWith("automation:") && this.onAutomationEvent) {
+            this.onAutomationEvent(data);
           }
 
           if (data.type === "vision_action") {

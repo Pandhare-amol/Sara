@@ -1973,5 +1973,440 @@
       "duration_ms": 0
     },
     "updated_at": 1786329681.1171494
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238721.8140671,
+    "id": "66385aee5d7f4eae99c42d82cd8a8db4",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1787238721.8140671
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238721.8467445,
+    "id": "b690e3acbb864f4f9b185d53a8c0f3e8",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1787238721.8467445
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238721.888287,
+    "id": "bc026efc212247aca1c6e1d28848d2a7",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1787238721.888287
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238914.7846715,
+    "id": "61f9b34f0076438b921c31fb3b2961c5",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 14
+    },
+    "updated_at": 1787238914.7846715
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238914.8254106,
+    "id": "ec5f378d1b75487cbcf0ae5d2d023e1b",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1787238914.8254106
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787238914.8816967,
+    "id": "1b2a8d1e031e427d93268228a2992d60",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 14
+    },
+    "updated_at": 1787238914.8816967
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240197.7619078,
+    "id": "6b5bce6d4e08425f80fb5e9b6e9fdaf3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1787240197.7619078
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240197.7888708,
+    "id": "503596f9beba45f58712f2ad81ca5fe0",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 6
+    },
+    "updated_at": 1787240197.7888708
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240197.8237426,
+    "id": "548d35a64e6549c5ba69837a8f6e962a",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 8
+    },
+    "updated_at": 1787240197.8237426
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787240198.9528463,
+    "id": "a8b0e4ad60d14352ae9081630bdf7b0f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 807
+    },
+    "updated_at": 1787240198.9528463
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787240199.0226138,
+    "id": "8b2ab4c53a014f129c243338e576189a",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787240199.0226138
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787240199.0647383,
+    "id": "22beebb8593d4544877ebc83f945df85",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787240199.0647383
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240560.8423152,
+    "id": "c2269483daab48a8bb3bd135205bea6e",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 11
+    },
+    "updated_at": 1787240560.8423152
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240560.8851767,
+    "id": "32b295d872564998a2463b326baf6892",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1787240560.8851767
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240560.931873,
+    "id": "e674ab045b3c4683b9620e9b11f02bda",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1787240560.931873
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787240562.905361,
+    "id": "7e6131423a664103901d259b0cc5ab4e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787240562.905361
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787240562.9439251,
+    "id": "ebb976a3e491410095e804cbb43610c2",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787240562.9439251
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240580.5989258,
+    "id": "1b77d6805e9b42e896fe378dab5fc78b",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 15
+    },
+    "updated_at": 1787240580.5989258
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240580.651625,
+    "id": "331a12c512b84ff48db69f1cddc680e5",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 14
+    },
+    "updated_at": 1787240580.651625
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787240580.70075,
+    "id": "4814eb595f004a27baabe9e825404990",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 14
+    },
+    "updated_at": 1787240580.70075
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241316.0502167,
+    "id": "2011c9622cf04c7d98aa3ddd10e213d0",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 10
+    },
+    "updated_at": 1787241316.0502167
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241316.0862756,
+    "id": "7c1b5b15dae54defbe4fdf0a52aa5d33",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 9
+    },
+    "updated_at": 1787241316.0862756
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241316.1327245,
+    "id": "789c00d0d52d4b6aa2aaee5a3d96b043",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 13
+    },
+    "updated_at": 1787241316.1327245
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241360.7503068,
+    "id": "73ee07fb10de4673a58c1f489f023c11",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 11
+    },
+    "updated_at": 1787241360.7503068
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241360.8123593,
+    "id": "7aed65005a3b41a78628f706285b65ea",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 18
+    },
+    "updated_at": 1787241360.8123593
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241360.8911686,
+    "id": "b3e7a408b6104e39806a0e4a70ec6c2f",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1787241360.8911686
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241411.2656024,
+    "id": "6bd1f8adbfa444928608d5659592b424",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 11
+    },
+    "updated_at": 1787241411.2656024
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241411.30611,
+    "id": "035d7d00973d48f88cfce234dc5dbe14",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1787241411.30611
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787241411.350433,
+    "id": "72b6fd30becf4823a62dca31e1dde0ed",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 13
+    },
+    "updated_at": 1787241411.350433
   }
 ]

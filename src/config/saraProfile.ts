@@ -10,7 +10,7 @@ export const SARA_VOICE_PROFILE = {
   pitch: "stable",
   speaking_rate: "natural",
   expressiveness: "high",
-  voiceName: "Kore" // The consistent underlying TTS voice identity to use across all modes.
+  voiceName: "Despina" // The consistent underlying TTS voice identity to use across all modes.
 };
 
 export type SaraMode = "NORMAL" | "PROFESSIONAL" | "FRIENDLY" | "COMPANION";

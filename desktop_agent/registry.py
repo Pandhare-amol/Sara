@@ -278,6 +278,11 @@ DESKTOP_TOOL_NAMES = [
     "saraAndroidPair",
     "saraAndroidPlan",
     "saraAndroidExecute",
+    # Contextual proactive interaction and computational emotional state
+    "saraProactiveEvaluate",
+    "saraProactiveRecordOutcome",
+    "saraEmotionalState",
+    "saraQuietMode",
 ]
 
 
@@ -314,6 +319,7 @@ _MODULE_NAMES = [
     "tools_app_suite",
     "tools_browser_suite",
     "android_tools",
+    "proactive_interaction",
 ]
 
 

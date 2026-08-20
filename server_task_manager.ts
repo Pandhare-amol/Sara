@@ -188,7 +188,10 @@ class TaskRunner extends EventEmitter {
   private async pickNextTasks(): Promise<any[]> {
     try {
       const tasks = await loadTasks();
-      const candidates = tasks.filter((t) => t.status === "queued" || t.status === "planning" || t.status === "RECOVERING" || t.status === "retrying");
+      const candidates = tasks.filter((t) =>
+        !t.metadata?.automation &&
+        (t.status === "queued" || t.status === "planning" || t.status === "RECOVERING" || t.status === "retrying")
+      );
       // simple priority sort: lower numeric value = higher priority
       candidates.sort((a: any, b: any) => (a.priority || 5) - (b.priority || 5));
       return candidates.slice(0, Math.max(0, this.concurrency - this.running));

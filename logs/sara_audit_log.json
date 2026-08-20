@@ -1985,5 +1985,565 @@
     "created_at": 1786329681.1074357,
     "id": "2b72dfd001cd4a068c493d593a8ba4d5",
     "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787238721.7953613,
+    "id": "11f5da30d3da4d578949a469e9dd3be2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787238721.8065932,
+    "id": "31611a8e390445feb2111039d7f92ad7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787238721.8307595,
+    "id": "aac91c5edfd44f2cb9e3fcf340384301",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787238721.8396306,
+    "id": "b00fbb3741244ebe8cdfcb3b124cfe9b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787238721.870816,
+    "id": "b3762e382d2c40c7a9661ce2f01c7f19",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787238721.8779206,
+    "id": "5818a9bb43324330b408621d6bf99cb4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787238721.9194186,
+    "id": "59578b276ed24b29bb44377e7c75247f",
+    "requires_confirmation": true
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787238914.7587595,
+    "id": "4c48815c90bb44f1803d4ab992a3bb27",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787238914.7701375,
+    "id": "3c930ab56136453d9ebb4e951e30d365",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787238914.8024306,
+    "id": "b308790800e948baad3090568a8d6c74",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787238914.8151455,
+    "id": "693d114241e54bb38f10a0def19791fa",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787238914.8560965,
+    "id": "8136b223e26a41b4afb15b16959a4afb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787238914.8667574,
+    "id": "c8cedc25b7fa42b1a151a72865287781",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787238914.9224942,
+    "id": "3e0ced045cdc4288bba244e01114a6b4",
+    "requires_confirmation": true
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240197.7436116,
+    "id": "f0d8a5baf13f45efa242501182a77a0b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240197.7512054,
+    "id": "9ef67a1958b04f5ebf3b8dee4f0f826c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240197.7753153,
+    "id": "249711369e22431195bfb446318ee47e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240197.7823467,
+    "id": "e602d8ddc3b942f7a0714eb2f1eb8724",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240197.804879,
+    "id": "305cdc37e5204f0f81e2c37cf0a59767",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240197.8151557,
+    "id": "b6e4a37a609344eaa0353245dc708a2c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787240197.8521607,
+    "id": "2b3ec0ef44af47d1830b07c02eee8b2d",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1787240198.0937345,
+    "id": "4f1980f13b07454d9affb77901733163",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1787240198.12776,
+    "id": "d787b757813a4a92ac38f59bc9cba7c1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787240199.0127861,
+    "id": "2c152b323461470fbe5e8c1833f95aed",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787240199.0528965,
+    "id": "3189e951c91243d3b5617738034bc5e6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240560.8213816,
+    "id": "3da0cff9136b4830bdde414b979b3962",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240560.8311455,
+    "id": "67af5c8ee8984b8298ee61c9e9d6589d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240560.863897,
+    "id": "0b6bc66033c04a00863419bb930aa9bb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240560.8755028,
+    "id": "8809fadb31ac44589362617c55bb32eb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240560.9088333,
+    "id": "1f12738d920047f5a3b00d20dd9e42a5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240560.9197865,
+    "id": "3cb30348ea354464ab082a7d7b768435",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787240560.9652066,
+    "id": "3d03610631fe483cb24a145d8ee841aa",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1787240561.1943583,
+    "id": "7abf92f5588244faa94ee51fbfac73c7",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1787240561.2197096,
+    "id": "a0f0ab370e7145bbb102e5f4e5c28723",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787240562.893096,
+    "id": "d2ae0d6717fc49d3828f246e356e235a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787240562.930839,
+    "id": "54f7eaf1b9e84bd08575e3ddc8f9c6c4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240580.5640252,
+    "id": "8c75d1de15b94b718d954a91c35d3fa1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787240580.5833225,
+    "id": "2431ffe331e8453aa85b990f6e0c0bc4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240580.6223388,
+    "id": "c81dd8a0ec3f4e5e9df4822473cff735",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787240580.6375167,
+    "id": "b9b894a82f8441ec9f0261237e7cb839",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240580.6758249,
+    "id": "f0e988640e0d413ea516128e2bf0b4b2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787240580.6863544,
+    "id": "3e8c0db09729422499eff437ebe339ff",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787240580.7355504,
+    "id": "652955d4f1264783bd1559e25d30f82f",
+    "requires_confirmation": true
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241316.0297284,
+    "id": "305b135b36374a319536ac431743eedc",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241316.0395422,
+    "id": "4b5caf2cafa04b4db53a9088d54f2845",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241316.0669832,
+    "id": "d7da64b3869443c99ce7e22fc1680386",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241316.0766551,
+    "id": "f320c145d9514c6eb417ac513284f46c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241316.111029,
+    "id": "0402627f0ad84171bcd5b6590a712062",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241316.119663,
+    "id": "5e38f4190f6c47b9b45f4f941e29604b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787241316.1663413,
+    "id": "43ee609dc0694b7c85b117b116a1d8e8",
+    "requires_confirmation": true
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241360.725335,
+    "id": "c198af105b2f45b594a109d9d8ec0956",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241360.7387047,
+    "id": "6f493b60b5144dad8ea0078c0c91e697",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241360.777686,
+    "id": "5177d229a86045b9a05f90396c313491",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241360.7940483,
+    "id": "4c7efa8157c048d19d0ac20f02ef084f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241360.8609467,
+    "id": "f501da0272194da5a0e0cfad357abf18",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241360.8782623,
+    "id": "95910b47f0a5466bbb59cb74ae71dd6f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787241360.9269922,
+    "id": "1d634d865cbb41eda44662aa174e64cb",
+    "requires_confirmation": true
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241411.242166,
+    "id": "c21a6b35878945ada2c086211e4eebe9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787241411.2539558,
+    "id": "fb82f8049a684172a31d8e1a85ab46fb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241411.2853355,
+    "id": "331ff3e4575443788d977f6c055db921",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787241411.2935472,
+    "id": "6d81144439904bacacf6dd13b2cd5ac8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241411.328895,
+    "id": "8f80fecbc6084d6b9a5f34b4d0204ad1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787241411.3393035,
+    "id": "b39bc4f19f96465b8fff7ff23ed9291c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787241411.3854787,
+    "id": "c36323e3ae0e45b382edc4df6f942a2e",
+    "requires_confirmation": true
   }
 ]

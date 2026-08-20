@@ -637,8 +637,16 @@ export default function App() {
         if (Array.isArray(updatedMemories)) {
           setMemories(updatedMemories);
         }
-      }
-      ,
+      },
+      onAutomationEvent: (event) => {
+        const task = event?.task;
+        if (!task) return;
+        const label = task.tool === "youtube_play" ? "YouTube" : task.tool;
+        const status = String(task.status || "").toLowerCase();
+        if (status === "completed") showToast(`${label}: completed`);
+        else if (status === "failed") showToast(`${label}: automation failed`);
+        else if (status === "running") showToast(`${label}: working in background`);
+      },
       onDesktopEvent: (event) => {
         if (event?.event === "application_opened") {
           const output = event.output || {};

@@ -13,6 +13,7 @@ reading. Lazy-initialized; robust to closed pages.
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from typing import Any, Dict, Optional
 from urllib.parse import quote_plus
@@ -25,6 +26,11 @@ from .registry import STATE, ToolError, register
 _LOOP: Optional[asyncio.AbstractEventLoop] = None
 _LOOP_THREAD: Optional[threading.Thread] = None
 _LOOP_LOCK = threading.Lock()
+_OPERATION_LOCK: Optional[asyncio.Lock] = None
+
+NAVIGATION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_NAVIGATION_TIMEOUT_MS", "8000"))
+ELEMENT_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_ELEMENT_TIMEOUT_MS", "4000"))
+QUICK_ACTION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_QUICK_ACTION_TIMEOUT_MS", "2500"))
 
 
 def _get_loop() -> "asyncio.AbstractEventLoop":
@@ -51,10 +57,16 @@ def _run_loop() -> None:
 
 
 def _run(coro):
-    """Submit a coroutine to the dedicated Playwright loop and block on it."""
+    """Submit one serialized browser operation to the dedicated Playwright loop."""
     loop = _get_loop()
-    future = asyncio.run_coroutine_threadsafe(coro, loop)
-    return future.result(timeout=60)
+    async def serialized():
+        global _OPERATION_LOCK
+        if _OPERATION_LOCK is None:
+            _OPERATION_LOCK = asyncio.Lock()
+        async with _OPERATION_LOCK:
+            return await coro
+    future = asyncio.run_coroutine_threadsafe(serialized(), loop)
+    return future.result(timeout=max(NAVIGATION_TIMEOUT_MS, 15000) / 1000 + 10)
 
 
 # --- Async Playwright lifecycle ---------------------------------------------
@@ -113,7 +125,7 @@ async def browser_open(args: Dict[str, Any]) -> Dict[str, Any]:
     url = _normalize_url(args.get("url") or "https://www.google.com")
     page = await _page()
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Could not open {url}: {e}")
     return {"result": f"Opened {url} in the automation browser.", "url": page.url}
@@ -134,7 +146,7 @@ async def browser_open_tab(args: Dict[str, Any]) -> Dict[str, Any]:
     STATE.page = page  # make it active
     if url != "about:blank":
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
         except Exception as e:  # noqa: BLE001
             raise ToolError(f"Opened tab but navigation failed: {e}")
     return {"result": f"New tab opened at {url}.", "url": url}
@@ -172,7 +184,7 @@ async def browser_search(args: Dict[str, Any]) -> Dict[str, Any]:
         raise ToolError(f"Unsupported engine '{engine}'.")
     page = await _page()
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Search navigation failed: {e}")
     return {"result": f"Searched {engine} for '{query}'.", "url": page.url}
@@ -185,9 +197,9 @@ async def browser_click(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     try:
         if selector:
-            await page.click(selector, timeout=5000)
+            await page.click(selector, timeout=ELEMENT_TIMEOUT_MS)
         elif text:
-            await page.get_by_text(str(text), exact=False).first.click(timeout=5000)
+            await page.get_by_text(str(text), exact=False).first.click(timeout=ELEMENT_TIMEOUT_MS)
         else:
             raise ToolError("Provide 'selector' or 'text' to click.")
     except Exception as e:  # noqa: BLE001
@@ -205,7 +217,7 @@ async def browser_type(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     try:
         if selector:
-            await page.fill(selector, str(text), timeout=5000)
+            await page.fill(selector, str(text), timeout=ELEMENT_TIMEOUT_MS)
         else:
             if clear_first:
                 await page.keyboard.press("Control+A")
@@ -227,10 +239,10 @@ async def browser_fill_form(args: Dict[str, Any]) -> Dict[str, Any]:
     filled = 0
     try:
         for sel, val in fields.items():
-            await page.fill(str(sel), str(val), timeout=5000)
+            await page.fill(str(sel), str(val), timeout=ELEMENT_TIMEOUT_MS)
             filled += 1
         if submit:
-            await page.click(str(submit), timeout=5000)
+            await page.click(str(submit), timeout=ELEMENT_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Form fill failed after {filled} field(s): {e}")
     extra = " and submitted." if submit else "."
@@ -241,7 +253,7 @@ async def browser_fill_form(args: Dict[str, Any]) -> Dict[str, Any]:
 async def browser_go_back(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     try:
-        await page.go_back(timeout=15000)
+        await page.go_back(timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Back failed: {e}")
     return {"result": f"Went back. Now on {page.url}."}
@@ -251,7 +263,7 @@ async def browser_go_back(args: Dict[str, Any]) -> Dict[str, Any]:
 async def browser_go_forward(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     try:
-        await page.go_forward(timeout=15000)
+        await page.go_forward(timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Forward failed: {e}")
     return {"result": f"Went forward. Now on {page.url}."}
@@ -272,7 +284,7 @@ async def browser_scroll(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("desktopBrowserReload")
 async def browser_reload(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
-    await page.reload(wait_until="domcontentloaded", timeout=20000)
+    await page.reload(wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
     return {"result": "Refreshed the current page."}
 
 @register("desktopBrowserKey")
@@ -296,8 +308,14 @@ async def browser_zoom(args: Dict[str, Any]) -> Dict[str, Any]:
 async def browser_media(args: Dict[str, Any]) -> Dict[str, Any]:
     action = str(args.get("action") or "play").lower()
     page = await _page()
-    await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'play') v.play(); else if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); }", action)
-    return {"result": f"Media action '{action}' executed."}
+    state = await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'play') v.play(); else if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted }; }", action)
+    if action == "play":
+        try:
+            await page.wait_for_function("() => { const v = document.querySelector('video, audio'); return !!v && !v.paused && v.currentTime > 0; }", timeout=QUICK_ACTION_TIMEOUT_MS)
+            state = await page.evaluate("() => { const v = document.querySelector('video, audio'); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted }; }")
+        except Exception as e:  # noqa: BLE001
+            raise ToolError(f"Playback could not be verified: {e}")
+    return {"result": f"Media action '{action}' executed.", "verification": "VERIFIED", "verified": True, "media_state": state}
 
 @register("desktopBrowserReadPage")
 async def browser_read_page(args: Dict[str, Any]) -> Dict[str, Any]:

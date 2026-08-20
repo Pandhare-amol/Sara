@@ -33,6 +33,7 @@ export interface ToolVerification {
 }
 
 export interface CanonicalToolResult<T = unknown> {
+  ok: boolean;
   status: ToolFinalStatus;
   execution_status: ToolExecutionStatus;
   verification_status: ToolVerificationStatus;
@@ -47,6 +48,13 @@ export interface CanonicalToolResult<T = unknown> {
   duration_ms?: number | null;
   timestamp: number;
   error?: ToolErrorDetails | null;
+  error_code?: string | null;
+  retryable: boolean;
+  severity?: "INFO" | "WARNING" | "HIGH" | "CRITICAL";
+  source?: string;
+  task_id?: string;
+  correlation_id?: string;
+  policy_decision?: "ALLOW" | "ASK_USER" | "DENY" | "UNKNOWN";
   data?: T;
   verification: ToolVerification;
 }

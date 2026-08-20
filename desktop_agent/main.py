@@ -83,8 +83,31 @@ class ExecuteRequest(BaseModel):
 class ExecuteResponse(BaseModel):
     ok: bool
     result: Any = None
+    canonical: Dict[str, Any] | None = None
     error: str | None = None
     tool: str
+
+
+def _canonical_result(tool: str, outcome: Any = None, error: str | None = None) -> Dict[str, Any]:
+    """Normalize legacy handlers without changing the legacy ``result`` field."""
+    payload = outcome if isinstance(outcome, dict) else {"result": outcome}
+    explicit_ok = payload.get("ok") if isinstance(payload.get("ok"), bool) else None
+    failed = bool(error) or explicit_ok is False or str(payload.get("status", "")).upper() in {"FAILED", "ERROR"}
+    verified = payload.get("verified") is True or str(payload.get("verification", "")).upper() in {"VERIFIED", "SUCCESS"}
+    status = "FAILED" if failed else "COMPLETED" if verified or explicit_ok is True else "UNCERTAIN"
+    return {
+        "ok": not failed,
+        "status": status,
+        "data": payload.get("data", payload),
+        "error_code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else None),
+        "message": str(payload.get("message") or payload.get("result") or error or "Tool execution completed."),
+        "retryable": bool(payload.get("retryable", False)),
+        "verification": {
+            "verified": verified,
+            "method": payload.get("verification_method") or payload.get("verification") if isinstance(payload.get("verification"), str) else payload.get("verification", {}).get("method") if isinstance(payload.get("verification"), dict) else None,
+        },
+        "tool": tool,
+    }
 
 
 @app.get("/health")
@@ -179,14 +202,16 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
         return ExecuteResponse(ok=False, error="A tool name is required.", tool="")
 
     if tool == "desktopAgentDiagnostic":
+        diagnostic = {
+            "result": "Desktop Agent is running and accepting tool calls.",
+            "verification": "healthy",
+            "verified": True,
+            "tool_count": len(TOOLS),
+        }
         return ExecuteResponse(
             ok=True,
-            result={
-                "result": "Desktop Agent is running and accepting tool calls.",
-                "verification": "healthy",
-                "verified": True,
-                "tool_count": len(TOOLS),
-            },
+            result=diagnostic,
+            canonical=_canonical_result(tool, diagnostic),
             tool=tool,
         )
 
@@ -194,9 +219,11 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
 
     if tool not in TOOLS:
         known = ", ".join(sorted(TOOLS.keys()))
+        message = f"Unknown tool '{tool}'. Known tools: {known}"
         return ExecuteResponse(
             ok=False,
-            error=f"Unknown tool '{tool}'. Known tools: {known}",
+            canonical=_canonical_result(tool, error=message),
+            error=message,
             tool=tool,
         )
 
@@ -207,14 +234,11 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
             out = await out
     except ToolError as e:
         log.warning("ToolError in %s: %s", tool, e.message)
-        return ExecuteResponse(ok=False, error=e.message, tool=tool)
+        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message), error=e.message, tool=tool)
     except Exception as e:  # noqa: BLE001
         log.error("Unhandled error in %s: %s\n%s", tool, e, traceback.format_exc())
-        return ExecuteResponse(
-            ok=False,
-            error=f"Internal error in {tool}: {e}",
-            tool=tool,
-        )
+        message = f"Internal error in {tool}: {e}"
+        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message), error=message, tool=tool)
 
     # Handlers return dicts like {"result": "..."}; pass the whole payload.
     result_text = ""
@@ -224,7 +248,7 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
         result_text = str(out)
     log.info("DONE tool=%s -> %s", tool, result_text[:160])
 
-    return ExecuteResponse(ok=True, result=out, tool=tool)
+    return ExecuteResponse(ok=True, result=out, canonical=_canonical_result(tool, out), tool=tool)
 
 
 @app.post("/companion/pair")

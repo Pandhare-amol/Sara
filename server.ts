@@ -130,6 +130,7 @@ const DESKTOP_TOOLS: Set<string> = new Set([
   // SARA master orchestrator / multi-agent runtime
   "saraAgentExecute", "saraAgentStatus", "saraAgentUnloadIdle", "saraAgentEmergencyStop",
   "saraTaskSubmit", "saraTaskStatus", "saraTaskList",
+  "saraProactiveEvaluate", "saraProactiveRecordOutcome", "saraEmotionalState", "saraQuietMode",
   // Local-first AI OS platform services
   "saraMemoryRemember", "saraMemorySearch", "saraMemorySync", "saraMemoryExport", "saraMemoryFlush",
   "saraMemoryForget", "saraMemoryConsolidate", "saraRagIndex", "saraRagRetrieve", "saraRagRemoveDeleted",

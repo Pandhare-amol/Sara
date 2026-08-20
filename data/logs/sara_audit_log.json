@@ -1123,5 +1123,1299 @@
       }
     },
     "severity": null
+  },
+  {
+    "event_id": "audit-1787193490276-uuhbcmdz",
+    "previous_event_hash": null,
+    "event_hash": "98f4b7abbb6307697e668ae8ef3f87af0a93d3339378236dc09af4479893dbb4",
+    "timestamp": "2026-08-20T02:38:10.276Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "BUILD_TIMESTAMP": "2026-08-20T02:38:09.438Z",
+        "BUILD_HASH": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T02:38:09.438Z",
+        "source_revision": "6661556c",
+        "git_info": {
+          "commit_hash": "6661556cb6613545052189b7366039654e57dcb7",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-20T07:57:46+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233120219-fj9ryrxi",
+    "previous_event_hash": null,
+    "event_hash": "cec19c49c5dfa8b2e3793e9be03012bef2750afba6254ecf2c5e361b4466f538",
+    "timestamp": "2026-08-20T13:38:40.218Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "BUILD_TIMESTAMP": "2026-08-20T13:38:39.899Z",
+        "BUILD_HASH": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T13:38:39.899Z",
+        "source_revision": "6661556c",
+        "git_info": {
+          "commit_hash": "6661556cb6613545052189b7366039654e57dcb7",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-20T07:57:46+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233146257-74oc4uoi",
+    "previous_event_hash": null,
+    "event_hash": "0c2843c332dfcad5331224f7cc002f6fc6dd00d78b4f1828bd871747889c7e98",
+    "timestamp": "2026-08-20T13:39:06.257Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233165487-sywkz9aj",
+    "previous_event_hash": null,
+    "event_hash": "4e548d2a54156042a628b6bfcd995a24c5f4e38e82433fd41e9c161933f79b51",
+    "timestamp": "2026-08-20T13:39:25.487Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233222552-akwyxstp",
+    "previous_event_hash": null,
+    "event_hash": "2d8ee9dbdbceef35e4bf4ba11664f914ae16c95d757b4e4e30f79282b25fde8e",
+    "timestamp": "2026-08-20T13:40:22.538Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "saraSetMode",
+      "args": {
+        "mode": "PROFESSIONAL"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233239569-nojctav6",
+    "previous_event_hash": null,
+    "event_hash": "1e59de8c49dc5087f50a47de453c7c57caa6e19fa1419701e869f1fee8a6f292",
+    "timestamp": "2026-08-20T13:40:39.569Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233256512-lj3bvbt6",
+    "previous_event_hash": null,
+    "event_hash": "16490f92c76d285554e43f9f33682b21124a64a019ecf8e8312fa17bb4163404",
+    "timestamp": "2026-08-20T13:40:56.498Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserOpen",
+      "args": {
+        "url": "https://youtube.com"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233256566-e3tjynvy",
+    "previous_event_hash": null,
+    "event_hash": "73774ea24d568aa9ad2f7d6a7ff25a2a15ed1539689e9e614d9d4b47b30a5269",
+    "timestamp": "2026-08-20T13:40:56.540Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserSearch",
+      "args": {
+        "query": "Python lecture"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233332575-b305z5p7",
+    "previous_event_hash": null,
+    "event_hash": "2e6332d97e7d395e378e6f8be144d5c6ca3e8bb4570295ff8b1bff017c6d7375",
+    "timestamp": "2026-08-20T13:42:12.575Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233342740-zvjz2hnk",
+    "previous_event_hash": null,
+    "event_hash": "874e73017622da78eb68398befc8b53b2a3b9d78d9d41055c8f03b1cc7df9a2b",
+    "timestamp": "2026-08-20T13:42:22.732Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserOpen",
+      "args": {
+        "url": "https://youtube.com"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233342807-3th3a8f8",
+    "previous_event_hash": null,
+    "event_hash": "6fadcbd7bbf85753428c3a67a234eb15b36cf94f019d6d75532d70388f90f9f1",
+    "timestamp": "2026-08-20T13:42:22.772Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserSearch",
+      "args": {
+        "query": "python lecture"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233354482-tyfof234",
+    "previous_event_hash": null,
+    "event_hash": "c8f2922a1caf3e7e96fd6c741907e8b7ee7cff3568f034a7214c190193292285",
+    "timestamp": "2026-08-20T13:42:34.482Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233403053-wedzkoux",
+    "previous_event_hash": null,
+    "event_hash": "1257f00b2442a5ccf211166a3c0b8d8d650d6cc7fa81d6727b8d6582c73e1919",
+    "timestamp": "2026-08-20T13:43:23.053Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233415086-zertq88o",
+    "previous_event_hash": null,
+    "event_hash": "698632399101b02f10db78307a7ae3457f2aa0d1221203fc1e741fdd60775772",
+    "timestamp": "2026-08-20T13:43:35.077Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserMediaControl",
+      "args": {
+        "action": "pause"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233432090-l261jii7",
+    "previous_event_hash": null,
+    "event_hash": "0991d5ac36b54a146b31b4a90757028e487264d6f2c132839a9a4f74808dde53",
+    "timestamp": "2026-08-20T13:43:52.090Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233449455-qk6g8lqd",
+    "previous_event_hash": null,
+    "event_hash": "1b0d12473d3b5080c8a4ebe00f71049db359d7e96663257c066caae5ae0229bb",
+    "timestamp": "2026-08-20T13:44:09.445Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "selector": "video-7DpyzrnZ5Yg",
+        "description": "Apna College full stack web development video"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233452174-8rd7ecxl",
+    "previous_event_hash": null,
+    "event_hash": "da261dfa813f9afc512cb020a9633cd18dd52667d88f2e319f736427b4627c07",
+    "timestamp": "2026-08-20T13:44:12.173Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233454948-5d9l14q6",
+    "previous_event_hash": null,
+    "event_hash": "5e195bdc1f1a23551daf98d9188716dc7bae3f9a5cc2e2b100d677ddf06069b6",
+    "timestamp": "2026-08-20T13:44:14.939Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "Apna College Python Video",
+        "selector": "video-vLqOyXgC-vM"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233460535-tdl3nrtu",
+    "previous_event_hash": null,
+    "event_hash": "591a444b01281b0621c507b5cefa54bbdcdd120ef63cf0f0c7aff04c0859c369",
+    "timestamp": "2026-08-20T13:44:20.534Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233461979-6plzqm9y",
+    "previous_event_hash": null,
+    "event_hash": "286285d85d0423b0b4cad668dca2f608482af22bdb533e611880c4b07c11c615",
+    "timestamp": "2026-08-20T13:44:21.968Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "Apna College Python Video",
+        "selector": "video-YkOSUVzOAn4"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233473111-pw4szcft",
+    "previous_event_hash": null,
+    "event_hash": "f4beb6a926e00226e402ad071e0aed41f2b740917a50c4cee65395a5ed34fddc",
+    "timestamp": "2026-08-20T13:44:33.097Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserSearch",
+      "args": {
+        "query": "Apna College Python tutorial for beginners"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233490617-78bxgnkw",
+    "previous_event_hash": null,
+    "event_hash": "4ed7734462cad0c9d9c80ae3919dcdb29ea9afa593f0e3f8f89d576ed77a42fb",
+    "timestamp": "2026-08-20T13:44:50.617Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233547899-v5hdkjw5",
+    "previous_event_hash": null,
+    "event_hash": "dcc5d1db2bf31699c86826a1bd68fd68806b86f6e4c479b107b975d5ceb162b7",
+    "timestamp": "2026-08-20T13:45:47.867Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "selector": "#contents > ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-child(1) #thumbnail",
+        "description": "First search result"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233555628-okpogl2m",
+    "previous_event_hash": null,
+    "event_hash": "34fb65137bfe3b3db5fe0a4a20d70776425589230ac5b9dffc2a0830356846e7",
+    "timestamp": "2026-08-20T13:45:55.628Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233557301-rxbcn1et",
+    "previous_event_hash": null,
+    "event_hash": "e0aa6ca256f4f18235f1c26455a9c4979b8542679b915d709d25a27844e0fb0f",
+    "timestamp": "2026-08-20T13:45:57.287Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "First Video Result",
+        "selector": "#video-title > ytm-badge-separator + span"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233557587-6rkqplor",
+    "previous_event_hash": null,
+    "event_hash": "62f63198e38cd03c28fb4c3d418ae8ad82edc7c5d91e54afe1b2951d2d80fa63",
+    "timestamp": "2026-08-20T13:45:57.587Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233559602-5ww75z9c",
+    "previous_event_hash": null,
+    "event_hash": "70ec8f29c22c0fdcb4462aa4d67c717580fba751df4bd539921026c8d1bdb0be",
+    "timestamp": "2026-08-20T13:45:59.596Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "selector": "#video-title-link",
+        "description": "First Python tutorial video"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233595770-q14x6027",
+    "previous_event_hash": null,
+    "event_hash": "d83950535969055533a9093f42c137c49de23d5c8a98ba5287956b835ad79916",
+    "timestamp": "2026-08-20T13:46:35.770Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233612152-qwexzswq",
+    "previous_event_hash": null,
+    "event_hash": "300f0a5a944708cc763acd58384544cdbeea251237e91bddbd697ea9412464ee",
+    "timestamp": "2026-08-20T13:46:52.152Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233641869-zhr2pzpc",
+    "previous_event_hash": null,
+    "event_hash": "2680aa7a93b56707ccb77eb90088c8ac0ad1b887c6abf99821c8965f2de616f1",
+    "timestamp": "2026-08-20T13:47:21.858Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "Play video",
+        "selector": ".ytp-play-button"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233657168-ezhb7gfi",
+    "previous_event_hash": null,
+    "event_hash": "7749e37554c4f9a5156f9039461053c3dfe52ce0cd052009bbce7e2f7ceac4ab",
+    "timestamp": "2026-08-20T13:47:37.168Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233665896-ezmml5g3",
+    "previous_event_hash": null,
+    "event_hash": "f77aa138cb88c92b55a46f9571b0a5fc6996739bb71926e3b08ea26771a378ef",
+    "timestamp": "2026-08-20T13:47:45.896Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233676562-5w43oooi",
+    "previous_event_hash": null,
+    "event_hash": "6e2983e65541dc694a6e4fe5e3168573689f3dc003a267b21878efe6c176fa1f",
+    "timestamp": "2026-08-20T13:47:56.556Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserMediaControl",
+      "args": {
+        "action": "play"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233676577-kwa2li86",
+    "previous_event_hash": null,
+    "event_hash": "df8db0034cd2de1c42d8907872a7eeca8d114046fbfef4b9ef11913b5fc1811f",
+    "timestamp": "2026-08-20T13:47:56.577Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233679331-ofsj13rc",
+    "previous_event_hash": null,
+    "event_hash": "732a4be2179eb9769b7019fa426b33f6e9b075fcdfa13c7252814678f482433d",
+    "timestamp": "2026-08-20T13:47:59.324Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "saraSetMode",
+      "args": {
+        "mode": "NORMAL"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233703918-coep80ow",
+    "previous_event_hash": null,
+    "event_hash": "7bdb23d0f616b590674b4c253ad249db0978abce9c42b864fd49f0901507f299",
+    "timestamp": "2026-08-20T13:48:23.918Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233705805-7kc1fi4r",
+    "previous_event_hash": null,
+    "event_hash": "5d9d7b950c2f806774f7dd021237a2988de8d6f37364c7e7522ba8b26f995504",
+    "timestamp": "2026-08-20T13:48:25.796Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "saraSetMode",
+      "args": {
+        "mode": "FRIENDLY"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233711135-q3dv3d04",
+    "previous_event_hash": null,
+    "event_hash": "3cbc978144a8b3b967abd6635b16ccb91077916cce09c47cc8e489878b7c4ffc",
+    "timestamp": "2026-08-20T13:48:31.135Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233715109-f3wtfjfl",
+    "previous_event_hash": null,
+    "event_hash": "e0592c139e604bb7d9a14171bc9979c5ba2d723bb184e4ca0ed893d2ddd54764",
+    "timestamp": "2026-08-20T13:48:35.097Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "saraSetMode",
+      "args": {
+        "mode": "FRIENDLY"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787233768486-pm272xps",
+    "previous_event_hash": null,
+    "event_hash": "6ec1e549dbc642645eb6fa857c3a8072ad7f1760dcf77614e10dd665f5d9f9c3",
+    "timestamp": "2026-08-20T13:49:28.486Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "offline"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787237756080-9zcc1s92",
+    "previous_event_hash": null,
+    "event_hash": "0e45ef23495f99fc0d2e174b60f1f6068bf690b519ab30e2e80f1c79b9edc5e2",
+    "timestamp": "2026-08-20T14:55:56.080Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "BUILD_TIMESTAMP": "2026-08-20T14:55:55.708Z",
+        "BUILD_HASH": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T14:55:55.708Z",
+        "source_revision": "6661556c",
+        "git_info": {
+          "commit_hash": "6661556cb6613545052189b7366039654e57dcb7",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-20T07:57:46+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787241874886-23tq6s13",
+    "previous_event_hash": null,
+    "event_hash": "503a0c8388371962e775e6b26a1dc957c2184aa7e8571c8870a48066ab1aa8eb",
+    "timestamp": "2026-08-20T16:04:34.886Z",
+    "session_id": null,
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "BUILD_IDENTITY_CREATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "build": {
+        "SARA_NAME": "SARA",
+        "SARA_FULL_NAME": "Smart Assistant for Real-time Automation",
+        "SARA_VERSION": "1.0.0",
+        "BUILD_ID": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "BUILD_TIMESTAMP": "2026-08-20T16:04:34.766Z",
+        "BUILD_HASH": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7",
+        "BUILD_MODE": "PRODUCTION",
+        "author": "********",
+        "copyright": "Copyright © 2026 Mr Amol Pandhre & the SARA Team",
+        "application": "SARA",
+        "version": "1.0.0",
+        "build_id": "ad923a8f-7f66-403e-8add-d04fba6d5ce93",
+        "release_id": "v1.0.0-production",
+        "build_timestamp": "2026-08-20T16:04:34.766Z",
+        "source_revision": "6661556c",
+        "git_info": {
+          "commit_hash": "6661556cb6613545052189b7366039654e57dcb7",
+          "branch": "main",
+          "author": "********",
+          "timestamp": "2026-08-20T07:57:46+05:30"
+        },
+        "installation_id": "install-b1bd2dc0dd00f15f58c0bb85",
+        "integrity_hash": "a311d1cff238ca20d9c7a6bfa3ef681c405423a3cb85aa5b0b8881b8eb561da7"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787241897767-n31sqc4b",
+    "previous_event_hash": null,
+    "event_hash": "d98dbd5b28e9252324c73c3a65a6d37453f9e68ba2b53784a6cd62f39eeaa0e8",
+    "timestamp": "2026-08-20T16:04:57.767Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "reconnecting"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787241958413-r13ydtu2",
+    "previous_event_hash": null,
+    "event_hash": "3f78e88dda5c0cf7c966be3214bded2fcd8f602c9f37a5f5807a13e5249f9b10",
+    "timestamp": "2026-08-20T16:05:58.413Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787241975867-v9ca36w9",
+    "previous_event_hash": null,
+    "event_hash": "3703d137e9d823437a0182d25ac402ea39d7f08d97cf84d857f567ef76cd1965",
+    "timestamp": "2026-08-20T16:06:15.867Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787241992775-9rc7u0qh",
+    "previous_event_hash": null,
+    "event_hash": "d75ec26895c2f418f823fdb49aff1ffad0bfba0932c0217bc9b57e9a13044a4f",
+    "timestamp": "2026-08-20T16:06:32.555Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "temperatureInfo",
+      "args": {}
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242014372-w6t9rppp",
+    "previous_event_hash": null,
+    "event_hash": "0bf8d0d6b8f6643eb0ab83bd47f0516ef3ca1c7bce5c44063410fc2f29eaa735",
+    "timestamp": "2026-08-20T16:06:54.372Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242021409-zdv1b6uu",
+    "previous_event_hash": null,
+    "event_hash": "6dad0e4ca28949001d0b412a32999a87c4eea2d29ea10511a1be01eb6ce3f8f5",
+    "timestamp": "2026-08-20T16:07:01.354Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "openWebsite",
+      "args": {
+        "name": "youtube"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242032564-w3r874k6",
+    "previous_event_hash": null,
+    "event_hash": "26174c93245d72aabc238a3324502b62d309672043d32629d5d82aaba499af5d",
+    "timestamp": "2026-08-20T16:07:12.564Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242037325-c5n0kfa0",
+    "previous_event_hash": null,
+    "event_hash": "16070b8a9a69f2646af2e7fd6b27874d65bf771f4cd164e4ec187a2cf5f4c85f",
+    "timestamp": "2026-08-20T16:07:17.318Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserSearch",
+      "args": {
+        "query": "cute cat videos"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242048915-eyf4lcqr",
+    "previous_event_hash": null,
+    "event_hash": "bdc71f31b14932cb3116acef455bd548f84b3d5dd8c5a8d4d1ad098df1199e53",
+    "timestamp": "2026-08-20T16:07:28.915Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242058588-lhpovyzj",
+    "previous_event_hash": null,
+    "event_hash": "ad3f6c788f1b2bf89803d48b984ee9eb204eeb5fd55c2576964761845babe660",
+    "timestamp": "2026-08-20T16:07:38.555Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserScroll",
+      "args": {
+        "direction": "down"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242071301-swmxs0gf",
+    "previous_event_hash": null,
+    "event_hash": "22477f137e235d88d56db40734bcee7d9c25a0193d44c9328c67dbc6d2c9b634",
+    "timestamp": "2026-08-20T16:07:51.301Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242094160-1idw67eu",
+    "previous_event_hash": null,
+    "event_hash": "d3521d77a37064cef3c92c1fd656d1cdf6056f480bcf847ff0dba4beec880441",
+    "timestamp": "2026-08-20T16:08:14.160Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242115961-lxy2yin8",
+    "previous_event_hash": null,
+    "event_hash": "e3a88a14f67a0fac96e6e06768e39089246b247347b30b36034ef75421afcccd",
+    "timestamp": "2026-08-20T16:08:35.961Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242124091-tvvrhzb6",
+    "previous_event_hash": null,
+    "event_hash": "da5ac73ae7f04d75a2bf6e3108dd13502996bc6d6e5b9e30a79a09c791f173b5",
+    "timestamp": "2026-08-20T16:08:44.072Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "searchYouTube",
+      "args": {
+        "query": "cute cat videos"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242124806-il7ykv02",
+    "previous_event_hash": null,
+    "event_hash": "ad9496072a898129b5741bcf85e5f0971b49ce009fb6849eca397c5818eb2e87",
+    "timestamp": "2026-08-20T16:08:44.806Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242151520-jzcg9fuz",
+    "previous_event_hash": null,
+    "event_hash": "134a99ce4ec7c52cdab320e306ed83fdc15f693c27aa1ca58ec4983ec865bd21",
+    "timestamp": "2026-08-20T16:09:11.520Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242169549-di8mfl9h",
+    "previous_event_hash": null,
+    "event_hash": "a459119f883c0edd01813cd43e1918740d172a409383485557ff809c84bf6597",
+    "timestamp": "2026-08-20T16:09:29.543Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "selector": "ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-of-type(1) #thumbnail",
+        "description": "Clicking on a cat video based on search results."
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242185639-17zcvbqs",
+    "previous_event_hash": null,
+    "event_hash": "2d1e3294c88e887ab4a2494c41e5bb5255be676ba937248e1e331c85139e64a5",
+    "timestamp": "2026-08-20T16:09:45.639Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242202920-16rqslzg",
+    "previous_event_hash": null,
+    "event_hash": "36bc82bc8a7ad6847a0d3ab11797e4053895e568e741b854684ec6f4ea325cf3",
+    "timestamp": "2026-08-20T16:10:02.904Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "selector": "#contents > ytd-video-renderer.style-scope.ytd-item-section-renderer:nth\n-child(1) #title-wrapper",
+        "description": "Playing the first cat video from search results."
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242233453-gra94rdk",
+    "previous_event_hash": null,
+    "event_hash": "1056b82c8b2917a89f839b596cdbdee13466e42bdf8ccfcfc2f83f36ee11d25d",
+    "timestamp": "2026-08-20T16:10:33.453Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242243853-t7oa785d",
+    "previous_event_hash": null,
+    "event_hash": "2fb9db00992ad18c8142784641125a0b17eb36a8ea32777cd5b01e4ff87f3345",
+    "timestamp": "2026-08-20T16:10:43.841Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "Try clicking the video thumbnail again to play it.",
+        "selector": ".col-md-4 a"
+      }
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242263134-pb4xudxb",
+    "previous_event_hash": null,
+    "event_hash": "3d3a48be4f72888458a6f1b06e81c890557af74351ed025cc1c134531bdf46b7",
+    "timestamp": "2026-08-20T16:11:03.134Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "SESSION_UPDATED",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "conversationId": "desktop-1787189208245-2gsuk6u4",
+      "device": "browser",
+      "connectionStatus": "online"
+    },
+    "severity": null
+  },
+  {
+    "event_id": "audit-1787242263161-lstndnyl",
+    "previous_event_hash": null,
+    "event_hash": "398686fc9950a0329a04187e70d186e2e0c0052006f4ec2f6dd2bcfe25c704ce",
+    "timestamp": "2026-08-20T16:11:03.151Z",
+    "session_id": "sess-1787233146246-bipuzf6u",
+    "task_id": null,
+    "agent_id": null,
+    "event_type": "TOOL_CALL",
+    "status": null,
+    "duration_ms": null,
+    "metadata": {
+      "tool": "browserClick",
+      "args": {
+        "description": "Attempt to click the play button or thumbnail area again.",
+        "selector": "ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-of-type(1) #thumbnail"
+      }
+    },
+    "severity": null
   }
 ]
