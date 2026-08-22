@@ -15,10 +15,12 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import quote_plus
 
 from .registry import STATE, ToolError, register
+from .browser_state import BrowserStateManager
 
 # A dedicated event loop + thread runs all Playwright coroutines, because
 # Playwright's sync API can deadlock under FastAPI's threadpool. We use the
@@ -31,6 +33,11 @@ _OPERATION_LOCK: Optional[asyncio.Lock] = None
 NAVIGATION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_NAVIGATION_TIMEOUT_MS", "8000"))
 ELEMENT_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_ELEMENT_TIMEOUT_MS", "4000"))
 QUICK_ACTION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_QUICK_ACTION_TIMEOUT_MS", "2500"))
+HEADLESS = os.environ.get("SARA_BROWSER_HEADLESS", "true").strip().lower() not in {"0", "false", "no"}
+USER_DATA_DIR = os.environ.get(
+    "SARA_BROWSER_USER_DATA_DIR",
+    str(Path(__file__).resolve().parent.parent / "data" / "browser-profile"),
+)
 
 
 def _get_loop() -> "asyncio.AbstractEventLoop":
@@ -85,13 +92,18 @@ async def _ensure_browser_async() -> Any:
         from playwright.async_api import async_playwright
 
         STATE.playwright = await async_playwright().start()
+    if STATE.browser_state is None:
+        STATE.browser_state = BrowserStateManager()
 
     if STATE.browser is None:
-        STATE.browser = await STATE.playwright.chromium.launch(
-            headless=False,
-            args=["--start-maximized", "--no-sandbox"],
+        Path(USER_DATA_DIR).mkdir(parents=True, exist_ok=True)
+        STATE.context = await STATE.playwright.chromium.launch_persistent_context(
+            USER_DATA_DIR,
+            headless=HEADLESS,
+            args=["--no-sandbox"],
         )
-        STATE.context = await STATE.browser.new_context(viewport=None)
+        STATE.browser = STATE.context.browser
+        STATE.context.on("page", lambda page: STATE.browser_state.attach_page(page))
 
     if STATE.context is None:
         STATE.context = await STATE.browser.new_context(viewport=None)
@@ -101,6 +113,7 @@ async def _ensure_browser_async() -> Any:
         STATE.page = pages[-1]
     else:
         STATE.page = await STATE.context.new_page()
+    STATE.browser_state.attach_page(STATE.page)
     return STATE.page
 
 
@@ -128,7 +141,7 @@ async def browser_open(args: Dict[str, Any]) -> Dict[str, Any]:
         await page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Could not open {url}: {e}")
-    return {"result": f"Opened {url} in the automation browser.", "url": page.url}
+    return {"ok": True, "status": "completed", "operation": "browser_open", "verified": True, "result": f"Opened {url} in the automation browser.", "url": page.url, "state": STATE.browser_state.snapshot(page)}
 
 
 @register("desktopBrowserNavigate")
@@ -187,7 +200,7 @@ async def browser_search(args: Dict[str, Any]) -> Dict[str, Any]:
         await page.goto(url, wait_until="domcontentloaded", timeout=NAVIGATION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         raise ToolError(f"Search navigation failed: {e}")
-    return {"result": f"Searched {engine} for '{query}'.", "url": page.url}
+    return {"ok": True, "status": "completed", "operation": "browser_search", "verified": True, "result": f"Searched {engine} for '{query}'.", "url": page.url, "state": STATE.browser_state.snapshot(page)}
 
 
 @register("desktopBrowserClick")
@@ -308,14 +321,33 @@ async def browser_zoom(args: Dict[str, Any]) -> Dict[str, Any]:
 async def browser_media(args: Dict[str, Any]) -> Dict[str, Any]:
     action = str(args.get("action") or "play").lower()
     page = await _page()
-    state = await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'play') v.play(); else if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted }; }", action)
+    state = await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted, duration: v.duration, readyState: v.readyState, ended: v.ended }; }", action)
+    if action == "play":
+        await page.evaluate("() => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); return v.play(); }")
     if action == "play":
         try:
             await page.wait_for_function("() => { const v = document.querySelector('video, audio'); return !!v && !v.paused && v.currentTime > 0; }", timeout=QUICK_ACTION_TIMEOUT_MS)
-            state = await page.evaluate("() => { const v = document.querySelector('video, audio'); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted }; }")
+            state = await page.evaluate("() => { const v = document.querySelector('video, audio'); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted, duration: v.duration, readyState: v.readyState, ended: v.ended }; }")
         except Exception as e:  # noqa: BLE001
             raise ToolError(f"Playback could not be verified: {e}")
-    return {"result": f"Media action '{action}' executed.", "verification": "VERIFIED", "verified": True, "media_state": state}
+    STATE.browser_state.update_media(page, state)
+    return {"ok": True, "status": "completed", "operation": f"browser_media_{action}", "result": f"Media action '{action}' executed.", "verification": "VERIFIED", "verified": True, "media_state": state, "state": STATE.browser_state.snapshot(page)}
+
+@register("desktopBrowserState")
+async def browser_state(args: Dict[str, Any]) -> Dict[str, Any]:
+    page = await _page()
+    return {"ok": True, "status": "completed", "operation": "browser_state", "verified": True, "state": STATE.browser_state.snapshot(page)}
+
+@register("desktopBrowserExtractLinks")
+async def browser_extract_links(args: Dict[str, Any]) -> Dict[str, Any]:
+    page = await _page()
+    limit = max(1, min(int(args.get("limit", 20)), 100))
+    links = await page.locator("a[href]").evaluate_all(
+        "(nodes, max) => nodes.map(node => ({title: (node.innerText || node.getAttribute('aria-label') || '').trim(), url: node.href}))"
+        ".filter(item => item.url).slice(0, max)",
+        limit,
+    )
+    return {"ok": True, "status": "completed", "operation": "browser_extract_links", "verified": True, "url": page.url, "links": links, "state": STATE.browser_state.snapshot(page)}
 
 @register("desktopBrowserReadPage")
 async def browser_read_page(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -358,7 +390,7 @@ for _name in [
     "desktopBrowserGoForward",
     "desktopBrowserScroll",
     "desktopBrowserReload", "desktopBrowserKey", "desktopBrowserZoom",
-    "desktopBrowserMedia", "desktopBrowserReadPage", "desktopBrowserScreenshot",
+    "desktopBrowserMedia", "desktopBrowserState", "desktopBrowserExtractLinks", "desktopBrowserReadPage", "desktopBrowserScreenshot",
 ]:
     _orig = TOOLS[_name]
     if asyncio.iscoroutinefunction(_orig):
@@ -372,7 +404,9 @@ def shutdown_browser() -> None:
 
     async def _stop():
         try:
-            if STATE.browser:
+            if STATE.context:
+                await STATE.context.close()
+            elif STATE.browser:
                 await STATE.browser.close()
         except Exception:
             pass

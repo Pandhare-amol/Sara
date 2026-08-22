@@ -177,9 +177,14 @@ def _focus_running_app(spec: Dict[str, str]) -> bool:
             continue
         hwnd = _find_window_by_title(str(candidate))
         if hwnd:
-            _show_window(hwnd, SW_RESTORE)
-            _focus(hwnd)
-            return True
+            try:
+                _show_window(hwnd, SW_RESTORE)
+                _focus(hwnd)
+                return True
+            except ToolError:
+                # Foreground activation can be denied by Windows focus rules.
+                # Do not launch a duplicate process when the app is already running.
+                continue
     return False
 
 
@@ -196,6 +201,13 @@ def open_application(args: Dict[str, Any]) -> Dict[str, Any]:
     if _is_running(spec):
         if _focus_running_app(spec):
             return {"result": f"{spec['label']} is already running and was focused."}
+        return {
+            "result": f"{spec['label']} is running, but Windows did not allow SARA to focus its window.",
+            "status": "UNCERTAIN",
+            "verified": False,
+            "error_code": "WINDOW_FOCUS_DENIED",
+            "retryable": True,
+        }
     _launch(spec)
     return {"result": f"{spec['label']} opened."}
 

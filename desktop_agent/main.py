@@ -16,7 +16,9 @@ import inspect
 import logging
 import os
 import sys
+import time
 import traceback
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -29,7 +31,7 @@ from . import __version__
 from .android_companion import ANDROID_COMPANION_MANAGER
 from .agents import MANAGER
 from .platform_core import HEALTH
-from .registry import DESKTOP_TOOL_NAMES, TOOLS, ToolError, load_all
+from .registry import DESKTOP_TOOL_NAMES, STATE, TOOLS, ToolError, load_all
 
 logging.basicConfig(
     level=logging.INFO,
@@ -88,20 +90,47 @@ class ExecuteResponse(BaseModel):
     tool: str
 
 
-def _canonical_result(tool: str, outcome: Any = None, error: str | None = None) -> Dict[str, Any]:
+def _canonical_result(
+    tool: str,
+    outcome: Any = None,
+    error: str | None = None,
+    *,
+    args: Dict[str, Any] | None = None,
+    execution_time_ms: int | None = None,
+) -> Dict[str, Any]:
     """Normalize legacy handlers without changing the legacy ``result`` field."""
     payload = outcome if isinstance(outcome, dict) else {"result": outcome}
+    args = args or {}
     explicit_ok = payload.get("ok") if isinstance(payload.get("ok"), bool) else None
     failed = bool(error) or explicit_ok is False or str(payload.get("status", "")).upper() in {"FAILED", "ERROR"}
     verified = payload.get("verified") is True or str(payload.get("verification", "")).upper() in {"VERIFIED", "SUCCESS"}
-    status = "FAILED" if failed else "COMPLETED" if verified or explicit_ok is True else "UNCERTAIN"
+    status = "FAILED" if failed else "SUCCESS" if verified else "UNCERTAIN"
+    operation_id = str(payload.get("operation_id") or payload.get("operationId") or args.get("operation_id") or f"{tool}-{uuid.uuid4().hex[:12]}")
+    request_id = payload.get("request_id") or payload.get("requestId") or args.get("request_id") or args.get("requestId")
+    task_id = payload.get("task_id") or payload.get("taskId") or args.get("task_id") or args.get("taskId")
+    correlation_id = payload.get("correlation_id") or payload.get("correlationId") or args.get("correlation_id") or args.get("correlationId")
+    error_details = None
+    if failed:
+        error_details = {
+            "code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else "TOOL_FAILED"),
+            "message": str(payload.get("message") or payload.get("result") or error or "Tool execution failed."),
+            "retryable": bool(payload.get("retryable", False)),
+        }
     return {
-        "ok": not failed,
+        "ok": not failed and status == "SUCCESS",
         "status": status,
         "data": payload.get("data", payload),
         "error_code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else None),
         "message": str(payload.get("message") or payload.get("result") or error or "Tool execution completed."),
         "retryable": bool(payload.get("retryable", False)),
+        "execution_time_ms": execution_time_ms,
+        "operation_id": operation_id,
+        "request_id": request_id,
+        "task_id": task_id,
+        "correlation_id": correlation_id,
+        "timestamp": int(time.time() * 1000),
+        "error": error_details,
+        "verified": verified,
         "verification": {
             "verified": verified,
             "method": payload.get("verification_method") or payload.get("verification") if isinstance(payload.get("verification"), str) else payload.get("verification", {}).get("method") if isinstance(payload.get("verification"), dict) else None,
@@ -129,6 +158,17 @@ def health_diagnostics() -> Dict[str, Any]:
 @app.get("/tools")
 def list_tools() -> Dict[str, Any]:
     return {"tools": sorted(TOOLS.keys()), "count": len(TOOLS)}
+
+
+@app.get("/browser/state")
+def browser_state() -> Dict[str, Any]:
+    manager = STATE.browser_state
+    return {
+        "ok": True,
+        "status": "ready" if manager is not None else "stopped",
+        "session_id": manager.session_id if manager is not None else "sara-browser-session",
+        "states": manager.snapshot() if manager is not None else {},
+    }
 
 
 @app.get("/orchestrator/status")
@@ -211,7 +251,7 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
         return ExecuteResponse(
             ok=True,
             result=diagnostic,
-            canonical=_canonical_result(tool, diagnostic),
+            canonical=_canonical_result(tool, diagnostic, args=args),
             tool=tool,
         )
 
@@ -222,23 +262,24 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
         message = f"Unknown tool '{tool}'. Known tools: {known}"
         return ExecuteResponse(
             ok=False,
-            canonical=_canonical_result(tool, error=message),
+            canonical=_canonical_result(tool, error=message, args=args),
             error=message,
             tool=tool,
         )
 
     handler = TOOLS[tool]
+    started_at = time.perf_counter()
     try:
         out = handler(args)
         if inspect.isawaitable(out):
             out = await out
     except ToolError as e:
         log.warning("ToolError in %s: %s", tool, e.message)
-        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message), error=e.message, tool=tool)
+        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=e.message, tool=tool)
     except Exception as e:  # noqa: BLE001
         log.error("Unhandled error in %s: %s\n%s", tool, e, traceback.format_exc())
         message = f"Internal error in {tool}: {e}"
-        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message), error=message, tool=tool)
+        return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=message, tool=tool)
 
     # Handlers return dicts like {"result": "..."}; pass the whole payload.
     result_text = ""
@@ -248,7 +289,7 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
         result_text = str(out)
     log.info("DONE tool=%s -> %s", tool, result_text[:160])
 
-    return ExecuteResponse(ok=True, result=out, canonical=_canonical_result(tool, out), tool=tool)
+    return ExecuteResponse(ok=True, result=out, canonical=_canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), tool=tool)
 
 
 @app.post("/companion/pair")

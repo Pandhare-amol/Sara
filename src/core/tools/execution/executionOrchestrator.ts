@@ -17,12 +17,14 @@ import {
   logToolCompleted,
   ErrorClassification,
 } from "../structuredLogging";
+import { ToolPolicyEngine, type PolicyContext } from "../policyEngine";
 
 export interface ExecutionContextOptions {
   correlationId?: string;
   toolCallId?: string;
   timeout?: number;
   enableVerification?: boolean;
+  policy?: PolicyContext;
 }
 
 /**
@@ -34,6 +36,7 @@ export class ExecutionOrchestrator {
   private verificationRegistry: VerificationRegistry;
   private defaultTimeout = 30000;
   private enableVerificationByDefault = true;
+  private policyEngine = new ToolPolicyEngine();
 
   constructor(toolRouter: ToolRouter, verificationRegistry: VerificationRegistry) {
     this.toolRouter = toolRouter;
@@ -55,6 +58,35 @@ export class ExecutionOrchestrator {
 
     const startTime = Date.now();
     const executionStartedAt = new Date(startTime).toISOString();
+
+    const policy = this.policyEngine.evaluate(tool, args, this.toolRouter.registry, {
+      ...options.policy,
+      confirmed: options.policy?.confirmed ?? args.confirmed === true,
+      authorized: options.policy?.authorized ?? args.authorized === true,
+    });
+    if (policy.decision !== "ALLOW") {
+      const policyResult: UnifiedToolExecutionResult = {
+        tool,
+        toolCallId,
+        correlationId,
+        executionStatus: "failed",
+        executionDurationMs: 0,
+        executionStartedAt,
+        executionCompletedAt: new Date().toISOString(),
+        executionError: { code: policy.decision === "ASK_USER" ? "CONFIRMATION_REQUIRED" : "POLICY_DENIED", message: policy.reason, retryable: false },
+        executionResult: { ok: false, status: policy.decision, policy_decision: policy.decision, message: policy.reason },
+        verificationStatus: "skipped",
+        verificationDurationMs: 0,
+        verificationChecks: [],
+        verificationError: undefined,
+        status: "failed",
+        success: false,
+        verified: false,
+        totalDurationMs: Date.now() - startTime,
+        message: policy.reason,
+      } as UnifiedToolExecutionResult;
+      return policyResult;
+    }
 
   logToolStarted(correlationId, toolCallId, tool);
 

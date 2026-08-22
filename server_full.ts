@@ -153,6 +153,7 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // browser automation (Playwright â€” desktop-owned, separate from holographic UI)
   "desktopBrowserOpen", "desktopBrowserNavigate", "desktopBrowserOpenTab",
   "desktopBrowserCloseTab", "desktopBrowserSearch", "desktopBrowserClick",
+  "desktopBrowserState", "desktopBrowserExtractLinks",
     "desktopBrowserMediaState",
     "desktopLiveState",
   "desktopBrowserType", "desktopBrowserFillForm", "desktopBrowserGoBack",
@@ -1360,6 +1361,18 @@ async function startServer() {
 
   app.get("/api/automation/tasks", (_req, res) => {
     res.json({ ok: true, tasks: automationOrchestrator.listTasks() });
+  });
+
+  app.get("/api/browser/state", async (_req, res) => {
+    try {
+      const response = await fetch(`${DESKTOP_AGENT_URL}/browser/state`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      const state = await response.json();
+      return res.status(response.ok ? 200 : 502).json(state);
+    } catch {
+      return res.status(502).json({ ok: false, status: "unavailable", error_code: "BROWSER_STATE_UNAVAILABLE" });
+    }
   });
 
   app.get("/api/automation/tasks/:taskId", (req, res) => {
@@ -3207,6 +3220,11 @@ async function startServer() {
                   parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING, description: "Search query." }, engine: { type: Type.STRING, description: "Engine: google, youtube, github, duckduckgo, bing." } }, required: ["query"] }
                 },
                 {
+                  name: "desktopBrowserState",
+                  description: "Read the authoritative native state of the background automation browser.",
+                  parameters: { type: Type.OBJECT, properties: {} }
+                },
+                {
                   name: "desktopBrowserClick",
                   description: "Click an element in the desktop automation browser by CSS selector or text.",
                   parameters: { type: Type.OBJECT, properties: { selector: { type: Type.STRING, description: "CSS selector." }, text: { type: Type.STRING, description: "Text to find and click." } } }
@@ -3512,8 +3530,27 @@ async function startServer() {
             if (userTextOutput) {
               responseStartedAt = Date.now();
               firstAudioLogged = false;
+              lastUserActivityAt = Date.now();
+              scheduleProactiveEvaluation();
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
+              const lowerUserText = userTextOutput.toLowerCase();
+              const interactionEvent = /\b(frustrated|annoyed|stuck|hate|not working)\b/.test(lowerUserText)
+                ? "user_frustrated"
+                : /\b(working|fixed|solved|got it|it works)\b/.test(lowerUserText)
+                  ? "user_success"
+                  : /\b(excited|amazing|awesome|great news)\b/.test(lowerUserText)
+                    ? "user_excited"
+                    : /\b(serious|urgent|safety|dangerous)\b/.test(lowerUserText)
+                      ? "serious_topic"
+                      : "user_speaking";
+              void callDesktopAgent("saraEmotionalState", { event: interactionEvent, confidence: 0.6 })
+                .then((emotionResult) => {
+                  if (emotionResult.ok) {
+                    clientWs.send(JSON.stringify({ type: "emotional_state", state: emotionResult.result }));
+                  }
+                })
+                .catch((error) => console.error("[Emotion] State update failed:", error));
               void handleLocalMemoryCommand(userTextOutput)
                 .then((localMemory) => {
                   if (localMemory.handled) {
@@ -3736,6 +3773,7 @@ async function startServer() {
           },
           onclose: async () => {
             console.log("Gemini Live session closed");
+            if (proactiveTimer) clearTimeout(proactiveTimer);
             unsubscribeAutomation();
             await upsertSession({
               sessionId,
@@ -3751,6 +3789,56 @@ async function startServer() {
         }
       });
       
+      const proactiveIdleDelayMs = 10 * 60 * 1000;
+      let proactiveTimer: NodeJS.Timeout | undefined;
+      let lastUserActivityAt = Date.now();
+      let proactiveInFlight = false;
+      const recentUserText = [...recent]
+        .reverse()
+        .find((message: any) => message.role === "user")?.content || "";
+      const unfinishedTopic = /\b(?:tomorrow|later|next time|still need to|need to finish|work on|fix|continue)\b/i.test(recentUserText)
+        ? String(recentUserText).slice(0, 160)
+        : "";
+      const scheduleProactiveEvaluation = () => {
+        if (proactiveTimer) clearTimeout(proactiveTimer);
+        proactiveTimer = setTimeout(async () => {
+          if (proactiveInFlight || Date.now() - lastUserActivityAt < proactiveIdleDelayMs) {
+            scheduleProactiveEvaluation();
+            return;
+          }
+          proactiveInFlight = true;
+          try {
+            const evaluationResult = await callDesktopAgent("saraProactiveEvaluate", {
+              context: {
+                activity_level: "idle",
+                idle_seconds: Math.round((Date.now() - lastUserActivityAt) / 1000),
+                unfinished_topic: unfinishedTopic,
+                previous_topic: unfinishedTopic,
+                recent_conversation: recentUserText ? "relevant_previous_topic" : "none",
+              },
+            });
+            const evaluation = (evaluationResult.result as any)?.result || evaluationResult.result;
+            const action = String(evaluation?.action || "WAIT").toUpperCase();
+            const topic = String(evaluation?.topic?.topic || unfinishedTopic || "").trim();
+            clientWs.send(JSON.stringify({ type: "proactive_opportunity", evaluation }));
+            if (evaluationResult.ok && ["ASK", "SAY"].includes(action) && topic) {
+              const liveSession = session as any;
+              if (typeof liveSession.sendClientContent === "function") {
+                liveSession.sendClientContent({
+                  turns: [{ role: "user", parts: [{ text: `[INTERNAL PROACTIVE OPPORTUNITY] The user has been idle. Decide whether a brief natural check-in is useful, using only this grounded topic. Do not claim certainty about feelings. Topic: ${topic}` }] }],
+                  turnComplete: true,
+                });
+              }
+            }
+          } catch (error) {
+            console.error("[Proactive] Evaluation failed:", error);
+          } finally {
+            proactiveInFlight = false;
+          }
+        }, proactiveIdleDelayMs);
+      };
+      scheduleProactiveEvaluation();
+
       clientWs.send(JSON.stringify({ type: "status", status: "connected", conversationId: conversation.id, sessionId }));
       
       clientWs.on("message", (rawMsg) => {
@@ -3808,6 +3896,7 @@ async function startServer() {
       
       clientWs.on("close", () => {
         console.log("Client disconnected, closing Gemini session");
+        if (proactiveTimer) clearTimeout(proactiveTimer);
         try {
           session.close();
         } catch (e) {}

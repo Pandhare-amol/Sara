@@ -86,7 +86,7 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
 
     if not url and query:
         browser_search = _sync_tool("desktopBrowserSearch")
-        browser_click = _sync_tool("desktopBrowserClick")
+        browser_links = _sync_tool("desktopBrowserExtractLinks")
         if browser_search is not None:
             search_result = browser_search({"query": query, "engine": "youtube"})
             if inspect.isawaitable(search_result):
@@ -98,33 +98,16 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
                     "status": "failed",
                     "executed": True,
                 }
+            if browser_links is None:
+                return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error_code": "RESULT_EXTRACTION_UNAVAILABLE", "retryable": True}
+            links = browser_links({"limit": 40})
+            if inspect.isawaitable(links):
+                links = await links
+            candidates = [item for item in (links.get("links", []) if isinstance(links, dict) else []) if "/watch?v=" in str(item.get("url", ""))]
+            if not candidates:
+                return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error_code": "YOUTUBE_NOT_FOUND", "retryable": True, "details": "No video result link was present in the page DOM."}
+            url = str(candidates[0]["url"])
             active_browser_page = True
-            if browser_click is not None:
-                try:
-                    click_result = browser_click({"selector": "a[href*='/watch']"})
-                    if inspect.isawaitable(click_result):
-                        click_result = await click_result
-                    if isinstance(click_result, dict) and click_result.get("error"):
-                        return {
-                            "error": str(click_result["error"]),
-                            "error_code": "YOUTUBE_NOT_FOUND",
-                            "status": "failed",
-                            "executed": True,
-                        }
-                except Exception:
-                    return {
-                        "error": "No YouTube video result could be selected.",
-                        "error_code": "YOUTUBE_NOT_FOUND",
-                        "status": "failed",
-                        "executed": True,
-                    }
-            else:
-                return {
-                    "error": "YouTube result selection is unavailable.",
-                    "error_code": "YOUTUBE_NOT_FOUND",
-                    "status": "failed",
-                    "executed": True,
-                }
         else:
             search_res = youtube_search({"query": query})
             videos = search_res.get("videos") or []
@@ -144,7 +127,7 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
         if url:
             opened_result = browser_open({"url": url})
             opened = await opened_result if inspect.isawaitable(opened_result) else opened_result
-        res: Dict[str, Any] = {"result": "Opened YouTube video in the Playwright browser.", "url": url, "browser": opened}
+        res: Dict[str, Any] = {"ok": True, "status": "completed", "operation": "youtube_play", "result": "Opened YouTube video in the background Playwright browser.", "url": url, "browser": opened}
         if browser_media is not None:
             media_result = browser_media({"action": "play"})
             media_result = await media_result if inspect.isawaitable(media_result) else media_result
@@ -152,19 +135,14 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
             media_error = media_result.get("error") if isinstance(media_result, dict) else None
             nested_error = media_result.get("result", {}).get("error") if isinstance(media_result, dict) and isinstance(media_result.get("result"), dict) else None
             if media_error or nested_error:
-                return {
-                    "error": str(media_error or nested_error),
-                    "error_code": "PLAYBACK_NOT_STARTED",
-                    "status": "failed",
-                    "executed": True,
-                    "url": url,
-                    "media": media_result,
-                }
+                return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error": str(media_error or nested_error), "error_code": "PLAYBACK_NOT_STARTED", "retryable": True, "url": url, "media": media_result}
     else:
         res = {"result": f"Opened {open_url(url)} in the default browser.", "url": url}
     MEMORY.remember("youtube_playback", f"Playing YouTube video: {url}", {"url": url})
-    res.setdefault("verification", "UNCERTAIN")
-    res.setdefault("verified", False)
+    if active_browser_page and res.get("media", {}).get("verified") is not True:
+        return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error_code": "PLAYBACK_NOT_VERIFIED", "retryable": True, "url": url, "details": "The media element did not provide verified playing state."}
+    res["verification"] = "VERIFIED"
+    res["verified"] = True
     return res
 
 

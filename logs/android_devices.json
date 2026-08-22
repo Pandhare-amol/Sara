@@ -28,5 +28,155 @@
       "android_version": null,
       "network_type": null
     }
+  },
+  "2529597b": {
+    "id": "2529597b",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1787274796,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
+  },
+  "5e9b493c": {
+    "id": "5e9b493c",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1787275026,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
+  },
+  "29813b7c": {
+    "id": "29813b7c",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1787275067,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
+  },
+  "943a0e9e": {
+    "id": "943a0e9e",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1787275113,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
+  },
+  "18cb06a7": {
+    "id": "18cb06a7",
+    "name": "Pixel 8",
+    "token": "secret-token",
+    "status": "paired",
+    "connected": true,
+    "last_seen": 1787275810,
+    "capabilities": [
+      "notifications",
+      "sms",
+      "calls",
+      "contacts",
+      "files",
+      "camera",
+      "screen",
+      "clipboard",
+      "location",
+      "battery",
+      "settings"
+    ],
+    "meta": {
+      "battery_level": null,
+      "is_charging": false,
+      "storage_total_mb": null,
+      "storage_available_mb": null,
+      "device_model": null,
+      "android_version": null,
+      "network_type": null
+    }
   }
 }

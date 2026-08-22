@@ -39,6 +39,7 @@ class State:
         self.browser = None
         self.context = None
         self.page = None
+        self.browser_state = None
 
     def reset_playwright(self) -> None:
         """Tear down any cached Playwright resources (used on errors)."""
@@ -157,7 +158,7 @@ DESKTOP_TOOL_NAMES = [
     "desktopBrowserGoForward",
     "desktopBrowserScroll",
     "desktopBrowserReload", "desktopBrowserKey", "desktopBrowserZoom",
-    "desktopBrowserMedia", "desktopBrowserReadPage", "desktopBrowserScreenshot",
+    "desktopBrowserMedia", "desktopBrowserState", "desktopBrowserExtractLinks", "desktopBrowserReadPage", "desktopBrowserScreenshot",
     # coding assistance
     "createPythonFile",
     "runPythonScript",

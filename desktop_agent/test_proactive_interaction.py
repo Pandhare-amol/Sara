@@ -59,6 +59,22 @@ class ProactiveInteractionTest(unittest.TestCase):
         self.assertEqual(emotion["trigger"], "user_frustrated")
         self.assertIn("previous_state", emotion)
 
+    def test_topic_selection_is_grounded_and_privacy_aware(self):
+        result = self.engine.evaluate({
+            "idle_seconds": 700,
+            "unfinished_topic": "finish the authentication bug tomorrow",
+        })
+        self.assertEqual(result["topic"]["topic"], "finish the authentication bug tomorrow")
+        self.assertTrue(result["topic"]["grounded"])
+
+        private = self.engine.evaluate({
+            "idle_seconds": 700,
+            "unfinished_topic": "private health detail",
+            "privacy_level": "SENSITIVE",
+        })
+        self.assertEqual(private["topic"]["topic"], "")
+        self.assertTrue(private["topic"]["privacy_filtered"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -230,13 +230,17 @@ export function formatSystemInstructionsWithMemories(baseInstruction: string, me
 let isConsolidating = false;
 export async function processConversationSlice(apiKey: string, dialogueHistory: { role: string; text: string }[], source: MemorySource = "desktop"): Promise<Memory[] | null> {
   if (isConsolidating || dialogueHistory.length < 2) return null;
+  const requestedNoStore = dialogueHistory.some((line) =>
+    line.role === "user" && /\b(?:don't|do not|never)\s+(?:remember|store|save|keep)\b/i.test(line.text),
+  );
+  if (requestedNoStore) return null;
   isConsolidating = true;
   try {
     const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
     const currentMemories = await loadMemories(source);
     const memoryContext = currentMemories.map((m) => `ID: ${m.id} | Category: ${m.category} | Fact: ${m.text}`).join("\n");
     const dialogueContext = dialogueHistory.map((line) => `${line.role === "user" ? "User" : "Sara"}: ${line.text}`).join("\n");
-    const prompt = `You are Sara's durable memory engine. Extract only durable facts, preferences, goals, projects, relationships, emotional milestones, and long-term behavior.\n\nCURRENT MEMORIES:\n${memoryContext || "(none)"}\n\nRECENT DIALOGUE:\n${dialogueContext}\n\nReturn JSON with transactions array. Use action ADD, UPDATE, or REMOVE. Keep summaries short, natural, and written about Sara's user.`;
+    const prompt = `You are Sara's durable memory engine. Extract only durable facts, preferences, goals, projects, relationships, emotional milestones, and long-term behavior. Never store passwords, secrets, highly sensitive personal details, or content marked private.\n\nCURRENT MEMORIES:\n${memoryContext || "(none)"}\n\nRECENT DIALOGUE:\n${dialogueContext}\n\nReturn JSON with transactions array. Use action ADD, UPDATE, or REMOVE. Keep summaries short, natural, and written about Sara's user.`;
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,

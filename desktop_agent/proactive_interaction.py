@@ -23,6 +23,7 @@ _STATES = {
 }
 _ACTIVE_LEVELS = {"high", "medium", "typing", "coding", "presenting", "gaming", "working"}
 _MIN_COOLDOWN_SECONDS = 30 * 60
+_EMOTION_HALF_LIFE_SECONDS = 45 * 60
 
 
 def _state_path() -> Path:
@@ -91,6 +92,36 @@ class ProactiveInteractionEngine:
             "updated_at": time.time(),
         }
 
+    def _decay_emotion(self, now: float) -> None:
+        emotion = self._state.get("emotional_state", {})
+        updated_at = float(emotion.get("updated_at", now))
+        elapsed = max(0.0, now - updated_at)
+        decay = 0.5 ** (elapsed / _EMOTION_HALF_LIFE_SECONDS)
+        emotion["intensity"] = round(max(0.05, float(emotion.get("intensity", 0.35)) * decay), 3)
+        emotion["decay"] = "exponential"
+        emotion["duration_seconds"] = round(elapsed, 1)
+        emotion["updated_at"] = now
+
+    @staticmethod
+    def _safe_topic(context: Dict[str, Any]) -> str:
+        privacy = str(context.get("privacy_level") or "").upper()
+        if privacy in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"} or context.get("do_not_store"):
+            return ""
+        for key in ("unfinished_topic", "previous_topic", "current_task", "relevant_memory", "user_goal"):
+            value = context.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:160]
+        return ""
+
+    def select_topic(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        topic = self._safe_topic(context)
+        return {
+            "topic": topic,
+            "grounded": bool(topic),
+            "source": "context" if topic else None,
+            "privacy_filtered": not bool(topic) and str(context.get("privacy_level") or "").upper() in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"},
+        }
+
     def update_emotion(self, event: str, confidence: float = 0.6) -> Dict[str, Any]:
         mapping = {
             "user_success": ("HAPPY", 0.7),
@@ -111,6 +142,7 @@ class ProactiveInteractionEngine:
     def evaluate(self, context: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
             now = time.time()
+            self._decay_emotion(now)
             activity = str(context.get("user_activity") or context.get("activity_level") or "idle").lower()
             idle_seconds = float(context.get("idle_duration") or context.get("idle_seconds") or 0)
             quiet = bool(context.get("quiet_mode", self._state.get("quiet_mode", False)))
@@ -142,14 +174,16 @@ class ProactiveInteractionEngine:
                 "focused_work": focused,
                 "emotional_state": dict(self._state["emotional_state"]),
                 "context_grounded": bool(relevant_memory or unfinished or important),
+                "topic": self.select_topic(context),
             }
 
     def record_outcome(self, accepted: bool, topic: str = "") -> Dict[str, Any]:
         with self._lock:
+            topic = str(topic)[:160]
             if accepted:
                 self._state["last_proactive_at"] = time.time()
                 self._state["ignored_count"] = 0
-                self._state["last_topic"] = str(topic)[:120]
+                self._state["last_topic"] = topic
             else:
                 self._state["ignored_count"] = min(10, int(self._state.get("ignored_count", 0)) + 1)
             self._save()

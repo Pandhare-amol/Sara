@@ -86,6 +86,13 @@ def extract_zip(args: Dict[str, Any]) -> Dict[str, Any]:
     _ensure_safe(destination)
     destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(source) as zf:
+        destination_root = destination.resolve()
+        for member in zf.infolist():
+            member_path = (destination_root / member.filename).resolve()
+            try:
+                member_path.relative_to(destination_root)
+            except ValueError as exc:
+                raise ToolError(f"Archive entry escapes the destination: {member.filename}") from exc
         zf.extractall(destination)
     return {"result": f"Extracted {source.name} to {destination}.", "path": str(destination)}
 
