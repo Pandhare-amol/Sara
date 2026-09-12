@@ -1,5 +1,6 @@
 # Windows Auto-Start Registration for SARA
-# Register the real SARA executable so Windows launches the native app directly.
+# Register the SARA supervisor launcher so Windows starts the backend,
+# Desktop Agent, and Electron UI together.
 # Respects AUTO_START=true/false from .env.
 
 param(
@@ -8,31 +9,15 @@ param(
 
 $TaskName = "SARA_Production_Startup"
 $Root = Resolve-Path "$PSScriptRoot\.."
-$AppExe = $null
-
-$CandidatePaths = @(
-    (Join-Path $Root "release\SARA-Setup-*.exe"),
-    (Join-Path $Root "release\win-unpacked\SARA.exe"),
-    (Join-Path $Root "dist\win-unpacked\SARA.exe"),
-    (Join-Path $Root "dist\SARA.exe")
-)
-
-foreach ($pattern in $CandidatePaths) {
-    $matches = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($matches) {
-        $AppExe = $matches.FullName
-        break
-    }
-}
+$Launcher = Join-Path $Root "start-sara-silent.bat"
 
 if ($Unregister) {
     Write-Host "[SARA] Unregistering '$TaskName' from Task Scheduler..." -ForegroundColor Yellow
-    try {
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop
-        Write-Host "[SARA] ✓ Unregistered successfully." -ForegroundColor Green
-    } catch {
-        Write-Host "[SARA] Task '$TaskName' was not registered." -ForegroundColor Gray
-    }
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+    $RunPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    Remove-ItemProperty -Path $RunPath -Name "Sara" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $RunPath -Name "com.sara.desktop" -ErrorAction SilentlyContinue
+    Write-Host "[SARA] Startup registration removed." -ForegroundColor Green
     exit 0
 }
 
@@ -49,28 +34,35 @@ if (Test-Path $EnvFile) {
 }
 
 if (-not $AutoStart) {
-    Write-Host "[SARA] AUTO_START=false in .env — skipping registration." -ForegroundColor Yellow
+    Write-Host "[SARA] AUTO_START=false in .env - skipping registration." -ForegroundColor Yellow
     exit 0
 }
 
-if (-not $AppExe) {
-    Write-Host "[SARA][ERROR] SARA executable not found. Build the app first with electron-builder or package a release." -ForegroundColor Red
+if (-not (Test-Path $Launcher)) {
+    Write-Host "[SARA][ERROR] Supervisor launcher not found: $Launcher" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "[SARA] Registering native Windows startup: $AppExe" -ForegroundColor Cyan
+Write-Host "[SARA] Registering supervisor startup: $Launcher" -ForegroundColor Cyan
 
-$Action = New-ScheduledTaskAction -Execute $AppExe -WorkingDirectory (Split-Path $AppExe -Parent)
+$TaskArguments = '/d /c "' + $Launcher + '"'
+$Action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument $TaskArguments -WorkingDirectory $Root
 $Trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 0) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 2)
 
-Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description "SARA — native desktop app startup" -Force
+Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description "SARA supervisor startup" -Force
+
+# Remove the older Run-key registration if it exists. Keeping both mechanisms
+# starts two supervisors and causes the stale-lock/retry noise seen at login.
+$RunPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+Remove-ItemProperty -Path $RunPath -Name "Sara" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path $RunPath -Name "com.sara.desktop" -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host "  SARA auto-start registered successfully!" -ForegroundColor Green
 Write-Host "  Task name: $TaskName" -ForegroundColor Green
 Write-Host "  Trigger:   At logon for $env:USERNAME" -ForegroundColor Green
-Write-Host "  Executable: $AppExe" -ForegroundColor Green
+Write-Host "  Launcher:   $Launcher" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green

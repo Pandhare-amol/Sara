@@ -113,6 +113,9 @@ DESKTOP_TOOL_NAMES = [
     "minimizeWindow",
     "maximizeWindow",
     "closeWindow",
+    "listWindows",
+    "getActiveWindow",
+    "focusWindow",
     "switchApplication",
     "restoreWindow",
     "showDesktop",
@@ -131,6 +134,12 @@ DESKTOP_TOOL_NAMES = [
     "analyzeScreenshot",
     "readScreen",
     "detectUiElements",
+    "resolveUiTarget",
+    "clickUiTarget",
+    # real input aliases and cached perception
+    "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition",
+    "keyboardType", "keyPress", "keyDown", "keyUp", "emergencyStop",
+    "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
     # camera
     "openCamera",
     "takePhoto",
@@ -251,6 +260,10 @@ DESKTOP_TOOL_NAMES = [
     "hardwareKeyboardPress",
     "hardwareKeyboardHold",
     "hardwareKeyboardRelease",
+    "hardwareMouseButtonDown",
+    "hardwareMouseButtonUp",
+    "hardwareEmergencyRelease",
+    "hardwareMonitors",
     "hardwareMacroReplay",
     # High-level voice command routing / training
     "saraVoiceParseCommand",
@@ -258,6 +271,8 @@ DESKTOP_TOOL_NAMES = [
     "saraVoiceTrainCommand",
     "saraVoiceStopSpeaking",
     "saraCompanionSuggestNext",
+    "saraShutdownClarification",
+    "saraSelfShutdown",
     # Screen monitoring
     "saraScreenMonitorStart",
     "saraScreenMonitorStop",
@@ -284,6 +299,16 @@ DESKTOP_TOOL_NAMES = [
     "saraProactiveRecordOutcome",
     "saraEmotionalState",
     "saraQuietMode",
+    "saraSocialPlanResponse",
+    "saraSocialRecordTurn",
+    "saraSocialShouldRespond",
+    "saraSocialSettings",
+    "saraSocialStatus",
+    # Background task control
+    "saraTaskSubmit",
+    "saraTaskStatus",
+    "saraTaskList",
+    "saraTaskCancel",
 ]
 
 
@@ -304,6 +329,7 @@ _MODULE_NAMES = [
     "tools_window_extra",
     "tools_clipboard",
     "tools_screenshot",
+    "tools_targeting",
     "tools_camera",
     "tools_browser",
     "tools_coding",
@@ -314,13 +340,16 @@ _MODULE_NAMES = [
     "tools_learning",
     "tools_service_integrations",
     "tools_screen_monitor",
+    "tools_background",
     "tools_hardware",
+    "tools_screen_state",
     "tools_voice_os",
     "tools_camera_suite",
     "tools_app_suite",
     "tools_browser_suite",
     "android_tools",
     "proactive_interaction",
+    "tools_social_intelligence",
 ]
 
 

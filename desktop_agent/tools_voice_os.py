@@ -87,6 +87,26 @@ def sara_voice_stop_speaking(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": {"stopped": True, "event": event}}
 
 
+@register("saraShutdownClarification")
+def sara_shutdown_clarification(args: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "ok": True,
+        "status": "WAITING",
+        "requires_clarification": True,
+        "result": "Do you want me to shut down SARA or the computer?",
+    }
+
+
+@register("saraSelfShutdown")
+def sara_self_shutdown(args: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "ok": True,
+        "status": "SELF_SHUTDOWN_REQUESTED",
+        "requires_confirmation": False,
+        "result": "SARA self-shutdown requested; the application owner must close SARA services safely.",
+    }
+
+
 @register("saraCompanionSuggestNext")
 def sara_companion_suggest_next(args: Dict[str, Any]) -> Dict[str, Any]:
     last_goal = str(args.get("last_goal") or "").strip()

@@ -1,10 +1,2 @@
-the issue is in broser automation that is, in sara have the broser when sara run command on it own broser it will apper
-on the user screen and the user can see what sara is doing on the broser. The user wants to run the broser automation in the background without showing it on the screen.
-but the issue is the result not apper fast, 
-eg,, 
-usr say "sara open youtube and play a arjist song"
-sara will search the youtube and it will open on user screen also, but when the result will load on the 
-sara broser it will not apper on the usr broser, so it take time, when sara plays video the it will just open on the 
-usr broser, same for all automation, same proble for all automation, and sara have the real time data and response, then the automation will work and it will become faste, 
-and in the ui same button have on use case on the screen so same button i have to remove
-as like 
+whatsapp message is not sending.
+youtube video is not playing. it just searching the results, 

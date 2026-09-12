@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "integration": {
+    "features": {
+      "search": false,
+      "recommendations": false,
+      "analytics": false,
+      "notifications": false,
+      "workflows": false,
+      "forms": false,
+      "reports": false,
+      "troubleshooting": false
+    }
+  },
+  "rateLimits": { "requestsPerMinute": 60 },
+  "queue": { "concurrency": 2, "maxAttempts": 3 },
+  "privacy": { "requireConsent": true, "retentionDays": 30, "allowedModelRegions": ["US"] }
+}

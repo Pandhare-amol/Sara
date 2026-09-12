@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import unittest
+from unittest.mock import patch
 
 
 class AppAutomationSuiteTest(unittest.TestCase):
@@ -24,6 +25,42 @@ class AppAutomationSuiteTest(unittest.TestCase):
     def test_execute_requires_confirmation_for_sensitive_actions(self) -> None:
         result = self.suite.execute("WhatsApp", "send_message", {"text": "hello"}, confirmed=False)
         self.assertTrue(result["requires_confirmation"])
+
+    def test_youtube_play_uses_playback_handler(self) -> None:
+        with patch.dict(self.app_suite.TOOLS, {
+            "youtube_play": lambda args: {"verified": True, "result": "Playing"},
+        }, clear=False):
+            result = self.suite.execute("YouTube", "play", {"query": "Python lecture"}, confirmed=False)
+
+        self.assertTrue(result["result"]["verified"])
+        self.assertEqual(result["result"]["result"], "Playing")
+
+    def test_whatsapp_named_recipient_is_sent_and_verified(self) -> None:
+        calls = []
+
+        def record(tool_name, response=None):
+            def handler(args):
+                calls.append((tool_name, args))
+                return response or {"result": "ok"}
+            return handler
+
+        with patch.dict(self.app_suite.TOOLS, {
+            "desktopBrowserOpen": record("open"),
+            "desktopBrowserType": record("type"),
+            "desktopBrowserClick": record("click"),
+            "desktopBrowserKey": record("key"),
+            "desktopBrowserReadPage": record("read", {"result": "I'll be home at 7."}),
+        }, clear=False):
+            result = self.suite.execute(
+                "WhatsApp",
+                "send_message",
+                {"text": "Send Mom: I'll be home at 7."},
+                confirmed=True,
+            )
+
+        self.assertTrue(result["result"]["verified"])
+        self.assertTrue(any(name == "click" and call["text"] == "Mom" for name, call in calls))
+        self.assertTrue(any(name == "type" and call["text"] == "I'll be home at 7." for name, call in calls))
 
     def test_instagram_open_is_safe(self) -> None:
         result = self.suite.execute("Instagram", "open", {}, confirmed=False)

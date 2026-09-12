@@ -237,7 +237,9 @@ class ApplicationAutomationSuite:
                 session_result = SERVICE_INTEGRATIONS.execute(plugin.name, action, args)
                 if session_result.get("connected"):
                     return session_result
-            if action in {"search", "play"}:
+            if action == "play" and "youtube_play" in TOOLS:
+                return TOOLS["youtube_play"]({"query": args.get("query") or args.get("text") or ""})
+            if action == "search":
                 if "desktopBrowserSearch" in TOOLS:
                     return TOOLS["desktopBrowserSearch"]({"engine": "youtube", "query": args.get("query") or args.get("text") or ""})
                 return {"result": f"YouTube search queued for: {args.get('query') or args.get('text') or ''}"}
@@ -260,17 +262,28 @@ class ApplicationAutomationSuite:
                 return self._open(plugin)
             if action in {"send_message", "reply", "forward"}:
                 if "desktopBrowserOpen" in TOOLS and "desktopBrowserType" in TOOLS and "desktopBrowserClick" in TOOLS:
-                    recipient = self._extract_recipient(args.get("text") or "")
-                    message = self._extract_message(args.get("text") or "")
+                    text = str(args.get("text") or "")
+                    recipient = str(args.get("recipient") or self._extract_recipient(text) or "").strip()
+                    message = str(args.get("message") or self._extract_message(text) or "").strip()
                     if recipient:
-                        chat_query = f"https://web.whatsapp.com/send?phone={recipient}"
-                        TOOLS["desktopBrowserOpen"]({"url": chat_query})
+                        if re.fullmatch(r"\+?[0-9]{7,15}", recipient):
+                            TOOLS["desktopBrowserOpen"]({"url": f"https://web.whatsapp.com/send?phone={recipient}"})
+                        else:
+                            TOOLS["desktopBrowserOpen"]({"url": "https://web.whatsapp.com"})
+                            TOOLS["desktopBrowserType"]({"text": recipient, "selector": "[aria-label='Search or start new chat']"})
+                            TOOLS["desktopBrowserClick"]({"text": recipient})
                     else:
                         TOOLS["desktopBrowserOpen"]({"url": "https://web.whatsapp.com"})
                     if message:
                         TOOLS["desktopBrowserType"]({"text": message, "selector": "div[contenteditable='true']"})
                         TOOLS["desktopBrowserKey"]({"key": "Enter"})
-                        return {"result": f"Sent WhatsApp message."}
+                        verification = TOOLS.get("desktopBrowserReadPage")
+                        if verification:
+                            page = verification({"max_chars": 10000})
+                            visible_text = str(page.get("result") or "") if isinstance(page, dict) else ""
+                            if message not in visible_text:
+                                return {"result": "WhatsApp message was entered but could not be verified in the chat.", "verified": False, "requires_retry": True}
+                        return {"result": "Sent WhatsApp message.", "verified": True, "recipient": recipient}
                     return {"result": "Opened WhatsApp Web. Ready to send your message."}
                 return {"result": "WhatsApp Web opened. Please complete the message manually."}
             if action == "search":
@@ -424,9 +437,15 @@ class ApplicationAutomationSuite:
         match = re.search(r"(?:to\s+)?(\+?[0-9]{7,15})", text)
         if match:
             return match.group(1)
+        named = re.search(r"\b(?:to|send)\s+(?:a\s+message\s+to\s+)?([A-Za-z][A-Za-z .'-]{1,40}?)(?:\s+(?:saying|that|about)\b|\s*[:,-]|$)", text, re.IGNORECASE)
+        if named:
+            return named.group(1).strip()
         return None
 
     def _extract_message(self, text: str) -> Optional[str]:
+        explicit = re.search(r"(?:\b(?:saying|message)\b|:)\s*[:,-]?\s*(.+)$", text, re.IGNORECASE)
+        if explicit:
+            return explicit.group(1).strip()
         if "send" in text.lower() or "message" in text.lower():
             # attempt to isolate after 'to X' or 'message'
             parts = re.split(r"(?:to\s+\+?[0-9]{7,15}|message|send|reply|forward)", text, maxsplit=1)

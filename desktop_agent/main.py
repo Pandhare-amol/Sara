@@ -67,10 +67,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Same-origin Node bridge is the only caller; allow localhost origins flexibly.
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get(
+        "SARA_AGENT_CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,capacitor://localhost",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -103,7 +111,13 @@ def _canonical_result(
     args = args or {}
     explicit_ok = payload.get("ok") if isinstance(payload.get("ok"), bool) else None
     failed = bool(error) or explicit_ok is False or str(payload.get("status", "")).upper() in {"FAILED", "ERROR"}
-    verified = payload.get("verified") is True or str(payload.get("verification", "")).upper() in {"VERIFIED", "SUCCESS"}
+    observation = payload.get("observation") if isinstance(payload.get("observation"), dict) else {}
+    has_screenshot_evidence = bool(
+        payload.get("screenshot_id")
+        and int(payload.get("width") or observation.get("width") or 0) > 0
+        and int(payload.get("height") or observation.get("height") or 0) > 0
+    )
+    verified = payload.get("verified") is True or str(payload.get("verification", "")).upper() in {"VERIFIED", "SUCCESS"} or has_screenshot_evidence
     status = "FAILED" if failed else "SUCCESS" if verified else "UNCERTAIN"
     operation_id = str(payload.get("operation_id") or payload.get("operationId") or args.get("operation_id") or f"{tool}-{uuid.uuid4().hex[:12]}")
     request_id = payload.get("request_id") or payload.get("requestId") or args.get("request_id") or args.get("requestId")
@@ -119,23 +133,25 @@ def _canonical_result(
     return {
         "ok": not failed and status == "SUCCESS",
         "status": status,
-        "data": payload.get("data", payload),
-        "error_code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else None),
-        "message": str(payload.get("message") or payload.get("result") or error or "Tool execution completed."),
-        "retryable": bool(payload.get("retryable", False)),
-        "execution_time_ms": execution_time_ms,
+        "verified": verified,
         "operation_id": operation_id,
         "request_id": request_id,
         "task_id": task_id,
         "correlation_id": correlation_id,
         "timestamp": int(time.time() * 1000),
+        "duration_ms": execution_time_ms,
+        "data": payload.get("data", payload),
         "error": error_details,
-        "verified": verified,
         "verification": {
             "verified": verified,
             "method": payload.get("verification_method") or payload.get("verification") if isinstance(payload.get("verification"), str) else payload.get("verification", {}).get("method") if isinstance(payload.get("verification"), dict) else None,
         },
         "tool": tool,
+        # Legacy compatibility fields below (to be removed in future phases)
+        "execution_time_ms": execution_time_ms,
+        "error_code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else None),
+        "message": str(payload.get("message") or payload.get("result") or error or "Tool execution completed."),
+        "retryable": bool(payload.get("retryable", False)),
     }
 
 
@@ -143,6 +159,8 @@ def _canonical_result(
 def health() -> Dict[str, Any]:
     return {
         "status": "ok",
+        "service": "sara-desktop-agent",
+        "service_version": __version__,
         "name": "SARA Desktop Control Agent",
         "version": __version__,
         "tools": sorted(TOOLS.keys()),
@@ -153,6 +171,30 @@ def health() -> Dict[str, Any]:
 @app.get("/health/diagnostics")
 def health_diagnostics() -> Dict[str, Any]:
     return {"status": "ok", "result": HEALTH.latest() or HEALTH.run()}
+
+
+@app.get("/capabilities")
+def capabilities() -> Dict[str, Any]:
+    capability_payload = {
+        "status": "PROCESS_HEALTHY",
+        "service": "sara-desktop-agent",
+        "service_version": __version__,
+        "tool_names": sorted(TOOLS.keys()),
+        "tool_count": len(TOOLS),
+        "capabilities": {
+            "desktop": True,
+            "browser": True,
+            "screen": True,
+            "power": True,
+            "tools": sorted(TOOLS.keys()),
+        },
+    }
+    return capability_payload
+
+
+@app.get("/capabilities/diagnostics")
+def capabilities_diagnostics() -> Dict[str, Any]:
+    return {"status": "PROCESS_HEALTHY", "service": "sara-desktop-agent", "result": HEALTH.latest() or HEALTH.run()}
 
 
 @app.get("/tools")
@@ -343,6 +385,8 @@ def _short_args(args: Dict[str, Any]) -> str:
     """Compact, log-safe representation of args (truncate long values)."""
     parts = []
     for k, v in args.items():
+        if any(secret in str(k).lower() for secret in ("password", "token", "secret", "clipboard", "text")):
+            v = "[SENSITIVE CONTENT REDACTED]"
         s = repr(v)
         if len(s) > 60:
             s = s[:60] + "â€¦"

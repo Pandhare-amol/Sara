@@ -188,6 +188,24 @@ def _focus_running_app(spec: Dict[str, str]) -> bool:
     return False
 
 
+def _wait_for_application(spec: Dict[str, str], timeout: float = 8.0) -> Dict[str, Any]:
+    deadline = time.monotonic() + max(0.5, min(timeout, 30.0))
+    while time.monotonic() < deadline:
+        running = _is_running(spec)
+        focused = _focus_running_app(spec) if running else False
+        if running and focused:
+            return {"status": "SUCCESS", "verified": True, "running": True, "focused": True}
+        time.sleep(0.2)
+    running = _is_running(spec)
+    return {
+        "status": "UNCERTAIN" if running else "FAILED",
+        "verified": False,
+        "running": running,
+        "focused": False,
+        "error_code": "WINDOW_FOCUS_DENIED" if running else "APPLICATION_NOT_STARTED",
+    }
+
+
 @register("openApplication")
 def open_application(args: Dict[str, Any]) -> Dict[str, Any]:
     name = args.get("name") or args.get("application")
@@ -197,10 +215,16 @@ def open_application(args: Dict[str, Any]) -> Dict[str, Any]:
         spec = _resolve_app(str(name))
     except ToolError:
         _universal_launch(str(name))
-        return {"result": f"Requested Windows to open: {name}.", "universal": True}
+        return {
+            "result": f"Windows was asked to open {name}, but SARA could not verify its application identity.",
+            "universal": True,
+            "status": "UNCERTAIN",
+            "verified": False,
+            "error_code": "APPLICATION_IDENTITY_UNKNOWN",
+        }
     if _is_running(spec):
         if _focus_running_app(spec):
-            return {"result": f"{spec['label']} is already running and was focused."}
+            return {"result": f"{spec['label']} is already running and was focused.", "status": "SUCCESS", "verified": True, "running": True, "focused": True}
         return {
             "result": f"{spec['label']} is running, but Windows did not allow SARA to focus its window.",
             "status": "UNCERTAIN",
@@ -209,7 +233,10 @@ def open_application(args: Dict[str, Any]) -> Dict[str, Any]:
             "retryable": True,
         }
     _launch(spec)
-    return {"result": f"{spec['label']} opened."}
+    verification = _wait_for_application(spec, float(args.get("timeout", 8.0)))
+    if verification["status"] == "SUCCESS":
+        return {"result": f"{spec['label']} opened and its window was focused.", **verification}
+    return {"result": f"{spec['label']} launch was attempted, but the application state could not be verified.", **verification}
 
 
 @register("closeApplication")

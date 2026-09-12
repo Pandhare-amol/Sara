@@ -27,6 +27,14 @@ def _sync_tool(name: str) -> Optional[Callable[[Dict[str, Any]], Dict[str, Any]]
     return cast(Optional[Callable[[Dict[str, Any]], Dict[str, Any]]], TOOLS.get(name))
 
 
+async def _call_tool(name: str, args: Dict[str, Any]) -> Any:
+    handler = TOOLS.get(name)
+    if handler is None:
+        return None
+    result = handler(args)
+    return await result if inspect.isawaitable(result) else result
+
+
 def _get_youtube_api_key() -> str:
     """Retrieve YouTube API key from vault or environment."""
     key = VAULT.load("youtube_api_key")
@@ -88,9 +96,7 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
         browser_search = _sync_tool("desktopBrowserSearch")
         browser_links = _sync_tool("desktopBrowserExtractLinks")
         if browser_search is not None:
-            search_result = browser_search({"query": query, "engine": "youtube"})
-            if inspect.isawaitable(search_result):
-                search_result = await search_result
+            search_result = await _call_tool("desktopBrowserSearch", {"query": query, "engine": "youtube"})
             if isinstance(search_result, dict) and search_result.get("error"):
                 return {
                     "error": str(search_result["error"]),
@@ -100,9 +106,7 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
                 }
             if browser_links is None:
                 return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error_code": "RESULT_EXTRACTION_UNAVAILABLE", "retryable": True}
-            links = browser_links({"limit": 40})
-            if inspect.isawaitable(links):
-                links = await links
+            links = await _call_tool("desktopBrowserExtractLinks", {"limit": 40})
             candidates = [item for item in (links.get("links", []) if isinstance(links, dict) else []) if "/watch?v=" in str(item.get("url", ""))]
             if not candidates:
                 return {"ok": False, "status": "failed", "operation": "youtube_play", "verified": False, "error_code": "YOUTUBE_NOT_FOUND", "retryable": True, "details": "No video result link was present in the page DOM."}
@@ -125,12 +129,11 @@ async def youtube_play(args: Dict[str, Any]) -> Dict[str, Any]:
     if browser_open is not None:
         opened = {"result": "Used the active Playwright browser page."}
         if url:
-            opened_result = browser_open({"url": url})
-            opened = await opened_result if inspect.isawaitable(opened_result) else opened_result
+            opened_result = await _call_tool("desktopBrowserOpen", {"url": url})
+            opened = opened_result
         res: Dict[str, Any] = {"ok": True, "status": "completed", "operation": "youtube_play", "result": "Opened YouTube video in the background Playwright browser.", "url": url, "browser": opened}
         if browser_media is not None:
-            media_result = browser_media({"action": "play"})
-            media_result = await media_result if inspect.isawaitable(media_result) else media_result
+            media_result = await _call_tool("desktopBrowserMedia", {"action": "play"})
             res["media"] = media_result
             media_error = media_result.get("error") if isinstance(media_result, dict) else None
             nested_error = media_result.get("result", {}).get("error") if isinstance(media_result, dict) and isinstance(media_result.get("result"), dict) else None

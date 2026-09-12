@@ -13,11 +13,31 @@ import time
 from typing import Any, Dict, Optional
 
 from .registry import ToolError, register
+from .window_manager import WINDOW_MANAGER
 
 SW_MINIMIZE = 6
 SW_MAXIMIZE = 3
 SW_RESTORE = 9
 SW_HIDE = 0
+
+
+@register("listWindows")
+def list_windows(args: Dict[str, Any]) -> Dict[str, Any]:
+    windows = WINDOW_MANAGER.list_windows(bool(args.get("include_untitled", False)))
+    return {"result": f"Enumerated {len(windows)} visible window(s).", "windows": windows, "verified": True}
+
+
+@register("getActiveWindow")
+def get_active_window(args: Dict[str, Any]) -> Dict[str, Any]:
+    window = WINDOW_MANAGER.active_window()
+    return {"result": "Retrieved the active Windows window.", "window": window, "verified": True}
+
+
+@register("focusWindow")
+def focus_window(args: Dict[str, Any]) -> Dict[str, Any]:
+    query = args.get("title") or args.get("application")
+    focused = WINDOW_MANAGER.focus(str(query or ""))
+    return {"result": "Window focus requested and checked.", **focused}
 
 
 def _get_foreground_window():

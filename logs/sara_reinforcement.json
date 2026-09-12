@@ -16,5 +16,89 @@
         "started_at": 1
       }
     ]
+  },
+  {
+    "created_at": 1788425482.3791401,
+    "execution_time_ms": 96,
+    "feedback": "",
+    "goal": "test",
+    "id": "ca27089b1e05474ca0a6a139fdefba62",
+    "metadata": {
+      "source": "background_task",
+      "task_id": "f489f9eadb84498aa8c7a97b1bbc854c"
+    },
+    "reward": 0,
+    "safe_to_reinforce": true,
+    "status": "cancelled",
+    "steps": [
+      {
+        "finished_at": 1788425482.3644915,
+        "started_at": 1788425482.2678962,
+        "tool": "slow"
+      }
+    ]
+  },
+  {
+    "created_at": 1788425858.5781069,
+    "execution_time_ms": 87,
+    "feedback": "",
+    "goal": "test",
+    "id": "cbb647283b734adcab0b62f1e76a4802",
+    "metadata": {
+      "source": "background_task",
+      "task_id": "fb726a727b694449859d3510f0949f89"
+    },
+    "reward": 0,
+    "safe_to_reinforce": true,
+    "status": "cancelled",
+    "steps": [
+      {
+        "finished_at": 1788425858.5700846,
+        "started_at": 1788425858.4829347,
+        "tool": "slow"
+      }
+    ]
+  },
+  {
+    "created_at": 1788426045.3865235,
+    "execution_time_ms": 108,
+    "feedback": "",
+    "goal": "test",
+    "id": "0ceb86c2f49c4ef99e5da39df728e49f",
+    "metadata": {
+      "source": "background_task",
+      "task_id": "31535b7e8fb14ed58c47afa64ce2f3ca"
+    },
+    "reward": 0,
+    "safe_to_reinforce": true,
+    "status": "cancelled",
+    "steps": [
+      {
+        "finished_at": 1788426045.3795133,
+        "started_at": 1788426045.2715094,
+        "tool": "slow"
+      }
+    ]
+  },
+  {
+    "created_at": 1788428903.7348435,
+    "execution_time_ms": 144,
+    "feedback": "",
+    "goal": "test",
+    "id": "d74644ee27104efe8ab4e7471fd17c28",
+    "metadata": {
+      "source": "background_task",
+      "task_id": "fd7643e8c82b4c53b6304d4bb5e26e2d"
+    },
+    "reward": 2,
+    "safe_to_reinforce": true,
+    "status": "completed",
+    "steps": [
+      {
+        "finished_at": 1788428903.6929884,
+        "started_at": 1788428903.5483787,
+        "tool": "slow"
+      }
+    ]
   }
 ]

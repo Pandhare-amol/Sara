@@ -59,6 +59,25 @@
     ],
     "updated_at": 1787153855.796615
   },
+  "Prepare SARA context restoration": {
+    "description": "Learned workflow for Prepare SARA context restoration",
+    "id": "cad75f6aee4d40028e95b9031f2af483",
+    "metadata": {
+      "learned_from_workflow": true,
+      "workflow_id": "61e27e23bfbd4d2bbaa77fe42efcea8e"
+    },
+    "name": "Prepare SARA context restoration",
+    "steps": [
+      {
+        "action": "plan",
+        "agent": "task_planner",
+        "args": {
+          "goal": "Prepare SARA context restoration"
+        }
+      }
+    ],
+    "updated_at": 1788145725.5103335
+  },
   "Run Tests": {
     "description": "Run project tests through the coding agent.",
     "id": "f04ac9320971463ba875955887709f2f",
@@ -88,5 +107,44 @@
       }
     ],
     "updated_at": 1787153855.7930899
+  },
+  "Search for a fix": {
+    "description": "Learned workflow for Search for a fix",
+    "id": "12acdcf247fc4e208bb3c5736205eca2",
+    "metadata": {
+      "learned_from_workflow": true,
+      "workflow_id": "9e6e5acdbf3940c1bc74501d31fc66cc"
+    },
+    "name": "Search for a fix",
+    "steps": [
+      {
+        "action": "search",
+        "agent": "browser_agent",
+        "args": {
+          "engine": "google",
+          "query": "a fix"
+        }
+      }
+    ],
+    "updated_at": 1787839945.7552361
+  },
+  "Separate unrelated task": {
+    "description": "Learned workflow for Separate unrelated task",
+    "id": "bb3ebfb24822490db6b9c8170e34f6d9",
+    "metadata": {
+      "learned_from_workflow": true,
+      "workflow_id": "d36a218c8aa94eadb15720ecc4b1ed21"
+    },
+    "name": "Separate unrelated task",
+    "steps": [
+      {
+        "action": "plan",
+        "agent": "task_planner",
+        "args": {
+          "goal": "Separate unrelated task"
+        }
+      }
+    ],
+    "updated_at": 1788145728.5145483
   }
 }

@@ -59,6 +59,11 @@ class VoiceCommandRouterTest(unittest.TestCase):
         self.assertEqual(parse_to_dict("SARA, stop")["tool"], "saraVoiceStopSpeaking")
         self.assertEqual(parse_to_dict("Suggest next step", {"last_goal": "Build report"})["tool"], "saraCompanionSuggestNext")
 
+    def test_youtube_play_routes_to_verified_playback(self) -> None:
+        parsed = parse_to_dict("Sara, open YouTube and play a Python lecture")
+        self.assertEqual(parsed["tool"], "youtube_play")
+        self.assertEqual(parsed["args"]["query"], "a Python lecture")
+
     def test_expanded_file_browser_and_app_voice_routes(self) -> None:
         self.assertEqual(parse_to_dict("List downloads")["tool"], "listFiles")
         self.assertEqual(parse_to_dict("Read file Desktop\\notes.txt")["tool"], "readFile")

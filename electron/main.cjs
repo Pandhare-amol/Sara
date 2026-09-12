@@ -25,6 +25,7 @@ const {
   dialog,
   desktopCapturer,
   ipcMain,
+  session,
 } = require('electron');
 const path = require('path');
 const http = require('http');
@@ -144,7 +145,22 @@ if (!gotSingleInstanceLock) {
       mainWindow.focus();
     }
   });
-  app.whenReady().then(bootstrap);
+  app.whenReady().then(() => {
+    session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1, height: 1 },
+          fetchWindowIcons: false,
+        });
+        callback(sources[0] ? { video: sources[0] } : {});
+      } catch (error) {
+        console.error('[Screen Capture] Failed to resolve display media source:', error);
+        callback({});
+      }
+    });
+    bootstrap();
+  });
 }
 
 // ---------------------------------------------------------------------------

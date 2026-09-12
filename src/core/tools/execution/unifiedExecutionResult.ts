@@ -72,7 +72,7 @@ export function determineFinalStatus(
   if (verificationStatus === "failed") return "failed";
   if (executionStatus === "success" && verificationStatus === "verified") return "success";
   if (executionStatus === "success" && verificationStatus === "not_required") return "success";
-  if (executionStatus === "success" && verificationStatus === "skipped") return "partial";
+  if (executionStatus === "success" && verificationStatus === "skipped") return "uncertain";
   if (executionStatus === "success" && verificationStatus === "uncertain") return "uncertain";
   return "uncertain";
 }

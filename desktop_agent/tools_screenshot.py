@@ -17,6 +17,7 @@ import base64
 import io
 import os
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -128,8 +129,10 @@ def take_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
     include_image = bool(args.get("include_image", False))
     result: Dict[str, Any] = {
         "result": f"Captured screen ({img.width}x{img.height}).",
+        "screenshot_id": f"screen-{uuid.uuid4().hex}",
         "width": img.width,
         "height": img.height,
+        "observation": {"width": img.width, "height": img.height},
     }
     if include_image:
         # Downscale + JPEG to keep payload small for the WS bridge.

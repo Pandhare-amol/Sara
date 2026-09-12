@@ -13,7 +13,10 @@ import {
   formatSystemInstructionsWithMemories, 
   processConversationSlice,
   searchMemories,
-  upsertMemory
+  upsertMemory,
+  loadDecisions,
+  loadQuestions,
+  getUnansweredQuestions
 } from "./server_memory";
 import { gatherBuildIdentity, loadBuildManifest } from "./src/security/buildIdentity";
 import { AuditLogger } from "./src/security/auditLogger";
@@ -86,6 +89,19 @@ import {
 } from "./server_state";
 import * as whatsappClient from './src/whatsapp_client';
 import { redactSecrets } from './src/security/auditLogger';
+import { newsApiTool } from './src/core/api/tools/NewsApiAdapter';
+import { financeApiTool } from './src/core/api/tools/FinanceApiAdapter';
+import { searchApiTool } from './src/core/api/tools/SearchApiAdapter';
+import { weatherApiTool } from './src/core/api/tools/WeatherApiAdapter';
+import { publicApiCatalogManager } from './src/core/api/publicApiCatalog';
+import { contextManager } from './src/core/context/ContextManager';
+import { userIdentityManager } from './src/core/identity/UserIdentityManager';
+import { conversationIntentAnalyzer } from './src/core/conversation/ConversationIntentAnalyzer';
+import { SingerAgent } from './src/agents/singer/SingerAgent';
+import { autonomousMusicCreator } from './src/services/music_studio/autonomous_creator';
+import { MusicProjectManager } from './src/services/music_studio/project_manager';
+import { musicProviderRegistry } from './src/services/music_studio/provider_registry';
+import { musicContentPreparation } from './src/services/music_studio/content_preparation';
 
 dotenv.config();
 
@@ -146,10 +162,17 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   "requestPowerAction", "executePowerAction",
   // windows
   "minimizeWindow", "maximizeWindow", "closeWindow", "switchApplication",
+  "listWindows", "getActiveWindow", "focusWindow",
   // clipboard
   "copySelected", "pasteClipboard", "getClipboard", "clearClipboard",
+  // real foreground mouse and keyboard input
+  "hardwareMouseMove", "hardwareMouseClick", "hardwareMouseDrag", "hardwareMouseScroll",
+  "hardwareMousePosition", "hardwareMouseButtonDown", "hardwareMouseButtonUp",
+  "hardwareKeyboardType", "hardwareKeyboardPress", "hardwareKeyboardHold", "hardwareKeyboardRelease", "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition", "keyboardType", "keyPress", "keyDown", "keyUp", "emergencyStop", "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
+  "hardwareEmergencyRelease", "hardwareMonitors", "hardwareMacroReplay",
   // screenshot / screen reading
   "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen",
+  "detectUiElements", "resolveUiTarget", "clickUiTarget",
   // browser automation (Playwright â€” desktop-owned, separate from holographic UI)
   "desktopBrowserOpen", "desktopBrowserNavigate", "desktopBrowserOpenTab",
   "desktopBrowserCloseTab", "desktopBrowserSearch", "desktopBrowserClick",
@@ -173,6 +196,7 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   "saraAndroidPair", "saraAndroidPlan", "saraAndroidExecute",
   // Multi-agent & system orchestration tools
   "saraAgentExecute", "saraAgentEmergencyStop", "saraMemoryRemember",
+  "saraTaskSubmit", "saraTaskStatus", "saraTaskList", "saraTaskCancel",
   "saraMemorySearch", "saraRagIndex", "saraRagRetrieve", "saraSecurityAssess",
   "saraProactiveEvaluate", "saraProactiveRecordOutcome", "saraEmotionalState", "saraQuietMode",
 ]);
@@ -466,16 +490,38 @@ async function callDesktopAgentTransport(
 }
 
 const desktopToolRouter = new ToolRouter({
-  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool),
+  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool) || [newsApiTool.capability, financeApiTool.capability, searchApiTool.capability, weatherApiTool.capability].includes(tool),
 });
 desktopToolRouter.registry.registerRuntimeTools(DESKTOP_TOOLS, {
   version: "1.0",
   supportsCancellation: false,
   allowedContexts: ["voice", "chat", "task", "api"],
 });
-desktopToolRouter.setAdapter((tool, args) =>
-  callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined),
-);
+
+desktopToolRouter.registry.register({ name: newsApiTool.capability, owner: "node", category: "API_GATEWAY" });
+desktopToolRouter.registry.register({ name: financeApiTool.capability, owner: "node", category: "API_GATEWAY" });
+desktopToolRouter.registry.register({ name: searchApiTool.capability, owner: "node", category: "API_GATEWAY" });
+desktopToolRouter.registry.register({ name: weatherApiTool.capability, owner: "node", category: "API_GATEWAY" });
+
+desktopToolRouter.setAdapter(async (tool, args) => {
+  if (tool === newsApiTool.capability) {
+    const res = await newsApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === financeApiTool.capability) {
+    const res = await financeApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === searchApiTool.capability) {
+    const res = await searchApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === weatherApiTool.capability) {
+    const res = await weatherApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  return callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined);
+});
 
 // Initialize Phase 3 execution orchestrator with verification
 const executionOrchestrator = initializeToolExecution(desktopToolRouter, DESKTOP_AGENT_URL);
@@ -619,12 +665,82 @@ function buildSaraChatPrompt(memories: Memory[], history: { role: string; text: 
       ? `${promptBase}\n\nYou are Sara Mobile, an independent mobile companion with a separate memory core from desktop SARA. Speak in a warm, gentle, and helpful mobile companion tone. Keep mobile memories and context separate from the desktop system.`
       : `${promptBase}\n\nYou are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion. Speak in a gentle, supportive, affectionate tone, using cozy companion language.`;
 
-  const systemInstruction = formatSystemInstructionsWithMemories(baseInstruction, memories);
+  // Build truth-aware memory context
+  const truthContext = buildTruthContext(memories);
+  const systemInstruction = formatSystemInstructionsWithMemories(baseInstruction, memories) + truthContext;
   const dialogue = history
     .map((entry) => `${entry.role === "assistant" ? "Sara" : "User"}: ${entry.text}`)
     .join("\n");
 
   return `${systemInstruction}\n\n=== CONVERSATION HISTORY ===\n${dialogue}${dialogue.length ? "\n" : ""}=== END CONVERSATION HISTORY ===\nUser: ${userText}\nSara:`;
+}
+
+function buildTruthContext(memories: Memory[]): string {
+  // Separate memories by verification status to help Gemini understand certainty
+  const verified = memories.filter((m) => m.verificationStatus === "verified" || m.confidence! >= 0.9);
+  const uncertain = memories.filter((m) => m.verificationStatus === "unverified" || m.verificationStatus === "partially_verified" || (m.confidence! || 0.5) < 0.7);
+  const contradicted = memories.filter((m) => m.verificationStatus === "contradicted" || (m.contradictingEvidence?.length || 0) > 0);
+
+  if (contradicted.length === 0 && uncertain.length === 0) {
+    return ""; // No special truth context needed
+  }
+
+  let context = "\n\n=== TRUTH AND CONFIDENCE CONTEXT ===\n";
+  
+  if (contradicted.length > 0) {
+    context += `CONTRADICTIONS DETECTED (need clarification):\n`;
+    for (const mem of contradicted.slice(0, 3)) {
+      context += `- "${mem.text}": Have contradicting evidence. Need to ask which is current.\n`;
+    }
+    context += "\n";
+  }
+
+  if (uncertain.length > 0) {
+    context += `UNCERTAIN MEMORIES (low confidence, may need verification):\n`;
+    for (const mem of uncertain.slice(0, 3)) {
+      const source = mem.source || "unknown";
+      const conf = ((mem.confidence || 0.5) * 100).toFixed(0);
+      context += `- "${mem.text}" (${conf}% confidence, source: ${source})\n`;
+    }
+    context += "\n";
+  }
+
+  context += `When discussing uncertain or contradicted information, distinguish between fact and assumption.\n`;
+  context += `If you lack reliable information, say "I don't have enough reliable information to know that."\n`;
+  context += `=== END TRUTH CONTEXT ===\n`;
+  
+  return context;
+}
+
+function buildConversationContextPayload(
+  summary: string | undefined,
+  activeContext: Record<string, unknown> | undefined,
+  taskState: Record<string, unknown> | undefined,
+): string {
+  const cleanedSummary = String(summary || "").trim();
+  const contextObj = {
+    summary: cleanedSummary || "Continue the previous conversation context.",
+    objective: (activeContext && typeof activeContext.objective === "string") ? activeContext.objective : cleanedSummary || "Continue the previous conversation context.",
+    activeContext: activeContext || {},
+    taskState: taskState || {},
+  };
+
+  return `\n=== RESTORED CONVERSATION CONTEXT ===\n${JSON.stringify(contextObj, null, 2)}\n=== END RESTORED CONTEXT ===\n`;
+}
+
+export function buildRateLimitFallbackResponse(
+  userText: string,
+  conversationContext?: { summary?: string; activeContext?: Record<string, unknown>; taskState?: Record<string, unknown> },
+): string {
+  const summary = String(conversationContext?.summary || "").trim();
+  const objective = conversationContext?.activeContext && typeof conversationContext.activeContext.objective === "string"
+    ? conversationContext.activeContext.objective
+    : summary || "continue the current project context";
+  const taskStatus = conversationContext?.taskState && typeof conversationContext.taskState.status === "string"
+    ? conversationContext.taskState.status
+    : "in_progress";
+
+  return `I’m temporarily rate-limited by the AI provider, so I can’t finish the response right now. I’ve preserved the current context for ${objective}. Please retry in a moment, and I’ll continue the work from the current state (${taskStatus}).`;
 }
 
 async function generateSaraChatResponse(
@@ -633,6 +749,7 @@ async function generateSaraChatResponse(
   userText: string,
   source: "desktop" | "mobile",
   relevantMemories: Memory[] = [],
+  conversationContext?: { summary?: string; activeContext?: Record<string, unknown>; taskState?: Record<string, unknown>; userProfile?: { userId: string; displayName: string; relationship?: string; preferences?: Record<string, unknown>; communicationStyle?: Record<string, unknown>; importantContext?: Record<string, unknown> } },
 ): Promise<string> {
   const ai = new GoogleGenAI({
     apiKey,
@@ -643,22 +760,62 @@ async function generateSaraChatResponse(
     },
   });
 
-  const memories = relevantMemories.length > 0
-    ? relevantMemories
-    : (await searchMemories(userText, source, 8)).length > 0
-      ? await searchMemories(userText, source, 8)
-      : await loadMemories(source);
-  const prompt = buildSaraChatPrompt(memories, history.slice(-8), userText, source) + getModeInstructions();
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: prompt,
-    config: {
-      maxOutputTokens: 512,
-      temperature: 0.7,
-    },
-  });
+  try {
+    const memories = relevantMemories.length > 0
+      ? relevantMemories
+      : (await searchMemories(userText, source, 8)).length > 0
+        ? await searchMemories(userText, source, 8)
+        : await loadMemories(source);
+    const prompt = buildSaraChatPrompt(memories, history.slice(-8), userText, source);
+    const boundedContext = contextManager.build({
+      userInput: userText,
+      recentMessages: history.slice(-20).map((entry) => ({ role: entry.role, content: entry.text })),
+      relevantMemories: memories.slice(0, 12),
+      summary: conversationContext?.summary,
+      userProfile: conversationContext?.userProfile,
+      conversationSignal: conversationIntentAnalyzer.analyze(userText),
+      activeTasks: conversationContext?.taskState && Object.keys(conversationContext.taskState).length > 0
+        ? [{ status: String(conversationContext.taskState.status || "active"), description: String(conversationContext.taskState.current_task || conversationContext.taskState.current_goal || "Continuing the active task"), checkpoint: conversationContext.taskState }]
+        : [],
+      maxCharacters: 12_000,
+    });
+    const conversationContextText = conversationContext ? buildConversationContextPayload(
+      conversationContext.summary,
+      conversationContext.activeContext,
+      conversationContext.taskState,
+    ) : "";
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `${prompt}${conversationContextText}\n\n=== BOUNDED CONTEXT ===\n${boundedContext.text}\n=== END BOUNDED CONTEXT ===${getModeInstructions()}`,
+      config: {
+        maxOutputTokens: 512,
+        temperature: 0.7,
+      },
+    });
 
-  return String(response.text ?? "").trim();
+    return String(response.text ?? "").trim();
+  } catch (error: any) {
+    const message = String(error?.message || error?.status || "").toLowerCase();
+    if (message.includes("resource exhausted") || message.includes("rate limit") || message.includes("429") || message.includes("quota")) {
+      return buildRateLimitFallbackResponse(userText, conversationContext);
+    }
+    throw error;
+  }
+}
+
+async function restoreConversationContextRecord(conversation: any) {
+  const summary = String(conversation?.summary || "").trim();
+  const activeContext = conversation?.activeContext || conversation?.active_context || {};
+  const taskState = conversation?.taskState || conversation?.task_state || {};
+
+  return {
+    summary,
+    objective: String((activeContext && typeof activeContext.objective === "string") ? activeContext.objective : summary || "Continue the previous conversation context."),
+    activeContext,
+    taskState,
+    lastMessageAt: conversation?.updatedAt || conversation?.updated_at || null,
+    messageCount: Array.isArray(conversation?.messages) ? conversation.messages.length : 0,
+  };
 }
 
 async function startServer() {
@@ -874,6 +1031,131 @@ async function startServer() {
     }
   });
 
+  app.post("/api/social/settings", async (req, res) => {
+    try {
+      const settings = req.body;
+      if (!settings || typeof settings !== "object") {
+        return res.status(400).json({ error: "Request body must be a JSON object." });
+      }
+      const result = await callDesktopAgent("saraSocialSettings", { settings });
+      if (!result.ok) return res.status(502).json({ error: result.error || "Social settings unavailable." });
+      res.json(result.result);
+    } catch (e: any) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  function getConversationStoreFile(source: "desktop" | "mobile") {
+    return dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
+  }
+
+  function normalizeConversationFileItem(item: any): any {
+    if (!item || typeof item !== "object") return null;
+    const id = String(item.id ?? item.conversation_id ?? item.conversationId ?? "").trim();
+    if (!id) return null;
+    const messages = Array.isArray(item.messages) ? item.messages.map((message: any, index: number) => {
+      const text = typeof message?.text === "string" ? message.text : typeof message?.content === "string" ? message.content : "";
+      const role = message?.role === "assistant" ? "assistant" : message?.role === "user" ? "user" : "system";
+      return {
+        ...(message ?? {}),
+        id: message?.id || message?.message_id || `msg-${index}-${id}`,
+        role,
+        text,
+        timestamp: message?.timestamp || message?.createdAt || message?.created_at || new Date().toISOString(),
+      };
+    }) : [];
+    return {
+      ...item,
+      id,
+      conversation_id: item.conversation_id ?? id,
+      title: String(item.title || "Conversation"),
+      createdAt: item.createdAt || item.created_at || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.updated_at || item.lastMessageAt || new Date().toISOString(),
+      summary: String(item.summary || ""),
+      activeContext: item.activeContext || item.active_context || {},
+      taskState: item.taskState || item.task_state || {},
+      userId: String(item.userId || item.user_id || "default-user"),
+      metadata: item.metadata || {},
+      messages,
+    };
+  }
+
+  function persistConversationSnapshot(source: "desktop" | "mobile", conversation: any): any {
+    const file = getConversationStoreFile(source);
+    let items: any[] = [];
+    try {
+      if (fs.existsSync(file)) {
+        const raw = fs.readFileSync(file, "utf-8");
+        items = raw ? JSON.parse(raw) : [];
+      }
+    } catch {}
+
+    const normalized = normalizeConversationFileItem(conversation);
+    if (!normalized) return null;
+    const index = items.findIndex((item: any) => String(item.id ?? item.conversation_id ?? item.conversationId ?? "") === String(normalized.id));
+
+    if (index >= 0) {
+      items[index] = { ...items[index], ...normalized };
+    } else {
+      items.push(normalized);
+    }
+
+    fs.writeFileSync(file, JSON.stringify(items, null, 2), "utf-8");
+    return normalized;
+  }
+
+  function persistChatMessagePair(source: "desktop" | "mobile", input: {
+    conversationId: string;
+    title?: string;
+    summary?: string;
+    activeContext?: Record<string, unknown>;
+    taskState?: Record<string, unknown>;
+    userId?: string;
+    userText: string;
+    replyText: string;
+  }): any {
+    const file = getConversationStoreFile(source);
+    let items: any[] = [];
+    try {
+      if (fs.existsSync(file)) {
+        const raw = fs.readFileSync(file, "utf-8");
+        items = raw ? JSON.parse(raw) : [];
+      }
+    } catch {}
+
+    const now = new Date().toISOString();
+    const existing = items.find((item: any) => String(item.id ?? item.conversation_id ?? item.conversationId ?? "") === String(input.conversationId));
+    const existingMessages: any[] = Array.isArray(existing?.messages) ? existing.messages : [];
+    const userMessage = { id: `msg-${Date.now()}-user`, role: "user", text: input.userText, timestamp: now };
+    const assistantMessage = { id: `msg-${Date.now()}-assistant`, role: "assistant", text: input.replyText, timestamp: now };
+
+    const hasUserDuplicate = existingMessages.some((message: any) => message.role === "user" && String(message.text || message.content || "") === String(input.userText) && Math.abs(new Date(message.timestamp || now).getTime() - new Date(now).getTime()) < 5000);
+    const hasAssistantDuplicate = existingMessages.some((message: any) => message.role === "assistant" && String(message.text || message.content || "") === String(input.replyText) && Math.abs(new Date(message.timestamp || now).getTime() - new Date(now).getTime()) < 5000);
+
+    const nextMessages = [...existingMessages];
+    if (!hasUserDuplicate) nextMessages.push(userMessage);
+    if (!hasAssistantDuplicate) nextMessages.push(assistantMessage);
+
+    const nextConversation = normalizeConversationFileItem({
+      ...existing,
+      id: input.conversationId,
+      conversation_id: input.conversationId,
+      title: existing?.title || input.title || "Conversation",
+      summary: input.summary || existing?.summary || "Continuing a previous conversation.",
+      activeContext: { ...(existing?.activeContext || existing?.active_context || {}), ...(input.activeContext || {}) },
+      taskState: { ...(existing?.taskState || existing?.task_state || {}), ...(input.taskState || {}), lastUpdatedAt: now },
+      userId: input.userId || existing?.userId || existing?.user_id || "default-user",
+      updatedAt: now,
+      createdAt: existing?.createdAt || existing?.created_at || now,
+      messages: nextMessages,
+    });
+
+    const index = items.findIndex((item: any) => String(item.id ?? item.conversation_id ?? item.conversationId ?? "") === String(input.conversationId));
+    if (index >= 0) items[index] = nextConversation; else items.push(nextConversation);
+    fs.writeFileSync(file, JSON.stringify(items, null, 2), "utf-8");
+    return nextConversation;
+  }
+
   app.post("/api/chat", async (req, res) => {
     try {
       const text = String(req.body?.text ?? "").trim();
@@ -895,10 +1177,57 @@ async function startServer() {
         }))
         .filter((item: any) => item.text.length > 0);
 
+      const conversationId = String(req.body?.conversationId || "").trim();
+      const summary = req.body?.summary ? String(req.body.summary) : "";
+      const activeContext = (req.body?.activeContext && typeof req.body.activeContext === "object") ? req.body.activeContext : {};
+      const taskState = (req.body?.taskState && typeof req.body.taskState === "object") ? req.body.taskState : {};
+      const singerIntent = singerAgent.analyze(text);
+      if (["STOP_SINGING", "PAUSE_SINGING", "RESUME_SINGING"].includes(singerIntent.intent)) {
+        broadcastToClients({ type: "singer:control", action: singerIntent.intent.replace("_SINGING", ""), conversationId });
+        return res.json({ text: singerIntent.intent === "STOP_SINGING" ? "I’ve stopped singing." : singerIntent.intent === "PAUSE_SINGING" ? "I’ve paused the song." : "I’m continuing the song." });
+      }
+      if (["SING_ORIGINAL", "SING_USER_LYRICS", "SING_PUBLIC_DOMAIN", "GENERATE_SONG"].includes(singerIntent.intent)) {
+        const singerTask = singerAgent.submit({ request: text, lyrics: req.body?.lyrics ? String(req.body.lyrics) : undefined, userId: String(req.body?.userId || "default-user"), conversationId: conversationId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+        return res.status(202).json({ text: "I’m preparing an original SARA song for you.", singerTask });
+      }
+      const userProfile = userIdentityManager.get(String(req.body?.userId || "default-user"));
       const relevantMemories = await searchMemories(text, source, 10);
-      const reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source, relevantMemories);
+      const reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source, relevantMemories, {
+        summary,
+        activeContext,
+        taskState,
+        userProfile: userProfile || undefined,
+        conversationSignal: conversationIntentAnalyzer.analyze(text),
+      });
+
+      const persisted = persistChatMessagePair(source, {
+        conversationId: conversationId || `desktop-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        title: String(req.body?.title || "Conversation"),
+        summary,
+        activeContext,
+        taskState,
+        userId: userProfile?.userId || "default-user",
+        userText: text,
+        replyText: reply,
+      });
+
+      if (persisted) {
+        try {
+          const file = getConversationStoreFile(source);
+          const items = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf-8")) : [];
+          const existing = items.find((item: any) => String(item.id ?? item.conversation_id ?? item.conversationId ?? "") === String(persisted.id));
+          if (existing) {
+            existing.summary = summary || existing.summary || "Continuing a previous conversation.";
+            existing.activeContext = { ...(existing.activeContext || existing.active_context || {}), ...(activeContext || {}) };
+            existing.taskState = { ...(existing.taskState || existing.task_state || {}), ...(taskState || {}), lastUpdatedAt: new Date().toISOString() };
+            existing.updatedAt = existing.updatedAt || new Date().toISOString();
+            fs.writeFileSync(file, JSON.stringify(items, null, 2), "utf-8");
+          }
+        } catch {}
+      }
+
       await processConversationSlice(apiKey, [...normalizedHistory, { role: "user", text }, { role: "assistant", text: reply }], source);
-      res.json({ ok: true, text: reply });
+      res.json({ ok: true, text: reply, conversationId: persisted?.id || conversationId || null, userId: persisted?.userId || userProfile?.userId || "default-user" });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Failed to generate chat response." });
     }
@@ -966,6 +1295,28 @@ async function startServer() {
       res.json({ online: false });
     } finally {
       clearTimeout(timer);
+    }
+  });
+
+  app.post("/api/vision/screen-capture", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("takeScreenshot", {
+        include_image: true,
+        max_dim: 960,
+      });
+      const capture = (result as any)?.result ?? result;
+      if (!capture?.image_base64 || !capture?.image_mime) {
+        return res.status(503).json({ ok: false, error: "Desktop screen capture is unavailable." });
+      }
+      return res.json({
+        ok: true,
+        imageBase64: capture.image_base64,
+        imageMime: capture.image_mime,
+        width: capture.width,
+        height: capture.height,
+      });
+    } catch (error: any) {
+      return res.status(503).json({ ok: false, error: error?.message || "Desktop screen capture failed." });
     }
   });
 
@@ -1328,6 +1679,87 @@ async function startServer() {
     res.json({ ok: true, version: "1", tools: desktopToolRouter.registry.listMetadata() });
   });
 
+  app.get("/api/identity/profiles", (_req, res) => {
+    return res.json({ ok: true, profiles: userIdentityManager.list() });
+  });
+
+  app.get("/api/identity/profiles/:userId", (req, res) => {
+    const profile = userIdentityManager.get(String(req.params.userId));
+    return profile ? res.json({ ok: true, profile }) : res.status(404).json({ ok: false, error: "Profile not found." });
+  });
+
+  app.put("/api/identity/profiles/:userId", (req, res) => {
+    try {
+      const profile = userIdentityManager.upsert({
+        ...(req.body || {}),
+        userId: String(req.params.userId),
+        displayName: String(req.body?.displayName || ""),
+      });
+      return res.json({ ok: true, profile });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Invalid profile." });
+    }
+  });
+
+  app.get("/api/public-apis", (req, res) => {
+    const intent = typeof req.query.intent === "string" ? req.query.intent.trim() : "";
+    const capability = typeof req.query.capability === "string" ? req.query.capability.trim() : "";
+    const requestedLimit = Number(req.query.limit ?? 3);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 10) : 3;
+    const knownTools = desktopToolRouter.registry.list().map((tool) => tool.name);
+
+    if (!intent && !capability) {
+      return res.json({ ok: true, version: "1", count: publicApiCatalogManager.getAll().length, apis: publicApiCatalogManager.getAll() });
+    }
+
+    const candidates = publicApiCatalogManager.searchCandidates(intent || capability, {
+      limit,
+      knownTools,
+      authorized: req.query.authorized === "true",
+      confirmed: req.query.confirmed === "true",
+    });
+    return res.json({ ok: true, version: "1", intent: intent || capability, count: candidates.length, candidates });
+  });
+
+  app.post("/api/public-apis/import", (req, res) => {
+    const settings = loadSettingsFile();
+    const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings["adminToken"] ?? "");
+    const provided = String((req.headers["x-admin-token"] ?? req.headers["x-admin-key"] ?? "") as string);
+    if (!adminToken || provided !== adminToken) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    const entries = req.body?.entries;
+    if (!Array.isArray(entries) || entries.length === 0 || entries.length > 100) {
+      return res.status(400).json({ ok: false, error: "entries must contain between 1 and 100 catalog entries." });
+    }
+
+    try {
+      const imported = publicApiCatalogManager.importEntries(entries, { persist: true });
+      return res.json({ ok: true, version: "1", imported: imported.length, apis: imported });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Catalog import failed." });
+    }
+  });
+
+  app.post("/api/public-apis/refresh", async (req, res) => {
+    const settings = loadSettingsFile();
+    const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings["adminToken"] ?? "");
+    const provided = String((req.headers["x-admin-token"] ?? req.headers["x-admin-key"] ?? "") as string);
+    if (!adminToken || provided !== adminToken) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    try {
+      const requestedLimit = Number(req.body?.maxEntries ?? 100);
+      const maxEntries = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 500) : 100;
+      const summary = await publicApiCatalogManager.refreshFromPublicApis({ maxEntries });
+      return res.json({ ok: true, version: "1", summary });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || "Catalog refresh failed." });
+    }
+  });
+
   app.post("/api/proactive/evaluate", async (req, res) => {
     try {
       const context = req.body?.context && typeof req.body.context === "object"
@@ -1468,6 +1900,60 @@ async function startServer() {
       res.json({ ok: true, task });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/music/projects", async (req, res) => {
+    try {
+      const prompt = String(req.body?.prompt || req.body?.theme || "").trim();
+      const conversationId = String(req.body?.conversationId || "").trim() || undefined;
+      const userId = String(req.body?.userId || "default-user");
+      if (!prompt) return res.status(400).json({ ok: false, error: "prompt or theme is required." });
+      const created = await autonomousMusicCreator.create({ userId, conversationId, prompt, brief: req.body?.brief });
+      const task = await createTask({
+        conversationId: conversationId || `music-${created.project.project_id}`,
+        description: `Autonomous music workflow: ${created.project.project_id}`,
+        priority: Number(req.body?.priority ?? 5),
+        assignedAgent: "music_creator_agent",
+        metadata: { musicWorkflowTaskId: created.workflow.taskId, projectId: created.project.project_id },
+      });
+      try { const { getTaskRunner } = await import("./server_task_manager"); await getTaskRunner()?.wake(); } catch {}
+      return res.status(202).json({ ok: true, project: created.project, workflow: created.workflow, task });
+    } catch (error: any) {
+      return res.status(500).json({ ok: false, error: error?.message || "Failed to create music project." });
+    }
+  });
+
+  app.get("/api/music/projects", async (req, res) => {
+    const projects = await new MusicProjectManager().listProjects(String(req.query.userId || "default-user"));
+    return res.json({ ok: true, projects });
+  });
+
+  app.get("/api/music/projects/:projectId", async (req, res) => {
+    const manager = new MusicProjectManager();
+    const project = await manager.getProject(String(req.params.projectId || ""));
+    if (!project) return res.status(404).json({ ok: false, error: "Music project not found." });
+    return res.json({ ok: true, project, workflow: await autonomousMusicCreator.getByProject(project.project_id) });
+  });
+
+  app.get("/api/music/providers/health", async (_req, res) => res.json({ ok: true, providers: await musicProviderRegistry.health() }));
+
+  app.post("/api/music/projects/:projectId/prepare-publishing", async (req, res) => {
+    try {
+      const readiness = await musicContentPreparation.prepare(String(req.params.projectId || ""));
+      return res.json({ ok: true, readiness });
+    } catch (error: any) {
+      return res.status(404).json({ ok: false, error: error?.message || "Could not prepare publishing metadata." });
+    }
+  });
+
+  app.post("/api/music/projects/:projectId/approve-publishing", async (req, res) => {
+    try {
+      const approvedBy = String(req.body?.approvedBy || req.body?.userId || "default-user").trim();
+      const readiness = await musicContentPreparation.approve(String(req.params.projectId || ""), approvedBy);
+      return res.json({ ok: true, readiness });
+    } catch (error: any) {
+      return res.status(404).json({ ok: false, error: error?.message || "Could not approve publishing." });
     }
   });
 
@@ -1772,9 +2258,13 @@ async function startServer() {
         await updateTask(task.taskId, { status: 'completed', completedAt: new Date().toISOString(), result: JSON.stringify(result) });
         return res.json({ ok: true, taskId: task.taskId, result });
       } catch (e: any) {
-        // Leave task queued for TaskRunner retries
-        await updateTask(task.taskId, { status: 'queued', updatedAt: new Date().toISOString() });
-        return res.json({ ok: true, taskId: task.taskId, error: String(e) });
+        await updateTask(task.taskId, {
+          status: 'failed',
+          updatedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          error: String(e),
+        });
+        return res.status(502).json({ ok: false, taskId: task.taskId, error: String(e), retryable: true });
       }
     } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
   });
@@ -1924,6 +2414,7 @@ async function startServer() {
         toolName,
         req.body?.confirmDangerousRetry === true,
       );
+
       if (!retryPolicy.allowed) {
         return res.status(409).json({
           ok: false,
@@ -2180,7 +2671,57 @@ async function startServer() {
       if (!fs.existsSync(file)) return res.json([]);
       const raw = fs.readFileSync(file, "utf-8");
       const items = raw ? JSON.parse(raw) : [];
-      res.json(items);
+      res.json(items.sort((a: any, b: any) => (a.updatedAt || a.updated_at || 0) < (b.updatedAt || b.updated_at || 0) ? 1 : -1));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/conversations/search", async (req, res) => {
+    try {
+      const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      const query = String(req.query.q ?? "").trim().toLowerCase();
+      const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
+      let items: any[] = [];
+      if (fs.existsSync(file)) {
+        const raw = fs.readFileSync(file, "utf-8");
+        items = raw ? JSON.parse(raw) : [];
+      }
+      if (!query) return res.json(items.sort((a: any, b: any) => (a.updatedAt || a.updated_at || 0) < (b.updatedAt || b.updated_at || 0) ? 1 : -1));
+
+      const filtered = items.filter((item) => {
+        const preview = (item.messages || []).map((message: any) => String(message.text || message.content || "")).join(" ");
+        const haystack = `${item.title || ""} ${preview} ${(item.summary || "")}`.toLowerCase();
+        return haystack.includes(query);
+      });
+
+      res.json(filtered.sort((a: any, b: any) => (a.updatedAt || a.updated_at || 0) < (b.updatedAt || b.updated_at || 0) ? 1 : -1));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/conversations/:id/restore", async (req, res) => {
+    try {
+      const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      const id = String(req.params.id || "");
+      const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
+      if (!fs.existsSync(file)) return res.json({ conversation: null, context: null });
+      const items = JSON.parse(fs.readFileSync(file, "utf-8"));
+      const match = items.find((item: any) => String(item.id || item.conversation_id) === String(id));
+      if (!match) return res.json({ conversation: null, context: null });
+      const restored = await restoreConversationContextRecord(match);
+      const reconstructed = {
+        ...match,
+        id: match.id || match.conversation_id,
+        title: match.title || "Restored conversation",
+        updatedAt: match.updatedAt || match.updated_at || new Date().toISOString(),
+        summary: match.summary || restored.summary || "Conversation restored.",
+        activeContext: match.activeContext || match.active_context || restored.activeContext || {},
+        taskState: match.taskState || match.task_state || restored.taskState || {},
+        metadata: match.metadata || {},
+      };
+      res.json({ conversation: reconstructed, context: restored });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -2641,6 +3182,73 @@ async function startServer() {
     } catch (e) { /* ignore */ }
   }
 
+  const singerAgent = new SingerAgent(undefined, undefined, undefined, async (request, language, sections) => {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) throw new Error("LYRICS_GENERATOR_UNAVAILABLE: Gemini API key is not configured.");
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `Write original song lyrics for SARA in language ${language}. Request: ${request}. Use only these sections: ${sections.join(", ")}. Keep it concise. Do not imitate or reference any real singer or copyrighted song. Return lyrics only with section labels.`,
+      config: { maxOutputTokens: 700, temperature: 0.8 },
+    });
+    const text = String(response.text || "").trim();
+    if (!text) throw new Error("LYRICS_GENERATION_EMPTY: Gemini returned no lyrics.");
+    return text;
+  });
+  singerAgent.on((event) => {
+    broadcastToClients(event);
+    const task = event.task;
+    appendLog("commands.log", `[SINGER] task_id=${task.taskId} stage=${task.status} progress=${task.progress}`);
+  });
+
+  app.post("/api/singer/intent", (req, res) => {
+    const request = String(req.body?.text || req.body?.request || "").trim();
+    if (!request) return res.status(400).json({ ok: false, error: "Singer request is required." });
+    return res.json({ ok: true, intent: singerAgent.analyze(request) });
+  });
+
+  app.post("/api/singer/tasks", (req, res) => {
+    const request = String(req.body?.text || req.body?.request || "").trim();
+    const conversationId = String(req.body?.conversationId || "").trim();
+    if (!request || !conversationId) return res.status(400).json({ ok: false, error: "request and conversationId are required." });
+    const intent = singerAgent.analyze(request);
+    if (intent.intent === "NONE") return res.status(422).json({ ok: false, error: "Request is not a Singer Mode request.", intent });
+    if (!["SING_ORIGINAL", "SING_USER_LYRICS", "SING_PUBLIC_DOMAIN", "GENERATE_SONG"].includes(intent.intent)) return res.status(422).json({ ok: false, error: "This is a Singer Mode control request, not a generation task.", intent });
+    const task = singerAgent.submit({ request, lyrics: req.body?.lyrics ? String(req.body.lyrics) : undefined, userId: String(req.body?.userId || "default-user"), conversationId, correlationId: req.body?.correlationId ? String(req.body.correlationId) : undefined });
+    return res.status(202).json({ ok: true, task });
+  });
+
+  app.get("/api/singer/tasks/:taskId", (req, res) => {
+    const task = singerAgent.getTask(String(req.params.taskId || ""));
+    return task ? res.json({ ok: true, task }) : res.status(404).json({ ok: false, error: "Singer task not found." });
+  });
+
+  app.get("/api/singer/tasks/:taskId/audio", (req, res) => {
+    const task = singerAgent.getTask(String(req.params.taskId || ""));
+    const audioPath = task?.session.audioPath;
+    const cacheRoot = path.resolve(process.cwd(), "data", "singer-cache");
+    if (!task || task.status !== "READY" || !audioPath || !path.resolve(audioPath).startsWith(cacheRoot)) return res.status(404).json({ ok: false, error: "Verified singer audio is not ready." });
+    return res.sendFile(path.resolve(audioPath));
+  });
+
+  app.get("/api/singer/current", (req, res) => {
+    const conversationId = String(req.query.conversationId || "").trim();
+    if (!conversationId) return res.status(400).json({ ok: false, error: "conversationId is required." });
+    return res.json({ ok: true, task: singerAgent.getCurrent(conversationId) || null });
+  });
+
+  app.post("/api/singer/tasks/:taskId/cancel", (req, res) => {
+    const task = singerAgent.cancel(String(req.params.taskId || ""));
+    return task ? res.json({ ok: true, task }) : res.status(404).json({ ok: false, error: "Singer task not found." });
+  });
+
+  app.post("/api/singer/control", (req, res) => {
+    const action = String(req.body?.action || "").toUpperCase();
+    if (!["STOP", "PAUSE", "RESUME", "VOLUME_UP", "VOLUME_DOWN", "NEXT", "CANCEL"].includes(action)) return res.status(400).json({ ok: false, error: "Unsupported singer control." });
+    broadcastToClients({ type: "singer:control", action, taskId: req.body?.taskId ? String(req.body.taskId) : undefined });
+    return res.json({ ok: true, action });
+  });
+
   // Webhooks: simple registry stored in data/webhooks.json
   const WEBHOOKS_FILE = dataFile('webhooks.json');
 
@@ -2784,7 +3392,12 @@ async function startServer() {
       // Load persistent recollections card
       const memories = await loadMemories();
       const recent = await getRecentConversationMessages(conversation.id, 20);
-      const recentPrompt = formatConversationPrompt(recent);
+      const recentPrompt = contextManager.build({
+        userInput: recent.filter((message) => message.role === "user").slice(-1)[0]?.content || "",
+        recentMessages: recent,
+        userProfile: userIdentityManager.get(String(conversation.userId || "default-user")) || undefined,
+        maxCharacters: 12_000,
+      }).text;
       const baseInstructions = 
         "You are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion (age 18-22) holding an intimate, cozy voice call with TECH! Speak in a sweet, calm, polite, and affectionate anime-companion voice with a gentle, supportive, and slightly shy touch.\n" +
         "CRITICAL PERSONALITY, VOICE & TONE GUIDELINES:\n" +
@@ -2869,6 +3482,84 @@ async function startServer() {
           tools: [
             {
               functionDeclarations: [
+                {
+                  name: "hardwareMouseMove",
+                  description: "Move the real Windows cursor to an absolute virtual-desktop coordinate. Use only with an explicit user-authorized desktop interaction.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    x: { type: Type.INTEGER }, y: { type: Type.INTEGER },
+                    duration: { type: Type.NUMBER, description: "Smooth movement duration in seconds." },
+                  }, required: ["x", "y"] },
+                },
+                {
+                  name: "hardwareMouseButtonDown",
+                  description: "Hold a real Windows mouse button until a matching release or emergency cleanup.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    button: { type: Type.STRING, enum: ["left", "right", "middle"] },
+                  } },
+                },
+                {
+                  name: "hardwareMouseButtonUp",
+                  description: "Release a real Windows mouse button that SARA previously held.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    button: { type: Type.STRING, enum: ["left", "right", "middle"] },
+                  } },
+                },
+                {
+                  name: "hardwareMouseClick",
+                  description: "Send a real click to the Windows foreground desktop at the supplied coordinate or current cursor position. The result distinguishes delivery from verification.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    x: { type: Type.INTEGER }, y: { type: Type.INTEGER },
+                    button: { type: Type.STRING, enum: ["left", "right", "middle"] },
+                    clicks: { type: Type.INTEGER },
+                  } },
+                },
+                {
+                  name: "hardwareMouseDrag",
+                  description: "Drag the real Windows cursor from its current position to an absolute coordinate and release the button safely.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    x: { type: Type.INTEGER }, y: { type: Type.INTEGER },
+                    button: { type: Type.STRING, enum: ["left", "right", "middle"] },
+                    duration: { type: Type.NUMBER },
+                  }, required: ["x", "y"] },
+                },
+                {
+                  name: "hardwareKeyboardType",
+                  description: "Type real text into the focused Windows control using foreground keyboard input, including Unicode text.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    text: { type: Type.STRING }, interval: { type: Type.NUMBER },
+                  }, required: ["text"] },
+                },
+                {
+                  name: "hardwareKeyboardPress",
+                  description: "Press a real Windows key or modifier hotkey, such as Enter, Escape, or Ctrl+Shift+S.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    key: { type: Type.STRING }, keys: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  } },
+                },
+                {
+                  name: "hardwareEmergencyRelease",
+                  description: "Release all keyboard keys and mouse buttons held by SARA after cancellation or an input error.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "listWindows",
+                  description: "Enumerate visible Windows application windows with title, process identity, bounds, and minimized/maximized state.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    include_untitled: { type: Type.BOOLEAN },
+                  } },
+                },
+                {
+                  name: "getActiveWindow",
+                  description: "Inspect the real foreground Windows application window and its process identity.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "focusWindow",
+                  description: "Restore and focus a matching Windows application window, returning whether foreground activation was verified.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    title: { type: Type.STRING }, application: { type: Type.STRING },
+                  } },
+                },
                 {
                   name: "camera_vision",
                   description: "Explicitly start, stop, inspect status, or analyze the user's camera view. Never use without a direct camera request.",
@@ -3452,6 +4143,42 @@ async function startServer() {
                     properties: { enabled: { type: Type.BOOLEAN } },
                     required: ["enabled"]
                   }
+                },
+                {
+                  name: "saraSocialPlanResponse",
+                  description: "Create a local social response plan using uncertain emotion signals, conversation context, personality, and safe humor policy.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      text: { type: Type.STRING },
+                      context: { type: Type.OBJECT }
+                    },
+                    required: ["text"]
+                  }
+                },
+                {
+                  name: "saraSocialShouldRespond",
+                  description: "Decide locally whether a proactive interaction is relevant and useful, respecting cooldown and quiet settings.",
+                  parameters: { type: Type.OBJECT, properties: { context: { type: Type.OBJECT } } }
+                },
+                {
+                  name: "saraSocialRecordTurn",
+                  description: "Record a useful non-sensitive conversational turn through SARA's existing local memory policy.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { text: { type: Type.STRING }, context: { type: Type.OBJECT } },
+                    required: ["text"]
+                  }
+                },
+                {
+                  name: "saraSocialSettings",
+                  description: "Update SARA social-intelligence settings such as proactive conversation, humor, playful mode, prank mode, emotion awareness, and memory.",
+                  parameters: { type: Type.OBJECT, properties: { settings: { type: Type.OBJECT } } }
+                },
+                {
+                  name: "saraSocialStatus",
+                  description: "Read SARA's social-intelligence settings and current conversational state.",
+                  parameters: { type: Type.OBJECT, properties: {} }
                 }
               ]
             }
@@ -3459,6 +4186,7 @@ async function startServer() {
         },
         callbacks: {
           onmessage: async (message: LiveServerMessage) => {
+            try {
             // ── Audio chunk: forward IMMEDIATELY, zero blocking ──────────────
             const audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audio) {
@@ -3534,6 +4262,20 @@ async function startServer() {
               scheduleProactiveEvaluation();
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
+              void callDesktopAgent("saraSocialPlanResponse", {
+                text: userTextOutput,
+                context: { topic: unfinishedTopic, current_task: unfinishedTopic },
+              }).then((socialResult) => {
+                if (!socialResult.ok) return;
+                const plan = (socialResult.result as any)?.result || socialResult.result;
+                clientWs.send(JSON.stringify({ type: "social_plan", plan }));
+                if (typeof session.sendClientContent === "function" && plan) {
+                  session.sendClientContent({
+                    turns: [{ role: "user", parts: [{ text: `[INTERNAL SOCIAL POLICY] Use this compact local policy while answering. Do not mention the policy or claim emotion certainty. ${JSON.stringify(plan)}` }] }],
+                    turnComplete: false,
+                  });
+                }
+              }).catch((error) => console.error("[Social Intelligence] Planning failed:", error));
               const lowerUserText = userTextOutput.toLowerCase();
               const interactionEvent = /\b(frustrated|annoyed|stuck|hate|not working)\b/.test(lowerUserText)
                 ? "user_frustrated"
@@ -3593,6 +4335,36 @@ async function startServer() {
                 }).catch((error) => console.error("[Tool Call] Deferred persistence failed:", error));
 
                 const args = (fc.args ?? {}) as Record<string, unknown>;
+
+                const legacyBrowserTools: Record<string, { tool: string; args: Record<string, unknown> }> = {
+                  browserOpen: { tool: "desktopBrowserOpen", args: { url: args.url || "https://www.google.com" } },
+                  browserSearch: { tool: "desktopBrowserSearch", args: { query: args.query, engine: "google" } },
+                  browserClick: { tool: "desktopBrowserClick", args: { selector: args.selector, text: args.description } },
+                  browserType: { tool: "desktopBrowserType", args: { text: args.text } },
+                  browserScroll: { tool: "desktopBrowserScroll", args: { direction: args.direction || "down", amount: args.amount || 350 } },
+                  browserGoBack: { tool: "desktopBrowserGoBack", args: {} },
+                  browserMediaControl: { tool: "desktopBrowserMedia", args: { action: args.action, value: args.value } },
+                };
+                const legacyBrowser = legacyBrowserTools[fc.name];
+                if (legacyBrowser) {
+                  const requestId = fc.id || newToolCallId();
+                  const operationId = `${requestId}-${legacyBrowser.tool}`;
+                  const queued = automationOrchestrator.submit({
+                    tool: legacyBrowser.tool,
+                    args: { ...legacyBrowser.args, request_id: requestId, operation_id: operationId },
+                    priority: "NORMAL",
+                    sessionId,
+                    conversationId: conversation.id,
+                  });
+                  session.sendToolResponse({
+                    functionResponses: [{
+                      name: fc.name,
+                      response: { output: { ok: true, status: "QUEUED", task_id: queued.task_id, operation_id: operationId, result: `${legacyBrowser.tool} queued in the persistent Playwright browser.` } },
+                      id: fc.id,
+                    }],
+                  });
+                  continue;
+                }
 
                 if (fc.name === "camera_vision") {
                   const action = String(args.action || "status");
@@ -3769,6 +4541,17 @@ async function startServer() {
                   console.error("[Tool Response] Error awaiting tool responses:", err);
                 }
               }
+
+            }
+            } catch (error: any) {
+              console.error("[Gemini Live] Isolated message-handler failure:", error);
+              try {
+                clientWs.send(JSON.stringify({
+                  type: "automation_error",
+                  error: String(error?.message || error),
+                  session_alive: true,
+                }));
+              } catch {}
             }
           },
           onclose: async () => {
@@ -3808,7 +4591,7 @@ async function startServer() {
           }
           proactiveInFlight = true;
           try {
-            const evaluationResult = await callDesktopAgent("saraProactiveEvaluate", {
+            const evaluationResult = await callDesktopAgent("saraSocialShouldRespond", {
               context: {
                 activity_level: "idle",
                 idle_seconds: Math.round((Date.now() - lastUserActivityAt) / 1000),

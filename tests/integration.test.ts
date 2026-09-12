@@ -6,8 +6,8 @@ import os from "node:os";
 
 import { isPortHealthy, startService, stopAll, evaluateLockPid, applyHealthState } from "../startup/processGuard.ts";
 import { overallServiceState } from "../startup/startupState.ts";
-import { createTask, updateTask, type TaskRecord } from "../server_state.ts";
-import { buildStructuredExecutionResult } from "../server_task_manager.ts";
+import { createTask, updateTask, upsertSession, getSessionRecoveryContext, type TaskRecord } from "../server_state.ts";
+import { buildStructuredExecutionResult, inferTaskToolCall } from "../server_task_manager.ts";
 import { createUserResponseFromResult } from "../src/types/AuthoritativeTaskResult.ts";
 
 test("Backend - startup, health, identity, and adoption", async () => {
@@ -177,4 +177,41 @@ test("Task execution must require verification before reporting success", () => 
   assert.equal(result.state, "FAILED");
   assert.equal(result.verified, false);
   assert.equal(createUserResponseFromResult(result), "I couldn't complete the task. The file was not found after the tool call.");
+});
+
+test("Session recovery restores the last active task context for a conversation", async () => {
+  const conversationId = `session-recovery-context-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const firstTask = await createTask({ conversationId, description: "Open docs" });
+  const activeTask = await createTask({ conversationId, description: "Search for a fix" });
+  await updateTask(activeTask.taskId, { status: "running", startedAt: new Date().toISOString() });
+
+  await upsertSession({
+    sessionId: `session-recovery-${Date.now()}`,
+    conversationId,
+    device: "browser",
+    connectionStatus: "offline",
+    createdAt: new Date().toISOString(),
+    lastSeen: new Date().toISOString(),
+    lastTaskId: firstTask.taskId,
+    reconnectAttempts: 1,
+  });
+
+  const recovery = await getSessionRecoveryContext(conversationId);
+  assert.ok(recovery, "Recovery context should be returned");
+  assert.equal(recovery?.lastTaskId, activeTask.taskId, "Recovery should restore the most recent unfinished task");
+  assert.equal(recovery?.task?.taskId, activeTask.taskId, "Recovery should include the active task object");
+});
+
+test("Website tasks are routed to supported browser actions instead of the unsupported universal-command path", () => {
+  const youtube = inferTaskToolCall({ description: "Open YouTube and play Believer by Imagine Dragons" } as any);
+  assert.equal(youtube.tool, "searchYouTube");
+  assert.match(String(youtube.args.query || ""), /Believer|Imagine Dragons/i);
+
+  const google = inferTaskToolCall({ description: "Search Google for patch notes" } as any);
+  assert.equal(google.tool, "searchGoogle");
+  assert.equal(String(google.args.query || ""), "patch notes");
+
+  const generic = inferTaskToolCall({ description: "Open docs website" } as any);
+  assert.equal(generic.tool, "openWebsite");
+  assert.equal(String(generic.args.name || generic.args.url || ""), "docs");
 });

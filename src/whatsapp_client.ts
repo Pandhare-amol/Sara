@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { dataFile } from '../server_paths';
 import fs from 'fs';
 import crypto from 'crypto';

@@ -42,6 +42,10 @@ class ProactiveInteractionEngine:
             "last_proactive_at": 0.0,
             "last_topic": "",
             "ignored_count": 0,
+            "current_mode": "NORMAL",  # PERSONAL, PROFESSIONAL, FRIENDLY, COMPANION
+            "business_priorities": [],  # Business goals being tracked
+            "unmet_business_goals": [],  # Goals currently at risk
+            "unanswered_questions": 0,  # Count of questions awaiting answers
             "emotional_state": {
                 "state": "CALM",
                 "intensity": 0.35,
@@ -76,6 +80,29 @@ class ProactiveInteractionEngine:
                 self._transition("QUIET", 0.8, "user_requested_silence")
             elif self._state["emotional_state"].get("state") == "QUIET":
                 self._transition("CALM", 0.4, "quiet_mode_disabled")
+            self._save()
+            return self.snapshot()
+
+    def set_current_mode(self, mode: str) -> Dict[str, Any]:
+        """Update the current SARA operating mode."""
+        with self._lock:
+            valid_modes = {"NORMAL", "PROFESSIONAL", "FRIENDLY", "COMPANION", "PERSONAL"}
+            if mode in valid_modes:
+                self._state["current_mode"] = mode
+            self._save()
+            return self.snapshot()
+
+    def set_business_priorities(self, goals: list[str]) -> Dict[str, Any]:
+        """Update business/professional goals being tracked."""
+        with self._lock:
+            self._state["business_priorities"] = list(goals)[:10]  # Limit to top 10
+            self._save()
+            return self.snapshot()
+
+    def set_unanswered_questions_count(self, count: int) -> Dict[str, Any]:
+        """Update count of unanswered strategic questions."""
+        with self._lock:
+            self._state["unanswered_questions"] = max(0, int(count))
             self._save()
             return self.snapshot()
 
@@ -153,18 +180,34 @@ class ProactiveInteractionEngine:
             ignored = int(self._state.get("ignored_count", 0))
             cooldown_left = max(0.0, _MIN_COOLDOWN_SECONDS - (now - float(self._state.get("last_proactive_at", 0))))
 
+            # Business context: in PROFESSIONAL mode, questions and decisions take priority
+            current_mode = str(context.get("mode") or self._state.get("current_mode", "NORMAL")).upper()
+            has_unanswered_questions = bool(context.get("unanswered_questions") or self._state.get("unanswered_questions", 0))
+            has_business_goals = bool(context.get("business_goals") or self._state.get("business_priorities", []))
+            
             score = 0.0
             score += 0.38 if idle_seconds >= 600 else 0.18 if idle_seconds >= 180 else 0.0
             score += 0.28 if relevant_memory else 0.0
             score += 0.22 if unfinished else 0.0
             score += 0.35 if important else 0.0
+            
+            # PROFESSIONAL mode: boost score if there are unanswered questions or business goals
+            if current_mode == "PROFESSIONAL":
+                score += 0.25 if has_unanswered_questions else 0.0
+                score += 0.15 if has_business_goals else 0.0
+            
             score -= 0.45 if focused else 0.0
             score -= min(0.25, ignored * 0.05)
             score = max(0.0, min(1.0, score))
 
-            allowed = not quiet and (cooldown_left <= 0 or important) and (not focused or important)
+            allowed = not quiet and (cooldown_left <= 0 or important) and (not focused or important or has_unanswered_questions)
             action = "SAY" if allowed and score >= 0.72 else "ASK" if allowed and score >= 0.5 else "WAIT"
-            reason = "important_event" if important else "relevant_context" if relevant_memory or unfinished else "user_idle" if idle_seconds >= 180 else "low_signal"
+            
+            # In PROFESSIONAL mode with questions, escalate to ASK
+            if current_mode == "PROFESSIONAL" and has_unanswered_questions and score >= 0.4:
+                action = "ASK"
+            
+            reason = "important_event" if important else "relevant_context" if relevant_memory or unfinished else "unanswered_questions" if has_unanswered_questions else "business_goal" if has_business_goals else "user_idle" if idle_seconds >= 180 else "low_signal"
             return {
                 "action": action,
                 "conversation_score": round(score, 3),
@@ -172,8 +215,9 @@ class ProactiveInteractionEngine:
                 "cooldown_seconds": round(cooldown_left, 1),
                 "quiet_mode": quiet,
                 "focused_work": focused,
+                "current_mode": current_mode,
                 "emotional_state": dict(self._state["emotional_state"]),
-                "context_grounded": bool(relevant_memory or unfinished or important),
+                "context_grounded": bool(relevant_memory or unfinished or important or has_unanswered_questions),
                 "topic": self.select_topic(context),
             }
 
@@ -194,6 +238,9 @@ class ProactiveInteractionEngine:
             "quiet_mode": bool(self._state.get("quiet_mode", False)),
             "last_topic": self._state.get("last_topic", ""),
             "ignored_count": int(self._state.get("ignored_count", 0)),
+            "current_mode": self._state.get("current_mode", "NORMAL"),
+            "business_priorities": self._state.get("business_priorities", []),
+            "unanswered_questions": self._state.get("unanswered_questions", 0),
             "emotional_state": dict(self._state.get("emotional_state", {})),
         }
 
@@ -221,3 +268,26 @@ def sara_emotional_state(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("saraQuietMode")
 def sara_quiet_mode(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": ENGINE.set_quiet(bool(args.get("enabled", True)))}
+
+
+@register("saraSetMode")
+def sara_set_mode(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Set SARA's operating mode (PERSONAL, PROFESSIONAL, etc)."""
+    mode = str(args.get("mode", "NORMAL")).upper()
+    return {"result": ENGINE.set_current_mode(mode)}
+
+
+@register("saraSetBusinessPriorities")
+def sara_set_business_priorities(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Update business goals SARA is tracking."""
+    goals = args.get("goals") or []
+    if isinstance(goals, str):
+        goals = [goals]
+    return {"result": ENGINE.set_business_priorities([str(g) for g in goals])}
+
+
+@register("saraSetUnansweredQuestions")
+def sara_set_unanswered_questions(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Update count of unanswered strategic questions."""
+    count = int(args.get("count", 0))
+    return {"result": ENGINE.set_unanswered_questions_count(count)}

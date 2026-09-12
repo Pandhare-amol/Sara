@@ -1,0 +1,21 @@
+{
+  "enabled": false,
+  "provider": "custom",
+  "contextWindow": 8000,
+  "maxContextItems": 50,
+  "cacheTtlMs": 60000,
+  "retryCount": 2,
+  "retryBaseDelayMs": 250,
+  "requestTimeoutMs": 20000,
+  "storage": "indexeddb",
+  "storageName": "sara-agi-context",
+  "features": {
+    "suggestions": true,
+    "autocomplete": true,
+    "pattern_detection": true,
+    "prediction": false,
+    "sentiment": true,
+    "intent": true,
+    "entities": true
+  }
+}

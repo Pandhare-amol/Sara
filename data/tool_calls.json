@@ -1,329 +1,1498 @@
 [
   {
-    "id": "fc_17091890821290173241",
-    "sessionId": "sess-1787187951263-ybvycxsg",
-    "conversationId": "conv-1787021577058-afipj425",
-    "toolName": "takeScreenshot",
-    "args": {
-      "include_image": true
-    },
-    "timestamp": "2026-08-20T01:25:07.909Z"
-  },
-  {
-    "id": "fc_17160695612405765501",
-    "sessionId": "sess-1787187951263-ybvycxsg",
-    "conversationId": "conv-1787021577058-afipj425",
-    "toolName": "saveScreenshot",
-    "args": {},
-    "timestamp": "2026-08-20T01:28:25.788Z"
-  },
-  {
-    "id": "fc_5994099978638299740",
-    "sessionId": "sess-1787187951263-ybvycxsg",
-    "conversationId": "conv-1787021577058-afipj425",
-    "toolName": "openFolder",
-    "args": {
-      "name": "pictures"
-    },
-    "timestamp": "2026-08-20T01:28:40.188Z"
-  },
-  {
-    "id": "fc_17353439105380712451",
-    "sessionId": "sess-1787187951263-ybvycxsg",
-    "conversationId": "conv-1787021577058-afipj425",
-    "toolName": "requestPowerAction",
-    "args": {
-      "action": "shutdown"
-    },
-    "timestamp": "2026-08-20T01:29:40.106Z"
-  },
-  {
-    "id": "fc_16388790305235670709",
-    "sessionId": "sess-1787187951263-ybvycxsg",
-    "conversationId": "conv-1787021577058-afipj425",
-    "toolName": "openApplication",
-    "args": {
-      "name": "taskmgr"
-    },
-    "timestamp": "2026-08-20T01:30:01.522Z"
-  },
-  {
-    "id": "fc_17816086529281108472",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "saraSetMode",
-    "args": {
-      "mode": "PROFESSIONAL"
-    },
-    "timestamp": "2026-08-20T13:40:22.538Z"
-  },
-  {
-    "id": "fc_5114706610483449696",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserOpen",
-    "args": {
-      "url": "https://youtube.com"
-    },
-    "timestamp": "2026-08-20T13:40:56.498Z"
-  },
-  {
-    "id": "fc_5114706610483446019",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserSearch",
-    "args": {
-      "query": "Python lecture"
-    },
-    "timestamp": "2026-08-20T13:40:56.540Z"
-  },
-  {
-    "id": "fc_1872221972188357249",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserOpen",
-    "args": {
-      "url": "https://youtube.com"
-    },
-    "timestamp": "2026-08-20T13:42:22.732Z"
-  },
-  {
-    "id": "fc_1872221972188359928",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserSearch",
-    "args": {
-      "query": "python lecture"
-    },
-    "timestamp": "2026-08-20T13:42:22.772Z"
-  },
-  {
-    "id": "fc_7529597957178351938",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserMediaControl",
-    "args": {
-      "action": "pause"
-    },
-    "timestamp": "2026-08-20T13:43:35.077Z"
-  },
-  {
-    "id": "fc_3223870491288961865",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "selector": "video-7DpyzrnZ5Yg",
-      "description": "Apna College full stack web development video"
-    },
-    "timestamp": "2026-08-20T13:44:09.445Z"
-  },
-  {
-    "id": "fc_6711153098525424684",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "Apna College Python Video",
-      "selector": "video-vLqOyXgC-vM"
-    },
-    "timestamp": "2026-08-20T13:44:14.939Z"
-  },
-  {
-    "id": "fc_7750275589616474676",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "Apna College Python Video",
-      "selector": "video-YkOSUVzOAn4"
-    },
-    "timestamp": "2026-08-20T13:44:21.968Z"
-  },
-  {
-    "id": "fc_6895979756770529742",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserSearch",
-    "args": {
-      "query": "Apna College Python tutorial for beginners"
-    },
-    "timestamp": "2026-08-20T13:44:33.097Z"
-  },
-  {
-    "id": "fc_4100725938163763870",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "selector": "#contents > ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-child(1) #thumbnail",
-      "description": "First search result"
-    },
-    "timestamp": "2026-08-20T13:45:47.867Z"
-  },
-  {
-    "id": "fc_15406654667489708212",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "First Video Result",
-      "selector": "#video-title > ytm-badge-separator + span"
-    },
-    "timestamp": "2026-08-20T13:45:57.287Z"
-  },
-  {
-    "id": "fc_5313395440948129037",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "selector": "#video-title-link",
-      "description": "First Python tutorial video"
-    },
-    "timestamp": "2026-08-20T13:45:59.596Z"
-  },
-  {
-    "id": "fc_15033646242102085723",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "Play video",
-      "selector": ".ytp-play-button"
-    },
-    "timestamp": "2026-08-20T13:47:21.858Z"
-  },
-  {
-    "id": "fc_17117231454388155291",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserMediaControl",
-    "args": {
-      "action": "play"
-    },
-    "timestamp": "2026-08-20T13:47:56.556Z"
-  },
-  {
-    "id": "fc_5197128890944431208",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "saraSetMode",
-    "args": {
-      "mode": "NORMAL"
-    },
-    "timestamp": "2026-08-20T13:47:59.324Z"
-  },
-  {
-    "id": "fc_10198819758616035421",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "saraSetMode",
-    "args": {
-      "mode": "FRIENDLY"
-    },
-    "timestamp": "2026-08-20T13:48:25.796Z"
-  },
-  {
-    "id": "fc_855006526948976045",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "saraSetMode",
-    "args": {
-      "mode": "FRIENDLY"
-    },
-    "timestamp": "2026-08-20T13:48:35.097Z"
-  },
-  {
-    "id": "fc_7424970814212569073",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "temperatureInfo",
-    "args": {},
-    "timestamp": "2026-08-20T16:06:32.555Z"
-  },
-  {
-    "id": "fc_1432208518108000576",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
+    "id": "tool-1787839925566-zx89gj3m",
+    "sessionId": "sess-1787839925567-0r54zmij",
+    "conversationId": "session-recovery-context-1787839893749-oao6hh",
     "toolName": "openWebsite",
     "args": {
-      "name": "youtube"
+      "name": "docs"
     },
-    "timestamp": "2026-08-20T16:07:01.354Z"
+    "result": {
+      "taskId": "task-1787839893760-a9ihbhc1",
+      "goal": "Open docs",
+      "summary": "Failed to complete: Open docs — Tool execution timeout after 30000ms",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "openWebsite",
+          "arguments": {
+            "name": "docs"
+          },
+          "startedAt": "2026-08-27T14:11:35.521Z",
+          "completedAt": "2026-08-27T14:12:05.566Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Tool execution timeout after 30000ms"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "browser_outcome_verification",
+        "checks": [
+          {
+            "name": "browser_tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "tool": "openWebsite",
+              "outcome": false
+            }
+          }
+        ],
+        "details": "Tool execution timeout after 30000ms"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Tool execution timeout after 30000ms",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T14:11:35.521Z",
+      "completedAt": "2026-08-27T14:12:05.566Z",
+      "durationMs": 30045,
+      "userMessage": "I couldn't complete the task. Tool execution timeout after 30000ms"
+    },
+    "error": "Tool execution timeout after 30000ms",
+    "taskId": "task-1787839893760-a9ihbhc1",
+    "timestamp": "2026-08-27T14:12:05.567Z"
   },
   {
-    "id": "fc_8695677749746268014",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserSearch",
+    "id": "tool-1787844365425-wuyhidh1",
+    "sessionId": "sess-1787844365426-2a75rew6",
+    "conversationId": "task-recovery-conversation",
+    "toolName": "saraAgentExecute",
     "args": {
-      "query": "cute cat videos"
+      "goal": "Prepare SARA context restoration",
+      "priority": 7,
+      "plan": null
     },
-    "timestamp": "2026-08-20T16:07:17.318Z"
+    "result": {
+      "taskId": "task-1787844342981-ozemoqr5",
+      "goal": "Prepare SARA context restoration",
+      "summary": "Failed to complete: Prepare SARA context restoration — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Prepare SARA context restoration",
+            "priority": 7,
+            "plan": null
+          },
+          "startedAt": "2026-08-27T15:26:03.673Z",
+          "completedAt": "2026-08-27T15:26:05.422Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787844363709",
+                "correlationId": "146af1ad-1211-441d-a758-f63f0c41d95b",
+                "executionStatus": "failed",
+                "executionDurationMs": 1628,
+                "executionStartedAt": "2026-08-27T15:26:03.709Z",
+                "executionCompletedAt": "2026-08-27T15:26:05.407Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787844365407",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787844365407,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:26:05.407Z",
+                "verificationCompletedAt": "2026-08-27T15:26:05.412Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 1700,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787844365413,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:26:03.673Z",
+      "completedAt": "2026-08-27T15:26:05.422Z",
+      "durationMs": 1749,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787844342981-ozemoqr5",
+    "timestamp": "2026-08-27T15:26:05.426Z"
   },
   {
-    "id": "fc_1734664396315420587",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserScroll",
+    "id": "tool-1787844473832-dj0m46j3",
+    "sessionId": "sess-1787844473832-qvh9p8aw",
+    "conversationId": "other-conversation",
+    "toolName": "saraAgentExecute",
     "args": {
-      "direction": "down"
+      "goal": "Separate unrelated task",
+      "priority": 1,
+      "plan": [
+        {
+          "agent": "os_agent",
+          "action": "run_command",
+          "args": {},
+          "parallel": true
+        }
+      ]
     },
-    "timestamp": "2026-08-20T16:07:38.555Z"
+    "result": {
+      "taskId": "task-1787844343046-pm2um5uf",
+      "goal": "Separate unrelated task",
+      "summary": "Failed to complete: Separate unrelated task — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Separate unrelated task",
+            "priority": 1,
+            "plan": [
+              {
+                "agent": "os_agent",
+                "action": "run_command",
+                "args": {},
+                "parallel": true
+              }
+            ]
+          },
+          "startedAt": "2026-08-27T15:27:51.763Z",
+          "completedAt": "2026-08-27T15:27:53.832Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787844471780",
+                "correlationId": "e52df78f-7363-4a49-aae0-81a2078c3573",
+                "executionStatus": "failed",
+                "executionDurationMs": 2023,
+                "executionStartedAt": "2026-08-27T15:27:51.781Z",
+                "executionCompletedAt": "2026-08-27T15:27:53.824Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787844473824",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787844473824,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:27:53.824Z",
+                "verificationCompletedAt": "2026-08-27T15:27:53.829Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 2048,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787844473829,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:27:51.763Z",
+      "completedAt": "2026-08-27T15:27:53.832Z",
+      "durationMs": 2069,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787844343046-pm2um5uf",
+    "timestamp": "2026-08-27T15:27:53.835Z"
   },
   {
-    "id": "fc_7230948452813307502",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "searchYouTube",
+    "id": "tool-1787845074835-9goky88v",
+    "sessionId": "sess-1787845074835-5c0jxjuf",
+    "conversationId": "task-recovery-conversation",
+    "toolName": "saraAgentExecute",
     "args": {
-      "query": "cute cat videos"
+      "goal": "Prepare SARA context restoration",
+      "priority": 7,
+      "plan": null
     },
-    "timestamp": "2026-08-20T16:08:44.072Z"
+    "result": {
+      "taskId": "task-1787845073141-fb1wy5os",
+      "goal": "Prepare SARA context restoration",
+      "summary": "Failed to complete: Prepare SARA context restoration — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Prepare SARA context restoration",
+            "priority": 7,
+            "plan": null
+          },
+          "startedAt": "2026-08-27T15:37:54.359Z",
+          "completedAt": "2026-08-27T15:37:54.835Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787845074359",
+                "correlationId": "53cd0284-aae4-4dc0-836c-e0ce0e206a87",
+                "executionStatus": "failed",
+                "executionDurationMs": 464,
+                "executionStartedAt": "2026-08-27T15:37:54.359Z",
+                "executionCompletedAt": "2026-08-27T15:37:54.826Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787845074826",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787845074826,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:37:54.826Z",
+                "verificationCompletedAt": "2026-08-27T15:37:54.828Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 469,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787845074828,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:37:54.359Z",
+      "completedAt": "2026-08-27T15:37:54.835Z",
+      "durationMs": 476,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787845073141-fb1wy5os",
+    "timestamp": "2026-08-27T15:37:54.835Z"
   },
   {
-    "id": "fc_12079411594502009163",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
+    "id": "tool-1787845075075-8p5on08l",
+    "sessionId": "sess-1787845075076-1i0xf6lv",
+    "conversationId": "other-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Separate unrelated task",
+      "priority": 1,
+      "plan": null
+    },
+    "result": {
+      "taskId": "task-1787845073161-fsw2b276",
+      "goal": "Separate unrelated task",
+      "summary": "Failed to complete: Separate unrelated task — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Separate unrelated task",
+            "priority": 1,
+            "plan": null
+          },
+          "startedAt": "2026-08-27T15:37:54.383Z",
+          "completedAt": "2026-08-27T15:37:55.075Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787845074383",
+                "correlationId": "a716d224-783c-4048-aac2-e01e82a1d47d",
+                "executionStatus": "failed",
+                "executionDurationMs": 667,
+                "executionStartedAt": "2026-08-27T15:37:54.383Z",
+                "executionCompletedAt": "2026-08-27T15:37:55.062Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787845075062",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787845075062,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:37:55.062Z",
+                "verificationCompletedAt": "2026-08-27T15:37:55.065Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 682,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787845075065,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:37:54.383Z",
+      "completedAt": "2026-08-27T15:37:55.075Z",
+      "durationMs": 692,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787845073161-fsw2b276",
+    "timestamp": "2026-08-27T15:37:55.076Z"
+  },
+  {
+    "id": "tool-1787845319163-gj3yu6j6",
+    "sessionId": "sess-1787845319163-a8wpfwfu",
+    "conversationId": "task-recovery-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Prepare SARA context restoration",
+      "priority": 7,
+      "plan": null
+    },
+    "result": {
+      "taskId": "task-1787845316692-ppkjr4mp",
+      "goal": "Prepare SARA context restoration",
+      "summary": "Failed to complete: Prepare SARA context restoration — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Prepare SARA context restoration",
+            "priority": 7,
+            "plan": null
+          },
+          "startedAt": "2026-08-27T15:41:58.795Z",
+          "completedAt": "2026-08-27T15:41:59.162Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787845318797",
+                "correlationId": "bb3801b2-73cc-4b4a-91c9-e5ab1ff55057",
+                "executionStatus": "failed",
+                "executionDurationMs": 353,
+                "executionStartedAt": "2026-08-27T15:41:58.797Z",
+                "executionCompletedAt": "2026-08-27T15:41:59.156Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787845319156",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787845319156,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:41:59.156Z",
+                "verificationCompletedAt": "2026-08-27T15:41:59.158Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 361,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787845319159,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:41:58.795Z",
+      "completedAt": "2026-08-27T15:41:59.162Z",
+      "durationMs": 367,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787845316692-ppkjr4mp",
+    "timestamp": "2026-08-27T15:41:59.163Z"
+  },
+  {
+    "id": "tool-1787845319373-yc2w5xth",
+    "sessionId": "sess-1787845319373-dshwbsuf",
+    "conversationId": "other-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Separate unrelated task",
+      "priority": 1,
+      "plan": null
+    },
+    "result": {
+      "taskId": "task-1787845316743-fqumn5w3",
+      "goal": "Separate unrelated task",
+      "summary": "Failed to complete: Separate unrelated task — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Separate unrelated task",
+            "priority": 1,
+            "plan": null
+          },
+          "startedAt": "2026-08-27T15:41:58.820Z",
+          "completedAt": "2026-08-27T15:41:59.372Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1787845318820",
+                "correlationId": "659b849f-b2ef-47c6-a9c1-dbdab1ae8949",
+                "executionStatus": "failed",
+                "executionDurationMs": 518,
+                "executionStartedAt": "2026-08-27T15:41:58.820Z",
+                "executionCompletedAt": "2026-08-27T15:41:59.364Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1787845319364",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1787845319364,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-27T15:41:59.364Z",
+                "verificationCompletedAt": "2026-08-27T15:41:59.366Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 546,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1787845319366,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-27T15:41:58.820Z",
+      "completedAt": "2026-08-27T15:41:59.373Z",
+      "durationMs": 553,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1787845316743-fqumn5w3",
+    "timestamp": "2026-08-27T15:41:59.373Z"
+  },
+  {
+    "id": "tool-1788145271382-0xbj4xdg",
+    "sessionId": "sess-1788145271382-ude4xqns",
+    "conversationId": "task-recovery-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Prepare SARA context restoration",
+      "priority": 7,
+      "plan": [
+        {
+          "agent": "os_agent",
+          "action": "execute_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "locate_context_backups"
+        },
+        {
+          "agent": "coding_agent",
+          "action": "run_code",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "validate_state_integrity",
+          "depends_on": [
+            "locate_context_backups"
+          ]
+        },
+        {
+          "agent": "os_agent",
+          "action": "execute_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "prepare_restoration_workspace",
+          "depends_on": [
+            "validate_state_integrity"
+          ]
+        }
+      ]
+    },
+    "result": {
+      "taskId": "task-1788145252926-hgd3hkt2",
+      "goal": "Prepare SARA context restoration",
+      "summary": "Failed to complete: Prepare SARA context restoration — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Prepare SARA context restoration",
+            "priority": 7,
+            "plan": [
+              {
+                "agent": "os_agent",
+                "action": "execute_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "locate_context_backups"
+              },
+              {
+                "agent": "coding_agent",
+                "action": "run_code",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "validate_state_integrity",
+                "depends_on": [
+                  "locate_context_backups"
+                ]
+              },
+              {
+                "agent": "os_agent",
+                "action": "execute_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "prepare_restoration_workspace",
+                "depends_on": [
+                  "validate_state_integrity"
+                ]
+              }
+            ]
+          },
+          "startedAt": "2026-08-31T03:01:10.975Z",
+          "completedAt": "2026-08-31T03:01:11.380Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1788145270983",
+                "correlationId": "5c574fea-d277-4bc5-bb5a-79083f44dd0e",
+                "executionStatus": "failed",
+                "executionDurationMs": 388,
+                "executionStartedAt": "2026-08-31T03:01:10.983Z",
+                "executionCompletedAt": "2026-08-31T03:01:11.375Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1788145271375",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1788145271375,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-31T03:01:11.375Z",
+                "verificationCompletedAt": "2026-08-31T03:01:11.377Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 394,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1788145271377,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-31T03:01:10.975Z",
+      "completedAt": "2026-08-31T03:01:11.381Z",
+      "durationMs": 406,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1788145252926-hgd3hkt2",
+    "timestamp": "2026-08-31T03:01:11.382Z"
+  },
+  {
+    "id": "tool-1788145272492-ocfvqrv4",
+    "sessionId": "sess-1788145272492-jmjhtoxw",
+    "conversationId": "other-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Separate unrelated task",
+      "priority": 1,
+      "plan": [
+        {
+          "agent": "os_agent",
+          "action": "run_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "find_tasks"
+        },
+        {
+          "agent": "coding_agent",
+          "action": "run_code",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "read_tasks",
+          "depends_on": [
+            "find_tasks"
+          ]
+        },
+        {
+          "agent": "coding_agent",
+          "action": "run_code",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "separate_tasks",
+          "depends_on": [
+            "read_tasks"
+          ]
+        },
+        {
+          "agent": "os_agent",
+          "action": "run_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "verify_output",
+          "depends_on": [
+            "separate_tasks"
+          ]
+        }
+      ]
+    },
+    "result": {
+      "taskId": "task-1788145252942-j3fv3nd4",
+      "goal": "Separate unrelated task",
+      "summary": "Failed to complete: Separate unrelated task — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Separate unrelated task",
+            "priority": 1,
+            "plan": [
+              {
+                "agent": "os_agent",
+                "action": "run_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "find_tasks"
+              },
+              {
+                "agent": "coding_agent",
+                "action": "run_code",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "read_tasks",
+                "depends_on": [
+                  "find_tasks"
+                ]
+              },
+              {
+                "agent": "coding_agent",
+                "action": "run_code",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "separate_tasks",
+                "depends_on": [
+                  "read_tasks"
+                ]
+              },
+              {
+                "agent": "os_agent",
+                "action": "run_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "verify_output",
+                "depends_on": [
+                  "separate_tasks"
+                ]
+              }
+            ]
+          },
+          "startedAt": "2026-08-31T03:01:12.369Z",
+          "completedAt": "2026-08-31T03:01:12.492Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1788145272369",
+                "correlationId": "8796c838-0415-472b-bea5-dc73c89d5cbe",
+                "executionStatus": "failed",
+                "executionDurationMs": 121,
+                "executionStartedAt": "2026-08-31T03:01:12.369Z",
+                "executionCompletedAt": "2026-08-31T03:01:12.490Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1788145272490",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1788145272490,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-31T03:01:12.490Z",
+                "verificationCompletedAt": "2026-08-31T03:01:12.491Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 122,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1788145272491,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-31T03:01:12.369Z",
+      "completedAt": "2026-08-31T03:01:12.492Z",
+      "durationMs": 123,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1788145252942-j3fv3nd4",
+    "timestamp": "2026-08-31T03:01:12.492Z"
+  },
+  {
+    "id": "tool-1788145725634-47ipjn3c",
+    "sessionId": "sess-1788145725634-iqn67vzh",
+    "conversationId": "task-recovery-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Prepare SARA context restoration",
+      "priority": 7,
+      "plan": [
+        {
+          "agent": "os_agent",
+          "action": "run_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "locate_context"
+        },
+        {
+          "agent": "coding_agent",
+          "action": "run_code",
+          "args": {},
+          "parallel": false,
+          "depends_on": [
+            "locate_context"
+          ]
+        }
+      ]
+    },
+    "result": {
+      "taskId": "task-1788145713338-fvzvnc6m",
+      "goal": "Prepare SARA context restoration",
+      "summary": "Failed to complete: Prepare SARA context restoration — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Prepare SARA context restoration",
+            "priority": 7,
+            "plan": [
+              {
+                "agent": "os_agent",
+                "action": "run_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "locate_context"
+              },
+              {
+                "agent": "coding_agent",
+                "action": "run_code",
+                "args": {},
+                "parallel": false,
+                "depends_on": [
+                  "locate_context"
+                ]
+              }
+            ]
+          },
+          "startedAt": "2026-08-31T03:08:44.951Z",
+          "completedAt": "2026-08-31T03:08:45.633Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1788145724952",
+                "correlationId": "c7b1e177-7632-482d-bfdf-882d4a4c1bfd",
+                "executionStatus": "failed",
+                "executionDurationMs": 663,
+                "executionStartedAt": "2026-08-31T03:08:44.953Z",
+                "executionCompletedAt": "2026-08-31T03:08:45.627Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1788145725627",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1788145725627,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-31T03:08:45.627Z",
+                "verificationCompletedAt": "2026-08-31T03:08:45.630Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 677,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1788145725630,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-31T03:08:44.951Z",
+      "completedAt": "2026-08-31T03:08:45.633Z",
+      "durationMs": 682,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1788145713338-fvzvnc6m",
+    "timestamp": "2026-08-31T03:08:45.635Z"
+  },
+  {
+    "id": "tool-1788145728945-v4b4f5st",
+    "sessionId": "sess-1788145728945-hp5139hw",
+    "conversationId": "other-conversation",
+    "toolName": "saraAgentExecute",
+    "args": {
+      "goal": "Separate unrelated task",
+      "priority": 1,
+      "plan": [
+        {
+          "agent": "os_agent",
+          "action": "run_command",
+          "args": {},
+          "parallel": false,
+          "checkpoint": "list_directory_contents"
+        },
+        {
+          "agent": "coding_agent",
+          "action": "run_code",
+          "args": {},
+          "parallel": false,
+          "depends_on": [
+            "list_directory_contents"
+          ]
+        }
+      ]
+    },
+    "result": {
+      "taskId": "task-1788145713353-ji0bylq4",
+      "goal": "Separate unrelated task",
+      "summary": "Failed to complete: Separate unrelated task — Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+      "state": "FAILED",
+      "success": false,
+      "verified": false,
+      "actions": [
+        {
+          "tool": "saraAgentExecute",
+          "arguments": {
+            "goal": "Separate unrelated task",
+            "priority": 1,
+            "plan": [
+              {
+                "agent": "os_agent",
+                "action": "run_command",
+                "args": {},
+                "parallel": false,
+                "checkpoint": "list_directory_contents"
+              },
+              {
+                "agent": "coding_agent",
+                "action": "run_code",
+                "args": {},
+                "parallel": false,
+                "depends_on": [
+                  "list_directory_contents"
+                ]
+              }
+            ]
+          },
+          "startedAt": "2026-08-31T03:08:48.391Z",
+          "completedAt": "2026-08-31T03:08:48.945Z",
+          "success": false,
+          "error": {
+            "code": "TOOL_FAILURE",
+            "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+          }
+        }
+      ],
+      "verification": {
+        "attempted": true,
+        "passed": false,
+        "method": "tool_response_validation",
+        "checks": [
+          {
+            "name": "tool_returned_ok",
+            "passed": false,
+            "evidence": {
+              "toolName": "saraAgentExecute",
+              "result": {
+                "tool": "saraAgentExecute",
+                "toolCallId": "saraAgentExecute-1788145728391",
+                "correlationId": "272d32e8-b553-422b-8104-24b309cb8e41",
+                "executionStatus": "failed",
+                "executionDurationMs": 548,
+                "executionStartedAt": "2026-08-31T03:08:48.391Z",
+                "executionCompletedAt": "2026-08-31T03:08:48.941Z",
+                "executionError": {
+                  "code": "TOOL_EXECUTION_FAILED",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "retryable": true
+                },
+                "executionResult": {
+                  "ok": false,
+                  "status": "FAILED",
+                  "execution_status": "FAILED",
+                  "verification_status": "SKIPPED",
+                  "tool": "saraAgentExecute",
+                  "operation_id": "saraAgentExecute-1788145728941",
+                  "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                  "details": {},
+                  "executed": false,
+                  "verified": false,
+                  "changed_state": null,
+                  "duration_ms": null,
+                  "timestamp": 1788145728941,
+                  "error": {
+                    "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                    "retryable": false
+                  },
+                  "error_code": "TOOL_EXECUTION_FAILED",
+                  "retryable": false,
+                  "severity": "WARNING",
+                  "source": "sara.tool-router",
+                  "policy_decision": "UNKNOWN",
+                  "data": {},
+                  "verification": {
+                    "status": "SKIPPED"
+                  }
+                },
+                "verificationStatus": "skipped",
+                "verificationDurationMs": 0,
+                "verificationStartedAt": "2026-08-31T03:08:48.941Z",
+                "verificationCompletedAt": "2026-08-31T03:08:48.943Z",
+                "verificationChecks": [],
+                "status": "failed",
+                "success": false,
+                "verified": false,
+                "totalDurationMs": 552,
+                "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+                "timestamp": 1788145728944,
+                "metadata": {
+                  "toolRouter": true,
+                  "verificationEnabled": true
+                }
+              }
+            }
+          }
+        ],
+        "details": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+      },
+      "error": {
+        "code": "TOOL_FAILURE",
+        "message": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+        "recoverable": true
+      },
+      "startedAt": "2026-08-31T03:08:48.391Z",
+      "completedAt": "2026-08-31T03:08:48.945Z",
+      "durationMs": 554,
+      "userMessage": "I couldn't complete the task. Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'"
+    },
+    "error": "Internal error in saraAgentExecute: 'dict' object has no attribute 'duration_ms'",
+    "taskId": "task-1788145713353-ji0bylq4",
+    "timestamp": "2026-08-31T03:08:48.945Z"
+  },
+  {
+    "id": "fc_17809440633842943342",
+    "sessionId": "sess-1788434945434-i6e0e5ie",
+    "conversationId": "desktop-1787843581001-dbn7f78i",
     "toolName": "browserClick",
     "args": {
-      "selector": "ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-of-type(1) #thumbnail",
-      "description": "Clicking on a cat video based on search results."
+      "description": "Click to expand description",
+      "selector": "expand"
     },
-    "timestamp": "2026-08-20T16:09:29.543Z"
+    "timestamp": "2026-09-03T11:30:39.305Z"
   },
   {
-    "id": "fc_3150062753199519633",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
+    "id": "fc_9638414743353471024",
+    "sessionId": "sess-1788434945434-i6e0e5ie",
+    "conversationId": "desktop-1787843581001-dbn7f78i",
+    "toolName": "saveCustomMemory",
     "args": {
-      "selector": "#contents > ytd-video-renderer.style-scope.ytd-item-section-renderer:nth\n-child(1) #title-wrapper",
-      "description": "Playing the first cat video from search results."
+      "text": "Amol wants an explanation for the Incremental Model in software engineering, simplified in Marathi.",
+      "category": "goal"
     },
-    "timestamp": "2026-08-20T16:10:02.904Z"
-  },
-  {
-    "id": "fc_6060231067191332443",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "Try clicking the video thumbnail again to play it.",
-      "selector": ".col-md-4 a"
-    },
-    "timestamp": "2026-08-20T16:10:43.841Z"
-  },
-  {
-    "id": "fc_10284815654365721125",
-    "sessionId": "sess-1787233146246-bipuzf6u",
-    "conversationId": "desktop-1787189208245-2gsuk6u4",
-    "toolName": "browserClick",
-    "args": {
-      "description": "Attempt to click the play button or thumbnail area again.",
-      "selector": "ytd-video-renderer.style-scope.ytd-item-section-renderer:nth-of-type(1) #thumbnail"
-    },
-    "timestamp": "2026-08-20T16:11:03.151Z"
+    "timestamp": "2026-09-03T11:33:54.739Z"
   }
 ]

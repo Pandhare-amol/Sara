@@ -442,211 +442,13 @@
   "events": [
     {
       "payload": {
-        "agent": "file_agent",
-        "capabilities": [
-          "file_management",
-          "files"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "process_agent",
-        "capabilities": [
-          "process_monitoring",
-          "processes"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "window_agent",
-        "capabilities": [
-          "window_management",
-          "windows"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "phone_agent",
-        "capabilities": [
-          "calls",
-          "phone"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "sms_agent",
-        "capabilities": [
-          "sms",
-          "text_messages"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "whatsapp_agent",
-        "capabilities": [
-          "messaging",
-          "whatsapp"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "instagram_agent",
-        "capabilities": [
-          "instagram",
-          "social_media"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "youtube_agent",
-        "capabilities": [
-          "media_playback",
-          "youtube"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "email_agent",
-        "capabilities": [
-          "email",
-          "mail"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "calendar_agent",
-        "capabilities": [
-          "calendar",
-          "events"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "camera_agent",
-        "capabilities": [
-          "camera",
-          "capture"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "ocr_agent",
-        "capabilities": [
-          "ocr",
-          "text_extraction"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "research_agent",
-        "capabilities": [
-          "information_gathering",
-          "web_research"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "debugging_agent",
-        "capabilities": [
-          "debugging",
-          "error_analysis"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "business_agent",
-        "capabilities": [
-          "business_workflows",
-          "reports"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "personal_assistant_agent",
-        "capabilities": [
-          "personal_assistance",
-          "reminders"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "knowledge_agent",
-        "capabilities": [
-          "entity_linking",
-          "knowledge_graph"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
-        "agent": "learning_agent",
-        "capabilities": [
-          "adaptation",
-          "workflow_learning"
-        ]
-      },
-      "time": 1787188216.3011603,
-      "type": "agent_registered"
-    },
-    {
-      "payload": {
         "agent": "device_sync_agent",
         "capabilities": [
           "clipboard_sync",
           "cross_device_sync"
         ]
       },
-      "time": 1787188216.3011603,
+      "time": 1788687516.7079587,
       "type": "agent_registered"
     },
     {
@@ -657,7 +459,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787188216.3011603,
+      "time": 1788687516.7079587,
       "type": "agent_registered"
     },
     {
@@ -669,7 +471,7 @@
           "planning"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -685,7 +487,7 @@
           "windows"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -701,7 +503,7 @@
           "sms"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -716,7 +518,7 @@
           "web"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -731,7 +533,7 @@
           "windows"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -744,7 +546,7 @@
           "websites"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -756,7 +558,7 @@
           "screenshots"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -769,7 +571,7 @@
           "scripts"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -782,7 +584,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -795,7 +597,7 @@
           "retrieval"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -807,7 +609,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -820,7 +622,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -832,7 +634,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -844,7 +646,7 @@
           "resources"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -855,7 +657,7 @@
           "phone"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -865,7 +667,7 @@
           "notifications"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8104143,
       "type": "agent_registered"
     },
     {
@@ -878,7 +680,7 @@
           "real_input"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -891,7 +693,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -903,7 +705,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -915,7 +717,7 @@
           "supervision"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -926,7 +728,7 @@
           "files"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -937,7 +739,7 @@
           "processes"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -948,7 +750,7 @@
           "windows"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -959,7 +761,7 @@
           "phone"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -970,7 +772,7 @@
           "text_messages"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -981,7 +783,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -992,7 +794,7 @@
           "social_media"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1003,7 +805,7 @@
           "youtube"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1014,7 +816,7 @@
           "mail"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1025,7 +827,7 @@
           "events"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1036,7 +838,7 @@
           "capture"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1047,7 +849,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1058,7 +860,7 @@
           "web_research"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1069,7 +871,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1080,7 +882,7 @@
           "reports"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1091,7 +893,7 @@
           "reminders"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1102,7 +904,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1113,7 +915,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1124,7 +926,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1135,7 +937,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787189049.1381156,
+      "time": 1788698753.8119266,
       "type": "agent_registered"
     },
     {
@@ -1147,7 +949,7 @@
           "planning"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1163,7 +965,7 @@
           "windows"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1179,7 +981,7 @@
           "sms"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1194,7 +996,7 @@
           "web"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1209,7 +1011,7 @@
           "windows"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1222,7 +1024,7 @@
           "websites"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1234,7 +1036,7 @@
           "screenshots"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1247,7 +1049,7 @@
           "scripts"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1260,7 +1062,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1273,7 +1075,7 @@
           "retrieval"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1285,7 +1087,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1298,7 +1100,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1310,7 +1112,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1322,7 +1124,7 @@
           "resources"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1333,7 +1135,7 @@
           "phone"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1343,7 +1145,7 @@
           "notifications"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1356,7 +1158,7 @@
           "real_input"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1369,7 +1171,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1381,7 +1183,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1393,7 +1195,7 @@
           "supervision"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1404,7 +1206,7 @@
           "files"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1415,7 +1217,7 @@
           "processes"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1426,7 +1228,7 @@
           "windows"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1437,7 +1239,7 @@
           "phone"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1448,7 +1250,7 @@
           "text_messages"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1459,7 +1261,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1470,7 +1272,7 @@
           "social_media"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1481,7 +1283,7 @@
           "youtube"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1492,7 +1294,7 @@
           "mail"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1503,7 +1305,7 @@
           "events"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1514,7 +1316,7 @@
           "capture"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.0970109,
       "type": "agent_registered"
     },
     {
@@ -1525,7 +1327,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1536,7 +1338,7 @@
           "web_research"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1547,7 +1349,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1558,7 +1360,7 @@
           "reports"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1569,7 +1371,7 @@
           "reminders"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1580,7 +1382,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1591,7 +1393,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1602,7 +1404,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1613,7 +1415,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787190536.1776052,
+      "time": 1788701817.098517,
       "type": "agent_registered"
     },
     {
@@ -1625,7 +1427,7 @@
           "planning"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1641,7 +1443,7 @@
           "windows"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1657,7 +1459,7 @@
           "sms"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1672,7 +1474,7 @@
           "web"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1687,7 +1489,7 @@
           "windows"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1700,7 +1502,7 @@
           "websites"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1712,7 +1514,7 @@
           "screenshots"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1725,7 +1527,7 @@
           "scripts"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1738,7 +1540,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1751,7 +1553,7 @@
           "retrieval"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1763,7 +1565,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1776,7 +1578,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1788,7 +1590,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1800,7 +1602,7 @@
           "resources"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1811,7 +1613,7 @@
           "phone"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1821,7 +1623,7 @@
           "notifications"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1834,7 +1636,7 @@
           "real_input"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1847,7 +1649,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1859,7 +1661,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1871,7 +1673,7 @@
           "supervision"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1882,7 +1684,7 @@
           "files"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1893,7 +1695,7 @@
           "processes"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1904,7 +1706,7 @@
           "windows"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1915,7 +1717,7 @@
           "phone"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1926,7 +1728,7 @@
           "text_messages"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1937,7 +1739,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1948,7 +1750,7 @@
           "social_media"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1959,7 +1761,7 @@
           "youtube"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1970,7 +1772,7 @@
           "mail"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1981,7 +1783,7 @@
           "events"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -1992,7 +1794,7 @@
           "capture"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2003,7 +1805,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2014,7 +1816,7 @@
           "web_research"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2025,7 +1827,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2036,7 +1838,7 @@
           "reports"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2047,7 +1849,7 @@
           "reminders"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2058,7 +1860,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2069,7 +1871,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2080,7 +1882,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2091,7 +1893,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787190763.0055032,
+      "time": 1788782957.4981878,
       "type": "agent_registered"
     },
     {
@@ -2103,7 +1905,7 @@
           "planning"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2119,7 +1921,7 @@
           "windows"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2135,7 +1937,7 @@
           "sms"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2150,7 +1952,7 @@
           "web"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2165,7 +1967,7 @@
           "windows"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2178,7 +1980,7 @@
           "websites"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2190,7 +1992,7 @@
           "screenshots"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2203,7 +2005,7 @@
           "scripts"
         ]
       },
-      "time": 1787193516.683419,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2216,7 +2018,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2229,7 +2031,7 @@
           "retrieval"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2241,7 +2043,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2254,7 +2056,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2266,7 +2068,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2278,7 +2080,7 @@
           "resources"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2289,7 +2091,7 @@
           "phone"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2299,7 +2101,7 @@
           "notifications"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2312,7 +2114,7 @@
           "real_input"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2325,7 +2127,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2337,7 +2139,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2349,7 +2151,7 @@
           "supervision"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2360,7 +2162,7 @@
           "files"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2371,7 +2173,7 @@
           "processes"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2382,7 +2184,7 @@
           "windows"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2393,7 +2195,7 @@
           "phone"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2404,7 +2206,7 @@
           "text_messages"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.48576,
       "type": "agent_registered"
     },
     {
@@ -2415,7 +2217,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2426,7 +2228,7 @@
           "social_media"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2437,7 +2239,7 @@
           "youtube"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2448,7 +2250,7 @@
           "mail"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2459,7 +2261,7 @@
           "events"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2470,7 +2272,7 @@
           "capture"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2481,7 +2283,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2492,7 +2294,7 @@
           "web_research"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2503,7 +2305,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2514,7 +2316,7 @@
           "reports"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2525,7 +2327,7 @@
           "reminders"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2536,7 +2338,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2547,7 +2349,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2558,7 +2360,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2569,7 +2371,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787193516.6844535,
+      "time": 1788839077.4867432,
       "type": "agent_registered"
     },
     {
@@ -2581,7 +2383,7 @@
           "planning"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2597,7 +2399,7 @@
           "windows"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2613,7 +2415,7 @@
           "sms"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2628,7 +2430,7 @@
           "web"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2643,7 +2445,7 @@
           "windows"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2656,7 +2458,7 @@
           "websites"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2668,7 +2470,7 @@
           "screenshots"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2681,7 +2483,7 @@
           "scripts"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2694,7 +2496,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2707,7 +2509,7 @@
           "retrieval"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2719,7 +2521,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2732,7 +2534,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2744,7 +2546,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2756,7 +2558,7 @@
           "resources"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2767,7 +2569,7 @@
           "phone"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2777,7 +2579,7 @@
           "notifications"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2790,7 +2592,7 @@
           "real_input"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2803,7 +2605,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2815,7 +2617,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2827,7 +2629,7 @@
           "supervision"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2838,7 +2640,7 @@
           "files"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2849,7 +2651,7 @@
           "processes"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2860,7 +2662,7 @@
           "windows"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2871,7 +2673,7 @@
           "phone"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2882,7 +2684,7 @@
           "text_messages"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2893,7 +2695,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2904,7 +2706,7 @@
           "social_media"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2915,7 +2717,7 @@
           "youtube"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2926,7 +2728,7 @@
           "mail"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2937,7 +2739,7 @@
           "events"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2948,7 +2750,7 @@
           "capture"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2959,7 +2761,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2970,7 +2772,7 @@
           "web_research"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2981,7 +2783,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -2992,7 +2794,7 @@
           "reports"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3003,7 +2805,7 @@
           "reminders"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3014,7 +2816,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3025,7 +2827,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3036,7 +2838,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3047,7 +2849,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787233126.897804,
+      "time": 1789037643.8064406,
       "type": "agent_registered"
     },
     {
@@ -3059,7 +2861,7 @@
           "planning"
         ]
       },
-      "time": 1787237766.7377493,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3075,7 +2877,7 @@
           "windows"
         ]
       },
-      "time": 1787237766.7377493,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3091,7 +2893,7 @@
           "sms"
         ]
       },
-      "time": 1787237766.7377493,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3106,7 +2908,7 @@
           "web"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3121,7 +2923,7 @@
           "windows"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3134,7 +2936,7 @@
           "websites"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3146,7 +2948,7 @@
           "screenshots"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3159,7 +2961,7 @@
           "scripts"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3172,7 +2974,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3185,7 +2987,7 @@
           "retrieval"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3197,7 +2999,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3210,7 +3012,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3222,7 +3024,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3234,7 +3036,7 @@
           "resources"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3245,7 +3047,7 @@
           "phone"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3255,7 +3057,7 @@
           "notifications"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3268,7 +3070,7 @@
           "real_input"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3281,7 +3083,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3293,7 +3095,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3305,7 +3107,7 @@
           "supervision"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3316,7 +3118,7 @@
           "files"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3327,7 +3129,7 @@
           "processes"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3338,7 +3140,7 @@
           "windows"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3349,7 +3151,7 @@
           "phone"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3360,7 +3162,7 @@
           "text_messages"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3371,7 +3173,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3382,7 +3184,7 @@
           "social_media"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3393,7 +3195,7 @@
           "youtube"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3404,7 +3206,7 @@
           "mail"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3415,7 +3217,7 @@
           "events"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3426,7 +3228,7 @@
           "capture"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3437,7 +3239,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3448,7 +3250,7 @@
           "web_research"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3459,7 +3261,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3470,7 +3272,7 @@
           "reports"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3481,7 +3283,7 @@
           "reminders"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3492,7 +3294,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3503,7 +3305,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3514,7 +3316,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3525,7 +3327,7 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787237766.738751,
+      "time": 1789046242.6634996,
       "type": "agent_registered"
     },
     {
@@ -3537,7 +3339,7 @@
           "planning"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3553,7 +3355,7 @@
           "windows"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3569,7 +3371,7 @@
           "sms"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3584,7 +3386,7 @@
           "web"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3599,7 +3401,7 @@
           "windows"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3612,7 +3414,7 @@
           "websites"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3624,7 +3426,7 @@
           "screenshots"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3637,7 +3439,7 @@
           "scripts"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3650,7 +3452,7 @@
           "workflow_storage"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3663,7 +3465,7 @@
           "retrieval"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3675,7 +3477,7 @@
           "task_outcomes"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3688,7 +3490,7 @@
           "safe_mode"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3700,7 +3502,7 @@
           "workflow_templates"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3712,7 +3514,7 @@
           "resources"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3723,7 +3525,7 @@
           "phone"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3733,7 +3535,7 @@
           "notifications"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3746,7 +3548,7 @@
           "real_input"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3759,7 +3561,7 @@
           "voice_commands"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3771,7 +3573,7 @@
           "safe_app_automation"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3783,7 +3585,7 @@
           "supervision"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3794,7 +3596,7 @@
           "files"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3805,7 +3607,7 @@
           "processes"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3816,7 +3618,7 @@
           "windows"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3827,7 +3629,7 @@
           "phone"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3838,7 +3640,7 @@
           "text_messages"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3849,7 +3651,7 @@
           "whatsapp"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3860,7 +3662,7 @@
           "social_media"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3871,7 +3673,7 @@
           "youtube"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3882,7 +3684,7 @@
           "mail"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3893,7 +3695,7 @@
           "events"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3904,7 +3706,7 @@
           "capture"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3915,7 +3717,7 @@
           "text_extraction"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3926,7 +3728,7 @@
           "web_research"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3937,7 +3739,7 @@
           "error_analysis"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3948,7 +3750,7 @@
           "reports"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3959,7 +3761,7 @@
           "reminders"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3970,7 +3772,7 @@
           "knowledge_graph"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3981,7 +3783,7 @@
           "workflow_learning"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -3992,7 +3794,7 @@
           "cross_device_sync"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
       "type": "agent_registered"
     },
     {
@@ -4003,9 +3805,1518 @@
           "system_diagnostics"
         ]
       },
-      "time": 1787241883.9650977,
+      "time": 1789196876.0525882,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "task_planner",
+        "capabilities": [
+          "delegation",
+          "intent_detection",
+          "planning"
+        ]
+      },
+      "time": 1789178139.0269144,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "system_control_agent",
+        "capabilities": [
+          "applications",
+          "desktop",
+          "monitoring",
+          "power",
+          "processes",
+          "sessions",
+          "windows"
+        ]
+      },
+      "time": 1789178139.0269144,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "mobile_control_agent",
+        "capabilities": [
+          "android",
+          "calls",
+          "camera",
+          "notifications",
+          "phone",
+          "settings",
+          "sms"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "browser_agent",
+        "capabilities": [
+          "browser",
+          "forms",
+          "screenshots",
+          "search",
+          "tabs",
+          "web"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "os_agent",
+        "capabilities": [
+          "clipboard",
+          "files",
+          "folders",
+          "power",
+          "system",
+          "windows"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_agent",
+        "capabilities": [
+          "applications",
+          "close",
+          "launch",
+          "websites"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "vision_agent",
+        "capabilities": [
+          "ocr",
+          "screen_understanding",
+          "screenshots"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "coding_agent",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "projects",
+          "scripts"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "memory_agent",
+        "capabilities": [
+          "episodic_memory",
+          "memory",
+          "preferences",
+          "workflow_storage"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "rag_agent",
+        "capabilities": [
+          "code_indexing",
+          "document_indexing",
+          "knowledge_search",
+          "retrieval"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "reinforcement_agent",
+        "capabilities": [
+          "confidence",
+          "learning",
+          "task_outcomes"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "security_agent",
+        "capabilities": [
+          "audit",
+          "credentials",
+          "permissions",
+          "safe_mode"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "scheduler_agent",
+        "capabilities": [
+          "scheduled_jobs",
+          "timers",
+          "workflow_templates"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "monitoring_agent",
+        "capabilities": [
+          "crash_recovery",
+          "health",
+          "resources"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "android_agent",
+        "capabilities": [
+          "android",
+          "phone"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "notification_agent",
+        "capabilities": [
+          "notifications"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "hardware_agent",
+        "capabilities": [
+          "keyboard",
+          "macros",
+          "mouse",
+          "real_input"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "voice_os_agent",
+        "capabilities": [
+          "command_router",
+          "intent_recognition",
+          "training",
+          "voice_commands"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "application_suite_agent",
+        "capabilities": [
+          "application_plugins",
+          "cross_application_workflows",
+          "safe_app_automation"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "supervisor_agent",
+        "capabilities": [
+          "orchestration",
+          "quality_control",
+          "supervision"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "file_agent",
+        "capabilities": [
+          "file_management",
+          "files"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "process_agent",
+        "capabilities": [
+          "process_monitoring",
+          "processes"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "window_agent",
+        "capabilities": [
+          "window_management",
+          "windows"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "phone_agent",
+        "capabilities": [
+          "calls",
+          "phone"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "sms_agent",
+        "capabilities": [
+          "sms",
+          "text_messages"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "whatsapp_agent",
+        "capabilities": [
+          "messaging",
+          "whatsapp"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "instagram_agent",
+        "capabilities": [
+          "instagram",
+          "social_media"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "youtube_agent",
+        "capabilities": [
+          "media_playback",
+          "youtube"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "email_agent",
+        "capabilities": [
+          "email",
+          "mail"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "calendar_agent",
+        "capabilities": [
+          "calendar",
+          "events"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "camera_agent",
+        "capabilities": [
+          "camera",
+          "capture"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "ocr_agent",
+        "capabilities": [
+          "ocr",
+          "text_extraction"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "research_agent",
+        "capabilities": [
+          "information_gathering",
+          "web_research"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "debugging_agent",
+        "capabilities": [
+          "debugging",
+          "error_analysis"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "business_agent",
+        "capabilities": [
+          "business_workflows",
+          "reports"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "personal_assistant_agent",
+        "capabilities": [
+          "personal_assistance",
+          "reminders"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "knowledge_agent",
+        "capabilities": [
+          "entity_linking",
+          "knowledge_graph"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "learning_agent",
+        "capabilities": [
+          "adaptation",
+          "workflow_learning"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "device_sync_agent",
+        "capabilities": [
+          "clipboard_sync",
+          "cross_device_sync"
+        ]
+      },
+      "time": 1789178139.0312233,
+      "type": "agent_registered"
+    },
+    {
+      "payload": {
+        "agent": "health_diagnostics_agent",
+        "capabilities": [
+          "health_diagnostics",
+          "system_diagnostics"
+        ]
+      },
+      "time": 1789178139.0312233,
       "type": "agent_registered"
     }
   ],
-  "tasks": []
+  "tasks": [
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837436.1069129,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837436.1084318,
+      "goal": "Separate unrelated task",
+      "id": "8aa282121e084b2b84e06e55965e5eac",
+      "max_retries": 1,
+      "parent_id": "1c071472d0c44fa3a898588188add4ac",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837436.1084318,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837513.1505284,
+      "duration_ms": 3,
+      "error": null,
+      "finished_at": 1787837513.1536903,
+      "goal": "Prepare SARA context restoration",
+      "id": "a1197158de524d6c976c3ad85e8940ae",
+      "max_retries": 1,
+      "parent_id": "8949eccb962c47d1968518b99a58222d",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837513.1505284,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837534.1436331,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837534.1436331,
+      "goal": "Prepare SARA context restoration",
+      "id": "694eb8108fa4402b8a0794af9bd1e7fc",
+      "max_retries": 1,
+      "parent_id": "d934afcd0e7e46d58b04bd34bdc34e2a",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837534.1436331,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837535.2272587,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837535.2272587,
+      "goal": "Separate unrelated task",
+      "id": "b6d51c1c4a7a4fb8835eacbd9839078a",
+      "max_retries": 1,
+      "parent_id": "934dc5f731f64be0a8f3052964e62fb9",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837535.2272587,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837561.7674804,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837561.7674804,
+      "goal": "Prepare SARA context restoration",
+      "id": "9ba01e3f923642f1aa0018f9e0d7bbdd",
+      "max_retries": 1,
+      "parent_id": "12defadbb12c4ac397a1c43daff9f54a",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837561.7674804,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837621.8782446,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837621.8782446,
+      "goal": "Prepare SARA context restoration",
+      "id": "bec1aa9f8eee40f6b6b341f64bb389d2",
+      "max_retries": 1,
+      "parent_id": "741acc7489b248d2a63630d0a9ea7f32",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837621.8782446,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837622.6167064,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837622.6167064,
+      "goal": "Separate unrelated task",
+      "id": "f3abd3e8c1554956b0397dbd228a0a88",
+      "max_retries": 1,
+      "parent_id": "daaa358b62f441268bd9cd3ed74ecf9e",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837622.6167064,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837766.820072,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837766.826915,
+      "goal": "Separate unrelated task",
+      "id": "8bb1b15884d74c40b68e10b3980d49ab",
+      "max_retries": 1,
+      "parent_id": "e95e723b7efd4157b3e8da0619bcf5ce",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837766.826915,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837773.5572822,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837773.5572822,
+      "goal": "Separate unrelated task",
+      "id": "a2d0e2dd86b3415081633c4a90732132",
+      "max_retries": 1,
+      "parent_id": "321ccdb1ae1541de84c91fa6d00d832a",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837773.5572822,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837777.0906405,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837777.0906405,
+      "goal": "Separate unrelated task",
+      "id": "d719b56b3de4400ebe32d6cf63876e9d",
+      "max_retries": 1,
+      "parent_id": "0844141573e446af84d46bbb292d55b9",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837777.0906405,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837786.5297716,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837786.57408,
+      "goal": "Prepare SARA context restoration",
+      "id": "6bb96b9c83b144c8829353357b996b71",
+      "max_retries": 1,
+      "parent_id": "7b1f101f46164eff81aa5cd65af3cded",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837786.57408,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837811.977394,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837811.9779444,
+      "goal": "Separate unrelated task",
+      "id": "0a788839f7a542ddb769263fecd99061",
+      "max_retries": 1,
+      "parent_id": "759b6fba993b463f998393f030baedeb",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837811.9779444,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837813.9740083,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787837813.9750564,
+      "goal": "Prepare SARA context restoration",
+      "id": "1ea1cea9c70645f9a982ed1fe1369a4a",
+      "max_retries": 1,
+      "parent_id": "cec11759a35d44f88215018b13e5937c",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837813.9750564,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787837815.3298821,
+      "duration_ms": 1,
+      "error": null,
+      "finished_at": 1787837815.3314226,
+      "goal": "Prepare SARA context restoration",
+      "id": "ff5b489286b8460d988499b1ae213dd7",
+      "max_retries": 1,
+      "parent_id": "2d609cc86031452abb65ac8f180daf46",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787837815.3298821,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839145.5909264,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839145.5914404,
+      "goal": "Prepare SARA context restoration",
+      "id": "eff66783c7e948d0ac8cfd95e0c21b6a",
+      "max_retries": 1,
+      "parent_id": "775876485fbf434895cdb9f0d9d968da",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839145.5914404,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839148.1638453,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839148.1638453,
+      "goal": "Separate unrelated task",
+      "id": "01dd297619f44b5aaaa4504b1fd44a99",
+      "max_retries": 1,
+      "parent_id": "c5900212e2c040a0b888016ceafa2300",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839148.1638453,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839150.1670365,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839150.1670365,
+      "goal": "Separate unrelated task",
+      "id": "0e6451b954d349e9b89fa021c3a61730",
+      "max_retries": 1,
+      "parent_id": "3ef57f29bb8a4ebfbc7ae2897eefd86a",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839150.1670365,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839165.347262,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839165.347262,
+      "goal": "Separate unrelated task",
+      "id": "6244b25edcbd4992a23d6c478cd30ff8",
+      "max_retries": 1,
+      "parent_id": "f10a280b88d042368ad1ee2307c0171c",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839165.347262,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839890.8878438,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839890.9046113,
+      "goal": "Separate unrelated task",
+      "id": "947bc1e0d8dd464baa2280250137d129",
+      "max_retries": 1,
+      "parent_id": "8126cb9145114b55a937c8bcbfe7a841",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839890.9046113,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839892.4493701,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839892.4493701,
+      "goal": "Prepare SARA context restoration",
+      "id": "a7e63d8e9d0a423daf3b1dc5d68bb53c",
+      "max_retries": 1,
+      "parent_id": "78f2b1601faf4003a70b1bd81620f1a9",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839892.4493701,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787839893.109619,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787839893.109619,
+      "goal": "Separate unrelated task",
+      "id": "aa8b0679d4844926bdb3bd9c3efd17fe",
+      "max_retries": 1,
+      "parent_id": "d68fffa8bf5540169e278426a4803056",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787839893.109619,
+      "status": "completed"
+    },
+    {
+      "action": "search",
+      "agent": "browser_agent",
+      "args": {
+        "engine": "google",
+        "query": "a fix"
+      },
+      "confidence": 0.9,
+      "created_at": 1787839895.6815555,
+      "duration_ms": 19810,
+      "error": "; Traceback (most recent call last):\n  File \"D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\agents.py\", line 638, in _execute_task\n    try:\n         \n  File \"D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\agents.py\", line 157, in execute\n    out = handler(task.args)\n          ^^^^^^^^^^^^^^^^^^\n  File \"D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\tools_browser.py\", line 400, in wrapper\n    return _run(async_fn(args))\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\project\\new_jarvis\\Sara\\myraa-ai-assistant\\desktop_agent\\tools_browser.py\", line 76, in _run\n    return future.result(timeout=max(NAVIGATION_TIMEOUT_MS, 15000) / 1000 + 10)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\k8673\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py\", line 458, in result\n    raise TimeoutError()\nTimeoutError\n",
+      "finished_at": 1787839940.8570373,
+      "goal": "Search for a fix",
+      "id": "ff250ef71df442c5aebd71db2bdd88cc",
+      "max_retries": 1,
+      "parent_id": "b48eae968c914f1caf82aa37775d997f",
+      "priority": 5,
+      "progress": 100,
+      "result": {
+        "ok": true,
+        "operation": "browser_search",
+        "result": "Searched google for 'a fix'.",
+        "state": {
+          "active_element": null,
+          "authentication_state": "unknown",
+          "browser_id": "automation-browser",
+          "download_state": {},
+          "error_state": {
+            "code": "CONSOLE_ERROR",
+            "message": "Failed to load resource: the server responded with a status of 429 ()"
+          },
+          "last_event": "navigation_started",
+          "loading": true,
+          "media_state": {},
+          "navigation_state": "started",
+          "page_id": "page-1",
+          "ready": false,
+          "session_id": "sara-browser-session",
+          "timestamp": 1787839940.8212316,
+          "title": "",
+          "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Da%2Bfix%26sei%3DwUWQar7pK-KWseMP-KTikQs&q=EhAkAUkAGQd-I3nLrod4b36YGMKLwdQGIjCP0a8-4U5P0yjiV2upKOUYjG1uupnlfmR3bcxMGHqU8_yjrX5flkDftSZQtfvOy58yAVJaAUM"
+        },
+        "status": "completed",
+        "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Da%2Bfix%26sei%3DwUWQar7pK-KWseMP-KTikQs&q=EhAkAUkAGQd-I3nLrod4b36YGMKLwdQGIjCP0a8-4U5P0yjiV2upKOUYjG1uupnlfmR3bcxMGHqU8_yjrX5flkDftSZQtfvOy58yAVJaAUM",
+        "verified": true
+      },
+      "retry_count": 1,
+      "started_at": 1787839921.0467007,
+      "status": "completed"
+    },
+    {
+      "action": "search",
+      "agent": "browser_agent",
+      "args": {
+        "engine": "google",
+        "query": "a fix"
+      },
+      "confidence": 0.9,
+      "created_at": 1787839942.8185542,
+      "duration_ms": 2811,
+      "error": null,
+      "finished_at": 1787839945.6305082,
+      "goal": "Search for a fix",
+      "id": "76c7c03ab96d4a71860bae227f6cbecf",
+      "max_retries": 1,
+      "parent_id": "9e6e5acdbf3940c1bc74501d31fc66cc",
+      "priority": 5,
+      "progress": 100,
+      "result": {
+        "ok": true,
+        "operation": "browser_search",
+        "result": "Searched google for 'a fix'.",
+        "state": {
+          "active_element": null,
+          "authentication_state": "unknown",
+          "browser_id": "automation-browser",
+          "download_state": {},
+          "error_state": {
+            "code": "CONSOLE_ERROR",
+            "message": "Failed to load resource: the server responded with a status of 429 ()"
+          },
+          "last_event": "navigation_started",
+          "loading": true,
+          "media_state": {},
+          "navigation_state": "started",
+          "page_id": "page-1",
+          "ready": false,
+          "session_id": "sara-browser-session",
+          "timestamp": 1787839945.5422423,
+          "title": "https://www.google.com/search?q=a+fix&sei=wUWQar7pK-KWseMP-KTikQs",
+          "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Da%2Bfix%26sei%3DxUWQauDyG6GUseMPy_rRmQY&q=EhAkAUkAGQd-I3nLrod4b36YGMaLwdQGIjCXYWbXDL60c1c7hOJxB7g6EU9B-Vt0k-skUzBWUJaJxVCuQWgFz0tnImZdA_cTcXYyAVJaAUM"
+        },
+        "status": "completed",
+        "url": "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Da%2Bfix%26sei%3DxUWQauDyG6GUseMPy_rRmQY&q=EhAkAUkAGQd-I3nLrod4b36YGMaLwdQGIjCXYWbXDL60c1c7hOJxB7g6EU9B-Vt0k-skUzBWUJaJxVCuQWgFz0tnImZdA_cTcXYyAVJaAUM",
+        "verified": true
+      },
+      "retry_count": 0,
+      "started_at": 1787839942.8185542,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787844364.2731862,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787844364.2757113,
+      "goal": "Prepare SARA context restoration",
+      "id": "2402192780514e029ef9cb7aa8e23c6a",
+      "max_retries": 1,
+      "parent_id": "8fd29d9647dd4b678148a79ddfc375fc",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787844364.2757113,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787844472.7331438,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787844472.7361517,
+      "goal": "Separate unrelated task",
+      "id": "2812cd1403ff469d8819be0f367792f9",
+      "max_retries": 1,
+      "parent_id": "02d0d08e45f74eecab586f8aff6b71f5",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787844472.7361517,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787845074.476418,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787845074.476418,
+      "goal": "Prepare SARA context restoration",
+      "id": "eb614d5f7ec344ccb95ced0dcbd074f5",
+      "max_retries": 1,
+      "parent_id": "c29aeb1b23084468b8a368f9555df1ee",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787845074.476418,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787845074.835156,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787845074.835156,
+      "goal": "Separate unrelated task",
+      "id": "380d3db3f3f748d08699b7a0520b2645",
+      "max_retries": 1,
+      "parent_id": "aa66b923264d43188e6080a07b52bfc0",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787845074.835156,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1787845318.892698,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787845318.892698,
+      "goal": "Prepare SARA context restoration",
+      "id": "cf91a7f5c8054a1395c0123f195c44c6",
+      "max_retries": 1,
+      "parent_id": "03ab460567fc4708b725bca67da9e039",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787845318.892698,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1787845319.1597235,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1787845319.1597235,
+      "goal": "Separate unrelated task",
+      "id": "1d98f31fe2d2435bab16bd2a511bb8fc",
+      "max_retries": 1,
+      "parent_id": "841a79dbd4ae4d14aa6b619733eb0e65",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1787845319.1597235,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1788145271.2004106,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1788145271.2029676,
+      "goal": "Prepare SARA context restoration",
+      "id": "09ceee8c0d2947a6a59e897520f46fd0",
+      "max_retries": 1,
+      "parent_id": "458ae3bd64ac43b9b2661ab7ca4b9fe0",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1788145271.2029676,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1788145272.3852036,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1788145272.3852036,
+      "goal": "Separate unrelated task",
+      "id": "0acb416856a04e8daafc5826c134af49",
+      "max_retries": 1,
+      "parent_id": "c448c0fb52cb4d949c72933a3d9c6cb9",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1788145272.3852036,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Prepare SARA context restoration"
+      },
+      "confidence": 0.75,
+      "created_at": 1788145725.120901,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1788145725.1224768,
+      "goal": "Prepare SARA context restoration",
+      "id": "1e50f396abdd49c2a83107bdd902b218",
+      "max_retries": 1,
+      "parent_id": "61e27e23bfbd4d2bbaa77fe42efcea8e",
+      "priority": 7,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1788145725.1224768,
+      "status": "completed"
+    },
+    {
+      "action": "plan",
+      "agent": "task_planner",
+      "args": {
+        "goal": "Separate unrelated task"
+      },
+      "confidence": 0.75,
+      "created_at": 1788145728.4055076,
+      "duration_ms": 0,
+      "error": null,
+      "finished_at": 1788145728.4065063,
+      "goal": "Separate unrelated task",
+      "id": "6f0617c57c9149cea2d0cdd8b8506222",
+      "max_retries": 1,
+      "parent_id": "d36a218c8aa94eadb15720ecc4b1ed21",
+      "priority": 1,
+      "progress": 100,
+      "result": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "retry_count": 0,
+      "started_at": 1788145728.4055076,
+      "status": "completed"
+    }
+  ]
 }

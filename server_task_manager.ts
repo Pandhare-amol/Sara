@@ -152,6 +152,54 @@ export function buildStructuredExecutionResult(
 
 export type { AuthoritativeTaskResult, VerificationResult };
 
+export function inferTaskToolCall(task: any): { tool: string; args: Record<string, unknown> } {
+  const description = String(task?.description || "").trim();
+  if (!description) {
+    return { tool: "saraAgentExecute", args: { goal: "General task" } };
+  }
+
+  const siteTokens = ["youtube", "google", "github", "gmail", "chatgpt", "instagram", "docs", "wikipedia", "amazon", "netflix", "spotify"];
+  const namedSiteMatch = siteTokens.find((site) => new RegExp(`\\b${site}\\b`, "i").test(description));
+  const openTargetMatch = /(?:open|go to|visit|launch)\s+(?:the\s+)?([a-z0-9.-]+(?:\.[a-z0-9.-]+)+|youtube|google|github|gmail|chatgpt|instagram|docs|wikipedia|amazon|netflix|spotify)(?:\s|$)/i.exec(description);
+
+  const extractQuery = (site?: string, fallback = "query") => {
+    const base = site ? description.replace(new RegExp(`\\b${site}\\b`, "gi"), "").trim() : description;
+    const direct = /(?:search(?:\s+(?:for|on))?|find|look up)\s+(?:for\s+)?(.+)/i.exec(base);
+    if (direct?.[1]) return direct[1].trim();
+    const stripped = base.replace(/^(?:search|find|look up|for|on|play|watch|open)\s+/i, "").trim();
+    return stripped || fallback;
+  };
+
+  if (/\byoutube\b/i.test(description) && /(?:search|find|look up|play|watch)/i.test(description)) {
+    const playMatch = /(?:play|watch)\s+(.+)/i.exec(description);
+    const query = playMatch ? playMatch[1].trim() : extractQuery("youtube", "popular videos");
+    return { tool: "searchYouTube", args: { query } };
+  }
+
+  if (/\bgoogle\b/i.test(description) && /(?:search|find|look up)/i.test(description)) {
+    return { tool: "searchGoogle", args: { query: extractQuery("google", "search") } };
+  }
+
+  if (/\bgithub\b/i.test(description) && /(?:search|find|look up)/i.test(description)) {
+    return { tool: "searchGitHub", args: { query: extractQuery("github", "project") } };
+  }
+
+  if (/(?:open|go to|visit|launch)/i.test(description) || namedSiteMatch) {
+    const target = openTargetMatch ? openTargetMatch[1].trim() : (namedSiteMatch || "website");
+    return { tool: "openWebsite", args: { name: target } };
+  }
+
+  if (/search|find|look up/.test(description)) {
+    return { tool: "searchWeb", args: { query: extractQuery(undefined, "query") } };
+  }
+
+  if (/click|type|open tab|close tab|navigate|scroll|refresh|back|forward/.test(description) || /browser|website/.test(description)) {
+    return { tool: "desktopBrowserOpen", args: { url: "https://www.google.com" } };
+  }
+
+  return { tool: "saraAgentExecute", args: { goal: description } };
+}
+
 class TaskRunner extends EventEmitter {
   private concurrency = 2;
   private running = 0;
@@ -240,6 +288,23 @@ class TaskRunner extends EventEmitter {
         if (fresh) task = fresh;
       } catch {}
 
+      if (task.metadata?.musicWorkflowTaskId) {
+        const { executeMusicWorkflowTask } = await import("./src/services/music_studio/autonomous_creator");
+        const workflow = await executeMusicWorkflowTask(String(task.metadata.musicWorkflowTaskId));
+        const succeeded = workflow.status === "COMPLETED";
+        const updated = await updateTask(task.taskId, {
+          status: succeeded ? "completed" : workflow.status === "WAITING_USER" ? "waiting" : "failed",
+          completedAt: succeeded || workflow.status === "FAILED" ? new Date().toISOString() : undefined,
+          checkpoint: workflow.checkpoint,
+          error: workflow.error?.message,
+          result: JSON.stringify({ workflow }),
+          metadata: { ...(task.metadata || {}), workflow },
+        });
+        this.emit("taskUpdated", updated);
+        this.emit(succeeded ? "taskCompleted" : "taskFailed", updated);
+        return;
+      }
+
       const callSpec = await this.extractCallFromTask(task);
       if (!callSpec) {
         await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: 'No call spec' });
@@ -313,7 +378,16 @@ class TaskRunner extends EventEmitter {
 
       const argsWithContext = Object.assign({}, originalArgs || {}, { taskId: task.taskId });
       const toolStartedAt = new Date().toISOString();
-      const res = await this.callDesktopAgent(callSpec.tool, argsWithContext, originalArgs || {});
+            const res = await this.callDesktopAgent(callSpec.tool, argsWithContext, originalArgs || {});
+
+      // Handle policy-driven user approval requirement
+      if (!res.ok && res.error === "WAITING_FOR_APPROVAL") {
+        // Mark task as awaiting user confirmation
+        await updateTask(task.taskId, { status: 'awaiting_confirmation', updatedAt: new Date().toISOString() });
+        this.emit('taskUpdated', task);
+        // Exit early; will be resumed after user approval
+        return;
+      }
 
       // Perform tool-specific verification
       let verification: VerificationResult;
@@ -322,18 +396,21 @@ class TaskRunner extends EventEmitter {
       } else if (callSpec.tool.includes('browser') || callSpec.tool.includes('open') || callSpec.tool.includes('search') || callSpec.tool.includes('navigate')) {
         verification = await verifyBrowserOperation(callSpec.tool, originalArgs || (callSpec.args || {}), res);
       } else {
+        const canonical = (res?.result && typeof res.result === 'object') ? res.result : undefined;
+        const explicitlyVerified = canonical?.verified === true || String(canonical?.verification_status || '').toUpperCase() === 'VERIFIED';
         verification = {
           attempted: true,
-          passed: Boolean(res && res.ok && res.result !== undefined),
-          method: 'tool_response_validation',
+          passed: Boolean(res && res.ok && explicitlyVerified),
+          method: explicitlyVerified ? 'tool_response_validation' : 'explicit_tool_verification_required',
           checks: [
             {
               name: 'tool_returned_ok',
               passed: Boolean(res && res.ok),
               evidence: { toolName: callSpec.tool, result: res?.result },
             },
+            { name: 'tool_explicitly_verified', passed: explicitlyVerified, reason: explicitlyVerified ? undefined : 'Execution was dispatched but its postcondition was not verified.' },
           ],
-          details: res && res.ok ? 'Tool reported success and returned a result payload.' : (res?.error || 'Tool reported failure.'),
+          details: res && res.ok && explicitlyVerified ? 'Tool returned explicit verification evidence.' : (res?.error || 'Tool executed without verified postcondition.'),
         };
       }
 
@@ -396,23 +473,23 @@ class TaskRunner extends EventEmitter {
       }
     } catch (e) {}
 
-    // Fast vs Deep Routing
+    const route = inferTaskToolCall(task);
     const desc = (task.description || '').toLowerCase();
-    const isFast = /^(open|close|type|click|search|play|pause|mute|unmute|volume)/.test(desc);
-    
-    if (isFast) {
-      console.log(`[TaskRunner] Routing to FAST execution for: ${desc}`);
-      return { tool: 'saraUniversalCommand', args: { command: task.description } };
-    } else {
-      console.log(`[TaskRunner] Routing to DEEP planner for: ${desc}`);
-      let plan: any[] | null = null;
-      try {
-        plan = await this.generateDeepPlan(task.description);
-      } catch (err) {
-        console.error(`[TaskRunner] Deep Plan generation failed`, err);
-      }
-      return { tool: 'saraAgentExecute', args: { goal: task.description, priority: task.priority, plan } };
+    const isWebsiteTask = /(youtube|google|gmail|github|chatgpt|instagram|docs|wikipedia|amazon|netflix|spotify|website|search|open\s+(?:site|page)|visit)/i.test(task.description || "");
+
+    if (isWebsiteTask || route.tool !== 'saraAgentExecute') {
+      console.log(`[TaskRunner] Routing to explicit website/browser task for: ${desc}`);
+      return route;
     }
+
+    console.log(`[TaskRunner] Routing to DEEP planner for: ${desc}`);
+    let plan: any[] | null = null;
+    try {
+      plan = await this.generateDeepPlan(task.description);
+    } catch (err) {
+      console.error(`[TaskRunner] Deep Plan generation failed`, err);
+    }
+    return { tool: 'saraAgentExecute', args: { goal: task.description, priority: task.priority, plan } };
   }
 
   private async generateDeepPlan(goal: string): Promise<any[] | null> {

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { X } from "lucide-react";
-import { getDesktopConversations, deleteDesktopConversation, DesktopConversationRecord } from "../lib/desktopConversationStore";
+import { X, Search } from "lucide-react";
+import { getDesktopConversations, deleteDesktopConversation, searchDesktopConversations, DesktopConversationRecord } from "../lib/desktopConversationStore";
 
 type Props = {
   isOpen: boolean;
@@ -12,19 +12,43 @@ type Props = {
 
 export function DesktopConversationsPanel({ isOpen, onClose, onOpenConversation, onCreateNew }: Props) {
   const [conversations, setConversations] = useState<DesktopConversationRecord[]>([]);
+  const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
     const load = async () => {
-      setConversations(await getDesktopConversations());
+      const next = searchValue.trim()
+        ? await searchDesktopConversations(searchValue)
+        : await getDesktopConversations();
+      setConversations(next);
     };
     load();
-  }, [isOpen]);
+  }, [isOpen, searchValue]);
 
   const handleDelete = async (conversationId: string) => {
     await deleteDesktopConversation(conversationId);
     setConversations((prev) => prev.filter((item) => item.id !== conversationId));
   };
+
+  const groupedConversations = useMemo<Record<string, DesktopConversationRecord[]>>(() => {
+    const now = Date.now();
+    const groups: Record<string, DesktopConversationRecord[]> = {
+      Today: [],
+      Yesterday: [],
+      "Previous 7 days": [],
+      Older: [],
+    };
+
+    for (const item of conversations) {
+      const diffDays = Math.floor((now - new Date(item.updatedAt).getTime()) / 86400000);
+      if (diffDays <= 0) groups.Today.push(item);
+      else if (diffDays === 1) groups.Yesterday.push(item);
+      else if (diffDays <= 7) groups["Previous 7 days"].push(item);
+      else groups.Older.push(item);
+    }
+
+    return groups;
+  }, [conversations]);
 
   return (
     <AnimatePresence>
@@ -53,33 +77,57 @@ export function DesktopConversationsPanel({ isOpen, onClose, onOpenConversation,
             </div>
           </div>
 
-          <div className="space-y-3 p-6">
-            {conversations.length === 0 ? (
+          <div className="space-y-4 p-6">
+            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 px-3 py-3 text-sm text-slate-300">
+              <Search size={16} className="text-cyan-300" />
+              <input
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="Search conversations..."
+                className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
+              />
+            </label>
+
+            {Object.entries(groupedConversations).every(([, items]) => (items as DesktopConversationRecord[]).length === 0) ? (
               <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-slate-400">
-                No desktop conversations saved yet.
+                No matching conversations found.
               </div>
             ) : (
-              conversations.map((item) => (
-                <div key={item.id} className="rounded-3xl border border-white/10 bg-slate-900/90 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <button
-                        onClick={() => onOpenConversation(item.id)}
-                        className="text-left text-sm font-semibold text-white hover:text-cyan-300"
-                      >
-                        {item.title}
-                      </button>
-                      <p className="mt-2 text-xs text-slate-500">Updated {new Date(item.updatedAt).toLocaleString()}</p>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/15"
-                    >
-                      Delete
-                    </button>
+              Object.entries(groupedConversations).map(([section, items]) => {
+                const sectionItems = items as DesktopConversationRecord[];
+                if (!sectionItems.length) return null;
+                return (
+                  <div key={section} className="space-y-3">
+                    <div className="px-1 text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">{section}</div>
+                    {sectionItems.map((item) => {
+                      const lastMessage = item.messages[item.messages.length - 1];
+                      const preview = lastMessage ? lastMessage.text : "New conversation";
+                      return (
+                        <div key={item.id} className="rounded-3xl border border-white/10 bg-slate-900/90 p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <button
+                                onClick={() => onOpenConversation(item.id)}
+                                className="text-left text-sm font-semibold text-white hover:text-cyan-300"
+                              >
+                                {item.title}
+                              </button>
+                              <p className="mt-2 line-clamp-2 text-xs text-slate-400">{preview}</p>
+                              <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-slate-500">{new Date(item.updatedAt).toLocaleString()}</p>
+                            </div>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/15"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </motion.div>

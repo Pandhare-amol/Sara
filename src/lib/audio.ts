@@ -59,6 +59,22 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+export function buildLiveConnectionQuery(
+  conversationId?: string | null,
+  speakerProfile?: { userId?: string; displayName?: string } | null,
+): string {
+  const params = new URLSearchParams();
+  if (conversationId) params.set("conversationId", conversationId);
+  if (speakerProfile && (speakerProfile.userId || speakerProfile.displayName)) {
+    params.set("speakerProfile", JSON.stringify({
+      userId: speakerProfile.userId || "local-user",
+      displayName: speakerProfile.displayName || "Local User",
+    }));
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 export class SaraAudioSession {
   private ws: WebSocket | null = null;
   
@@ -89,6 +105,7 @@ export class SaraAudioSession {
   private onDesktopEvent?: (event: any) => void;
   private onAutomationEvent?: (event: any) => void;
   private onWake?: (info: { phrase?: string; confidence?: number } ) => void;
+  private onTurnComplete?: () => void;
   
   private currentState: LiveState = "disconnected";
   private isActivated = false;
@@ -103,6 +120,7 @@ export class SaraAudioSession {
     onDesktopEvent?: (event: any) => void;
     onAutomationEvent?: (event: any) => void;
     onWake?: (info: { phrase?: string; confidence?: number }) => void;
+    onTurnComplete?: () => void;
   }) {
     this.onStateChange = handlers.onStateChange;
     this.onTranscription = handlers.onTranscription;
@@ -112,6 +130,7 @@ export class SaraAudioSession {
     this.onDesktopEvent = handlers.onDesktopEvent;
     this.onAutomationEvent = handlers.onAutomationEvent;
     this.onWake = handlers.onWake;
+    this.onTurnComplete = handlers.onTurnComplete;
   }
 
   private setState(state: LiveState) {
@@ -146,7 +165,7 @@ export class SaraAudioSession {
   }
 
   // Requests microphone and creates connections
-  public async connect() {
+  public async connect(conversationId?: string | null) {
     if (this.isActivated) return;
     this.isActivated = true;
     this.setState("connecting");
@@ -154,10 +173,21 @@ export class SaraAudioSession {
     try {
       // 1. Establish custom WebSocket server bridge
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      // Reuse stored conversationId for session resume if available
-      const storedConv = window.localStorage.getItem("sara.conversationId");
-      const convParam = storedConv ? `?conversationId=${encodeURIComponent(storedConv)}` : "";
-      this.ws = new WebSocket(`${protocol}//${window.location.host}/live${convParam}`);
+      const storedConv = conversationId ?? window.localStorage.getItem("sara.conversationId");
+      let speakerProfile: { userId?: string; displayName?: string } | null = null;
+      try {
+        const rawProfile = window.localStorage.getItem("sara.voiceProfile.v1");
+        if (rawProfile) {
+          const parsed = JSON.parse(rawProfile) as { userId?: string; displayName?: string };
+          if (parsed && (parsed.userId || parsed.displayName)) {
+            speakerProfile = parsed;
+          }
+        }
+      } catch {
+        speakerProfile = null;
+      }
+      const wsQuery = buildLiveConnectionQuery(storedConv, speakerProfile);
+      this.ws = new WebSocket(`${protocol}//${window.location.host}/live${wsQuery}`);
       this.ws.binaryType = "blob";
 
       this.ws.onopen = async () => {
@@ -270,6 +300,11 @@ export class SaraAudioSession {
             return;
           }
 
+          if (data.type === "singer:control") {
+            window.dispatchEvent(new CustomEvent("sara.singerControl", { detail: data }));
+            return;
+          }
+
           // Handle server-side states
           if (data.type === "status") {
             console.log("[Sara WS Status]:", data.status);
@@ -299,6 +334,7 @@ export class SaraAudioSession {
 
           // Turn complete
           if (data.type === "turnComplete") {
+                        this.onTurnComplete?.();
             // Once Sara completes speaking, change visual state back to listening
             setTimeout(() => {
               if (this.activeSources.length === 0 && this.currentState === "speaking") {

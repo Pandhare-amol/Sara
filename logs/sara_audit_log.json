@@ -3370,5 +3370,1987 @@
     "created_at": 1787275816.9235165,
     "id": "9555da51dab9447cb472f3d398d58540",
     "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787306287.7182343,
+    "id": "85b45a81c0b6476796970d35ed71f242",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787306287.732078,
+    "id": "0c09c6d3529746aba26e659d5e25cf94",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787306297.797859,
+    "id": "70dd5c954d8942e6b7f67720b32772e3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787306297.806719,
+    "id": "d448adfa82894b738941bef3f6511dce",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787306297.8367214,
+    "id": "97435325bc6f4f6483c9eb946c2fdc71",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787306297.844384,
+    "id": "0b546e0d268d403181e1d3b608c947ac",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787306297.8795393,
+    "id": "62109b42d1384714a8a46702dbba1918",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787306297.8890107,
+    "id": "b3cad9815ce041968dbbb60363d5a328",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787306298.0389807,
+    "id": "1c79aff56dcb4a32aaf5a58103cee0af",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1787306298.3014934,
+    "id": "17fe14e94cf64393816df8874fd37e14",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1787306298.319635,
+    "id": "e136dbbbc92546738e058cae64b87257",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787306298.6031241,
+    "id": "dc55fa7616c643c5865cc04ef78b586d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787306298.6413841,
+    "id": "3b35d0e8e3814fed9a375a33a164974b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787318113.4159553,
+    "id": "16d8a18e67f5420f87c58e97019c6343",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787318113.4375257,
+    "id": "fc2484d119614601aa87129a29bdb804",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787318125.4436717,
+    "id": "57fcec971a5b4ce7ae7190d6f3f79965",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787318125.456688,
+    "id": "8e3dbb19e9f743d2acf161b4d8329595",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787318125.5130138,
+    "id": "78418d3f8ef64c0cb7a809821c2a1255",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787318125.5272312,
+    "id": "9db5b9a310174de0a7f3696dc20063da",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787318125.5705605,
+    "id": "6717bb7b2f074d3c82b145bcab5237d0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787318125.5810633,
+    "id": "c3bb6a258fb34482847ab1190a1e1e93",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787318125.7837086,
+    "id": "8508324523e845d585d437fde69c39a8",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1787318126.1029668,
+    "id": "7f71d8fb151344f3b9cf23a4224f5e99",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1787318126.1290195,
+    "id": "be7ea2b28e504f21aa41ff82bdbd2040",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787318126.510162,
+    "id": "74e6d1a7d9fa4f36a2eeee334b6f2a2a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787318126.5552087,
+    "id": "649d5d67e6724611b8c2b6cae9d76c8d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787396535.8128002,
+    "id": "09ca47979b384a3c86c42377811ba487",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787396535.8186448,
+    "id": "95e21a91c36646ce8753b18bb66ab93f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787396535.845492,
+    "id": "52feee2fc86045eba9c2f42a2229f732",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787396535.8516066,
+    "id": "ffb2851e276e41eba10ddcf52862581b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787396535.8722186,
+    "id": "88bfa3b62f9843b3923f7458a63db2fc",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787396535.8795698,
+    "id": "de33112537d346daa8772eb481694116",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787396535.9187272,
+    "id": "871982c9b29c49d1a3031e8be6062d0b",
+    "requires_confirmation": true
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829240.2177508,
+    "id": "a10beafeb1164e9eaf48430feb35646d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829240.2289941,
+    "id": "4368a06663824ad4b5155da67a5d8481",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829260.982555,
+    "id": "056220d0a54f43ce9351d7ce40744b99",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829261.0008194,
+    "id": "9d96639307ee40488d4cf2a4656bece4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom saying I'll be home at 7."
+    },
+    "created_at": 1787829261.0475981,
+    "id": "7cd6cc8fd9964b4fbf6a31812ea61c8c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829261.0854738,
+    "id": "86601aca452d4bf99e7818a799ce04db",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829304.794411,
+    "id": "ac3a6c67c4654c6b9fefd7d5db970994",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829304.810241,
+    "id": "144dd83102e74b789481eff599e8c995",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829304.8413656,
+    "id": "d7a5324053f1481e8dd4d8239dad01cd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829304.8753045,
+    "id": "0cf75c7fbfdc4b488fdc8f3ef0e9ef85",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829365.6292467,
+    "id": "f9e4cb8e634b470fb5bcad88bcb386d0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829365.659628,
+    "id": "1827469f19c84ffba6b359e054410dc6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829365.7353876,
+    "id": "5575d606f0564583b7e5c6cc1cbbf26e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829365.776429,
+    "id": "b45ce75048e8445699bf6be74e7abcf4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829449.2968116,
+    "id": "1406af1c64e549a588920585657e1bf9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829449.3115087,
+    "id": "c4fd6474ef984450a85ef40ec2e313c8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829465.1205294,
+    "id": "0a2d9727b5f34efc8442433120aaca3b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829465.1712482,
+    "id": "3b6786401aa44422a9cb61f7acb9bc8d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787829465.215645,
+    "id": "f12030f62550455b80abc50ea8881ac6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1787829465.228367,
+    "id": "74baab2324e04bcfa305912cdf3f3554",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787829465.2608588,
+    "id": "19c913e99f604ddcaae3d76bd0e73356",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1787829465.2746067,
+    "id": "06d3c004e0a04861a9c36859b115fbb4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787829465.3083184,
+    "id": "f6d3c1e631c744d2a2e1aefbea8905c2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1787829465.3182578,
+    "id": "98d38aeb2bbd461d8a5fd6d19b7a6505",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1787829466.5654943,
+    "id": "79612753e0fa4932b5927d13698177cb",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1787829466.7940724,
+    "id": "afd40dfef12d49bc89eb7a0803bd9329",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1787829466.8095517,
+    "id": "8b2ea46f80da4d909f68611d89e9f9c7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787829467.182727,
+    "id": "826c6b9ae48b4290923df30da6e38fd1",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1787829467.2149866,
+    "id": "dc0bdbd4a8e8410aa00ac9516d20352e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829555.6251583,
+    "id": "1400455ce1bf409eae0b3c2b7a2a3cc4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829555.636811,
+    "id": "ab3e631739c142c88c9337b1a20d08da",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829555.6765196,
+    "id": "0287ab4bf07148898a36a921798b91f5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829555.7109265,
+    "id": "92b3e45a6877478cad89eb46eeb21b24",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829869.549761,
+    "id": "2deaa43da1ab49b48c6939ee5ff4b520",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829869.560911,
+    "id": "eae3c2a087ca4516848bdff3f11e2012",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829869.5934637,
+    "id": "70be8059247b4009b3cdbee3103430c4",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829869.6297505,
+    "id": "43c2446a7c754ad7a11895058cab2b98",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787829919.192742,
+    "id": "21c8d0ebb4034b3ab29226e681fc6238",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787829919.2007596,
+    "id": "121b26f54be64525b7f0413d269eaff6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787829919.231572,
+    "id": "d0661e7b2dce46a7bbf88ade654d2a2a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787829919.2567103,
+    "id": "5bcf334c450b48879221395833c08b11",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1787830337.01398,
+    "id": "223b0f400d8a4cf2a54c7a6ece82fa4a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1787830337.024794,
+    "id": "1add052458c5428cb63dd15f7c4a7b5e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1787830337.056333,
+    "id": "2fd168bec59a43a2aabab25f31149913",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1787830337.085966,
+    "id": "f18f0ed8a71643a885943b96fdc4d589",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788422272.5075746,
+    "id": "ac7c487cd122469b85987578b2e5ce45",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788422272.5278714,
+    "id": "cec6d7f7366e438fa00a0c8f1f384997",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788422285.7226992,
+    "id": "b27175165de341ad9c95ef82fed4e996",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788422285.8232024,
+    "id": "e308c76758be49909309f1002474b043",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788422285.9095504,
+    "id": "1f0278af2262442ba2bf83b3a0269416",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788422285.9245243,
+    "id": "c02199caf4c14951b2dbac3b300b9b88",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788422285.974718,
+    "id": "0b1afdbf9bd049f6a6e1b079b5525385",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788422285.987389,
+    "id": "bac1823f319c4c888dc86360f10c9c2b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788422286.0365605,
+    "id": "97b0cdf4e71444149c952cb5cd5d8875",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788422286.0521774,
+    "id": "b6bba33eceb24bc2bacfd94407f6e0c7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788422287.062894,
+    "id": "66e1111eccd941eab7eab3e1400b5b24",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788422287.3463635,
+    "id": "cd5e559b67064c6a87afcdeb444ee061",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788422287.3678153,
+    "id": "38aa91e482c44c618178b4b8a8d8d39f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788422287.824394,
+    "id": "2388a6b0e5e8456588b45baf138898ab",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788422287.878102,
+    "id": "6147d8836b5f4050aae0cd9255447122",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788422347.3845587,
+    "id": "f9b9a5b31e074b9fbe0e73c330358958",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788422347.400346,
+    "id": "962c59ecd86f4c7791c192c79888ae86",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788422350.4210358,
+    "id": "89e1a0a762574fd69677d3fac5fa5941",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788422350.5052934,
+    "id": "33f89044350f44f0a34fa17230fa0adb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788422350.5929008,
+    "id": "730172a098ce4456a139e624ba0d7d28",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788422350.6122577,
+    "id": "295c15769a164d27a2d20679a8dea657",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788422350.666725,
+    "id": "5cd2faa8bfe24dcba24513fc97f60d60",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788422350.686152,
+    "id": "76940e3a73104b9185581728b87af7fe",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788422350.752734,
+    "id": "10598634f78b4f57b3ee01d449a0f994",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788422350.7719338,
+    "id": "542a81acd11b491bba2e2f7100426b4c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788422352.2628748,
+    "id": "e4b1a3873b9642abaf1aa2a38bfe7da5",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788422352.7018685,
+    "id": "ecd3342a7a204212924f3c3dc4707c48",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788422352.7341673,
+    "id": "b52b5cc4ed7440b88206d1a6f5a357d7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788422353.011003,
+    "id": "1fe18a207a3444a79155f30cffdf0286",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788422353.077617,
+    "id": "edb3a12cfe934729a04dfa92d51c3d17",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788423381.0163789,
+    "id": "03edfefcad53447eb79f59ff3d782c6c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788423381.0397084,
+    "id": "fc371c2f72184ac7bc5dacabbd8984b0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788423389.6033604,
+    "id": "ec732ce41d3b49bfab2fc5794e370815",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788423389.6975715,
+    "id": "c97504ee67524d51bb283b9112241171",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788423389.7621198,
+    "id": "437e4a0249054a14bf97d6808e1a900b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788423389.781696,
+    "id": "5c9468c3cf184144b0fae14d2cc75376",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788423389.9743328,
+    "id": "e6418d72dc7d4321a9d4aa993c728d3c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788423390.0932548,
+    "id": "f1f81416d6ec480589bdb2725b280588",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788423390.3397794,
+    "id": "79098eee28ce415bb7ead991ded20a69",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788423390.3748088,
+    "id": "af7ad7121c8046f9919d90172650b2cb",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788423390.8961005,
+    "id": "d8081d7dbf554b319af38b218c82d8ed",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788423391.2244585,
+    "id": "0ee317647c0b4a51a1205dd94fe8d527",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788423391.246277,
+    "id": "b26f36d6640445b1a7a708f0a6ec0d0e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788423391.6721704,
+    "id": "796e7a2ba9c741d396af891aa59395cd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788423391.7381492,
+    "id": "a12a23ce08ae4dfeb7a370b831ae52f3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788425474.53415,
+    "id": "2ab4ba7f4bb9469db4a322de8a6bb94b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788425474.5595481,
+    "id": "9544249d241445d2965621a8b806e477",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788425482.1416814,
+    "id": "53f08d6a24314fb0a2020378388b3e80",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788425482.2003267,
+    "id": "b52f7f270aa04ceab48c83e092b01b0c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788425482.3378658,
+    "id": "7e39fc841f3042aeb7fa715cfe086d2f",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788425482.3523653,
+    "id": "bac1fd5492314082928c6fc82810ed5b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788425482.504699,
+    "id": "b2c993231f284995ad9a3cbb924f0d4e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788425482.5395532,
+    "id": "c5332962df574f05b825597beee82a52",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788425482.6035714,
+    "id": "b387d33a094c4485803d8aabefe75d69",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788425482.636628,
+    "id": "767784579d614cca91efb342054980fa",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788425483.0118728,
+    "id": "b6db02dae41947e4a923d8c0f9cc28b2",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788425483.3368988,
+    "id": "a86a2b8f5e1f47ef8dd8a3e9e406d722",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788425483.3708363,
+    "id": "bd9a73cee13e4418aa17a0925cffeea5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788425483.6912115,
+    "id": "02d52cce00b54f998bc5b557e1c2156b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788425483.7511785,
+    "id": "a0e595cd838a4bbfb5ab46a5b17c9fba",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788425854.218162,
+    "id": "497df05a50e14946917e3492a83ff747",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788425854.2412288,
+    "id": "0900c00a63ab4dffb7c6332aa51ded27",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788425857.7022455,
+    "id": "8d69dd1b7f2741fcbd8063af1310ea51",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788425857.770424,
+    "id": "5a999903101b4062b7fb24b8d494fb61",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788425858.651854,
+    "id": "73f952888cf842ec983011ca8cd312d3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788425858.6700194,
+    "id": "be558b21c1344776a8eb711694e0e1e8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788425858.7630684,
+    "id": "aad0a0d9627b41beb5817190a681b012",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788425858.7861152,
+    "id": "2757dfeff0754a559882637a32d8d008",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788425858.9010124,
+    "id": "50a2dfb218d34cb78d48419c03ed1120",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788425858.9193177,
+    "id": "8b590404e8cf4385a931be4c27abf017",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788425859.2416773,
+    "id": "1bf2b0e3c6f74a32b602412e6aee8b88",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788425859.5663931,
+    "id": "f3b6e49c6f0d48b683690857b07be921",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788425859.5912263,
+    "id": "6afa4d47395f4823a48a4c6ead97ca4e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788425859.8234096,
+    "id": "8a844390ee044b4aafe32f738042f2b5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788425859.8871045,
+    "id": "68967db1dcc74027940df632d3410e2b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788426040.226188,
+    "id": "be296dd3cf4c47569dd7f5ca7fe57b12",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788426040.244953,
+    "id": "1e63a7450ac748eca0d15ad9c8f9f2b9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788426044.1145399,
+    "id": "0db1c157219c4ce48c5454bb48e2e361",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788426044.2238634,
+    "id": "d41d2089fe604048a4b449f9a3c8a9c2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788426045.4433448,
+    "id": "64a2bb3682964bc29dea4e543d93260a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788426045.4717348,
+    "id": "23d3032489a8490b9df0b1836ded24f0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788426045.608012,
+    "id": "3d0c07cea8014c5bb216af37f567abd8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788426045.6410723,
+    "id": "9e1a2ad400684cea88f704814e363a7a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788426045.7521348,
+    "id": "ec29793ea0254b4795acd27e97089491",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788426045.7906659,
+    "id": "8eefcc5ac1d44f16b5216e0c29707a2a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788426046.2706008,
+    "id": "714dbf33126145518f373b2dd563a2ea",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788426046.6933486,
+    "id": "e39d2da4ca534f318b21e277d8371188",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788426046.724628,
+    "id": "ece2b7b857e649128d7251432bf37d5d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788426046.9944546,
+    "id": "714598dbf7ec4d4ea5eae4bfc4041350",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788426047.0690506,
+    "id": "5d25c0d3c95a4762a429c3bd52e7a341",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788428891.6523283,
+    "id": "b8c5bab27fb04ab68ea58bd9fa561937",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788428891.6928513,
+    "id": "b74841ff8eb64515a0d65fdf4184ece3",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788428902.0970793,
+    "id": "28dd5979e9df482b823edce045c1ea35",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788428902.4966981,
+    "id": "17a6675098664d4ba2c530043a17b464",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788428905.8726702,
+    "id": "e7f1a709c0474c8baa39116301b67d52",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788428905.9073915,
+    "id": "db33ed3952e94b62a743b771801ae58c",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788428906.0006778,
+    "id": "db411cfe5680437d839038d771edcff6",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788428906.0322711,
+    "id": "ed4316e864af4edc932e2a4d3d1b1745",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788428906.1439285,
+    "id": "811290fd45564b63871aa5a0a4e06b12",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788428906.1812894,
+    "id": "2e6de784727545c0a5b289149c6dd73b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788428906.7139187,
+    "id": "fe76453337f148038bc477b4dd7d65a7",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788428907.18519,
+    "id": "05177909a9474e8b9242f969db37b01d",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788428907.3103905,
+    "id": "70f22d6e94694672887edce8d5ff4429",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788428908.151225,
+    "id": "e061ba946a704462bbac1ece1405dc11",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788428908.3879745,
+    "id": "c520ee3a9bc347ecaefde9af3bc1d71b",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788428994.6456182,
+    "id": "f8409355ad9b4432918b0cfb683d6d0e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788428994.689782,
+    "id": "b8482ed46c5e40f08b27e9b705eb8e16",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788428999.907409,
+    "id": "64bb250790d44aeebddd62548e4ecfae",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788429000.211732,
+    "id": "b70d527179d540cfb7eeb9c0380f3b70",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429001.1537316,
+    "id": "f32bedbe210a4f9da3917e576bd674e9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429001.1828084,
+    "id": "09938b3f812e4aada67c9cc5cb252674",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429001.480871,
+    "id": "be7bcbca5be54186b88fbf2ff22f3549",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429001.527635,
+    "id": "f4172e25e2dd452488a1870e0775233d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429001.7229996,
+    "id": "9096d215db1549a4b1736009fe50c3a8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429001.788442,
+    "id": "a0da00f249df476fab7b58f4f3b5d01d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788429003.306714,
+    "id": "1b5ccef06aae4b6699de33ae44b4cf24",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788429004.945477,
+    "id": "ccded12099194ecc8618c812bdb4056b",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788429005.0283673,
+    "id": "ab3eb7b5aa8742638cd2bf0f6d09aa5e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429006.358127,
+    "id": "2db694e1d7d1447182474564962fbce5",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429006.5750828,
+    "id": "42d37709a7304cbc832a8aa5d1ab201e",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788429302.5804882,
+    "id": "7b75842b7ec94fb382c6e51228533a34",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788429302.603442,
+    "id": "a758280b71404bdb817c3fb7505d0814",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788429306.681609,
+    "id": "58c64f41581d49908f6a64cacc7ae298",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788429306.943157,
+    "id": "ec897d9c992e46fab065586f0a281a6a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429308.1057432,
+    "id": "382acc6010604f2d9184e7f714a23d61",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429308.1572738,
+    "id": "70db4c23911c481ead998d6b7c03db8a",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429308.2524981,
+    "id": "f879ecf7ab7e4c08be4f5884876815cd",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429308.278689,
+    "id": "ac4d40ee11b24751b2cb0221d162c0ad",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429308.4198027,
+    "id": "add93acb5afd4fab8d0f36d2510325e2",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429308.453543,
+    "id": "91a81034299949adbfa5638282bda7d7",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788429308.9562109,
+    "id": "679de03cec884e3589a13f6368ad1091",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788429309.4618328,
+    "id": "535ab028b2f44d0ea69b0fba42001fcb",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788429309.5056193,
+    "id": "00dc5bd2c58f4afa807aedd8f8dbff32",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429310.3721046,
+    "id": "2fc738d4551742c883c9ffbd3acd46ce",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429310.452822,
+    "id": "2da0a910c82c4a629ac1dce0603635f9",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "hello"
+    },
+    "created_at": 1788429608.8881986,
+    "id": "b2df56ec22414d4e8b3befb4b1203d77",
+    "requires_confirmation": false
+  },
+  {
+    "action": "Instagram.open",
+    "args": {},
+    "created_at": 1788429609.058637,
+    "id": "f21f4f9906f246c3ae9d1b1057029b05",
+    "requires_confirmation": false
+  },
+  {
+    "action": "WhatsApp.send_message",
+    "args": {
+      "text": "Send Mom: I'll be home at 7."
+    },
+    "created_at": 1788429625.649238,
+    "id": "d4573dc1d7e54a2ebe91e2d2de57b7b8",
+    "requires_confirmation": false
+  },
+  {
+    "action": "YouTube.play",
+    "args": {
+      "query": "Python lecture"
+    },
+    "created_at": 1788429626.466028,
+    "id": "c7bec18557694e249602e6685eb7fc00",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429628.322565,
+    "id": "efed7fc175dd4ffcac0cd9d7a5fc1e5d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "login_state",
+    "args": {
+      "text": "User signed in"
+    },
+    "created_at": 1788429628.399441,
+    "id": "2d3a3cb827274a38b9ababa80e14d3ee",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429628.619579,
+    "id": "f7d87ac333c74ccca5b211651997ce1d",
+    "requires_confirmation": false
+  },
+  {
+    "action": "detect_captcha",
+    "args": {
+      "text": "Please solve the reCAPTCHA"
+    },
+    "created_at": 1788429628.7757416,
+    "id": "a1acabccfcf04651ae3d78aee966a1b0",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429629.526479,
+    "id": "b009b1c18ada476db951adc796361a16",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open",
+    "args": {
+      "url": "https://example.com"
+    },
+    "created_at": 1788429629.5837164,
+    "id": "e67c6e66f49a4c65968d11c7772b1c12",
+    "requires_confirmation": false
+  },
+  {
+    "action": "purchase",
+    "args": {},
+    "created_at": 1788429631.6052246,
+    "id": "995ef6479dc24f938b503ce414b19a51",
+    "requires_confirmation": true
+  },
+  {
+    "action": "delete_file",
+    "args": {
+      "path": "C:/temp/example.txt"
+    },
+    "created_at": 1788429632.964608,
+    "id": "ef4a7d018cba403ebde7f5409c4d3f15",
+    "requires_confirmation": true
+  },
+  {
+    "action": "open_app",
+    "args": {
+      "name": "notepad"
+    },
+    "created_at": 1788429633.0772643,
+    "id": "13a0cc1f63154bb6ab3764412971beee",
+    "requires_confirmation": false
+  },
+  {
+    "action": "open_folder",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429636.24208,
+    "id": "4f66de01dbf6466ba86c1a47d9219b24",
+    "requires_confirmation": false
+  },
+  {
+    "action": "list_files",
+    "args": {
+      "path": "Desktop"
+    },
+    "created_at": 1788429636.7968113,
+    "id": "43b51540f76649f5bc8a0011a3f943a4",
+    "requires_confirmation": false
   }
 ]

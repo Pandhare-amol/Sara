@@ -3106,5 +3106,2464 @@
       "duration_ms": 0
     },
     "updated_at": 1787275816.937745
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787306297.7351606,
+    "id": "3617b2a732fb43d29f477897b94bab15",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 9997
+    },
+    "updated_at": 1787306297.7351606
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787306297.8195317,
+    "id": "4fef805463f64fd99527c7488f27215a",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1787306297.8195317
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787306297.8526342,
+    "id": "0a93bc2a05ea461ab01ffd015560cbeb",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 8
+    },
+    "updated_at": 1787306297.8526342
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787306297.9982603,
+    "id": "451f5e4aecd74ce8a687b2f02651665a",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 109
+    },
+    "updated_at": 1787306297.9982603
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787306298.4812765,
+    "id": "1471633e94d5422594642fe46332e207",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 151
+    },
+    "updated_at": 1787306298.4812765
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787306298.6151595,
+    "id": "61f17cb398ab4e58ae72e06867ee59ee",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787306298.6151595
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787306298.6553676,
+    "id": "a4b6e5dfa9c6458aba12b8e8e62fdc3e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787306298.6553676
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787318125.3523617,
+    "id": "7572b4c88b4b42eda28f4a32f0d4c2e5",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 11901
+    },
+    "updated_at": 1787318125.3523617
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787318125.4703975,
+    "id": "f1d6c5cf06474893b60eb131c2399487",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 13
+    },
+    "updated_at": 1787318125.4703975
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787318125.5466304,
+    "id": "288ef351945947869db4272fb1783262",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 19
+    },
+    "updated_at": 1787318125.5466304
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787318125.715286,
+    "id": "f90a841933ec45d7a8236e3f7d0ccd2b",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 134
+    },
+    "updated_at": 1787318125.715286
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787318126.3626978,
+    "id": "34e91b1fcabc4f8088e5b14528ab5701",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 217
+    },
+    "updated_at": 1787318126.3626978
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787318126.5222757,
+    "id": "9fa6995dad9f44a38ef60b4863dd1ed9",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787318126.5222757
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787318126.5816205,
+    "id": "efb2c5fe8cd14afd892dcc9265194e1b",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787318126.5816205
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787396535.8262522,
+    "id": "958da2e99df047bfbe586d84fcf145ad",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1787396535.8262522
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787396535.8586469,
+    "id": "c3b318ccf8844e0a96b50dac8e6beb70",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1787396535.8586469
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787396535.886911,
+    "id": "50801b8a85d04f4c81e023c67df8766b",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 7
+    },
+    "updated_at": 1787396535.886911
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829240.2360137,
+    "id": "58602c2e99cf4e509080963147c965f7",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829240.2360137
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829261.0120304,
+    "id": "04fa7255470e4eb6b8300b153bc69e71",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829261.0120304
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829261.0588722,
+    "id": "331cc0e532ce431f85ddcc3ea0be85a7",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom saying I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 2
+    },
+    "updated_at": 1787829261.0588722
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829261.0935526,
+    "id": "f72bb64f2f984a008d4bb3a093a66ea2",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829261.0935526
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829304.8176694,
+    "id": "8e92bc95d9bc4fa3afca72b7d3ba5329",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829304.8176694
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829304.854937,
+    "id": "b788a3a7f2db412aaeea64029c8e50bc",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 3
+    },
+    "updated_at": 1787829304.854937
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829304.8818216,
+    "id": "a2f32327ec5048c6852f4050d34012c9",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829304.8818216
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829365.673751,
+    "id": "012a31de14014fc7aa78cf3745ba9a51",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829365.673751
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829365.7541442,
+    "id": "f470b639c8394ebda629f4a36c5a016c",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 9
+    },
+    "updated_at": 1787829365.7541442
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829365.7872367,
+    "id": "8a260db48452483687d7e8b3d247eef3",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829365.7872367
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829465.1374643,
+    "id": "319c53df57f444e28d082067cfe777c3",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 2
+    },
+    "updated_at": 1787829465.1374643
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829465.1859117,
+    "id": "3a51dd1581014d1ab3d95c5626b3833e",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829465.1859117
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787829465.2399368,
+    "id": "fdd4c8bc3d6f4d77b60e561383f4753f",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 12
+    },
+    "updated_at": 1787829465.2399368
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787829465.2862267,
+    "id": "d66613abffcf4c18b92787ed475b15a7",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 11
+    },
+    "updated_at": 1787829465.2862267
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1787829466.5231442,
+    "id": "9e6ff88169ce4c7f895904cb530b74c4",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 1204
+    },
+    "updated_at": 1787829466.5231442
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787829467.1152518,
+    "id": "dfb9283841ff41ca9827057dd31413a1",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 290
+    },
+    "updated_at": 1787829467.1152518
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787829467.190877,
+    "id": "66f458dabc61492da282b1dae06aebdb",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829467.190877
+  },
+  {
+    "content": "os_action",
+    "created_at": 1787829467.2247882,
+    "id": "bcea181c875848b4bd9a407b102f2d77",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829467.2247882
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829555.6469102,
+    "id": "68571777a8344abaa58e7e61a2ea0de8",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829555.6469102
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829555.685537,
+    "id": "4e99a9b84b764d5282213dea25928a8e",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 1
+    },
+    "updated_at": 1787829555.685537
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829555.7180896,
+    "id": "4c6fe14a40674acea31c3df1e3ca91ee",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829555.7180896
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829869.5670662,
+    "id": "184a89db9ff14e04be2cfd59dfed8e5a",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829869.5670662
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829869.6032817,
+    "id": "e16d0899bcf24997b05769a31463fef3",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 1
+    },
+    "updated_at": 1787829869.6032817
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829869.6365044,
+    "id": "3d4dc1d787704bd69b7ed7131929cec8",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829869.6365044
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829919.209798,
+    "id": "6c316f6058f34563ade85d3d452c3a5e",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829919.209798
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829919.239669,
+    "id": "f2568ad05bbd4b4f958297eaaeaa9aa0",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829919.239669
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787829919.2632315,
+    "id": "56973acadb6c4925a2330b196e9992ff",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787829919.2632315
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1787830336.943914,
+    "id": "14c8ea8ebe634a81a24778cbd8bc7c12",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1787830336.943914
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787830337.0300026,
+    "id": "c3a049700f5340cf9ceb879d97ecb608",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787830337.0300026
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787830337.0660534,
+    "id": "107c4d04545345039d299fb2a81b5cef",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 3
+    },
+    "updated_at": 1787830337.0660534
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1787830337.0953927,
+    "id": "b8e36e1e69fe40c78869a4331d80e885",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1787830337.0953927
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422285.6447642,
+    "id": "bf5e5c01c51e4a4a8261cca2c260c96f",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 13103
+    },
+    "updated_at": 1788422285.6447642
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422285.762493,
+    "id": "ec0953f37a1341949dfdb272163e2992",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 4
+    },
+    "updated_at": 1788422285.762493
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422285.8463695,
+    "id": "2f88206975c9456e92058c3c8e3a6aee",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422285.8463695
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422285.9427388,
+    "id": "6a173d45c6ac44f0af2925e58eade7a8",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 18
+    },
+    "updated_at": 1788422285.9427388
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422286.0052755,
+    "id": "a4e2e67aaa1c47e2b0441b77945979da",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 17
+    },
+    "updated_at": 1788422286.0052755
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422286.99382,
+    "id": "a12c137704c74b939ace2df7b1b2f0e1",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 941
+    },
+    "updated_at": 1788422286.99382
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422287.639562,
+    "id": "dde584c940b34886aa9d55c7624091bb",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 257
+    },
+    "updated_at": 1788422287.639562
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422287.8451748,
+    "id": "6b88cb8d3baf4ebaa86e21ff49222201",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422287.8451748
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422287.8953056,
+    "id": "aa72ae6ebef244c2adbc91a71791046f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422287.8953056
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788422300.0811229,
+    "id": "2e2b873391744e8485dbd68c1354347b",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788422300.0811229
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422350.2675016,
+    "id": "ccd72c5cc66d446e9d1db8908a891eb2",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 2859
+    },
+    "updated_at": 1788422350.2675016
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422350.4492853,
+    "id": "a63e56930ab4462e9bcb3e1f8f979e89",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 7
+    },
+    "updated_at": 1788422350.4492853
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788422350.5228188,
+    "id": "f027191ead00417581ad2980b8bf782d",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422350.5228188
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422350.6261811,
+    "id": "a2b6e5f314cf4ce3a25c21f72da68e68",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 13
+    },
+    "updated_at": 1788422350.6261811
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422350.705022,
+    "id": "b4ad0d717580438f95d56750090d6060",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 18
+    },
+    "updated_at": 1788422350.705022
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788422352.1683958,
+    "id": "9bde888eeeb648b291d5dcd62e9af58d",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 1397
+    },
+    "updated_at": 1788422352.1683958
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422352.8792577,
+    "id": "040c1a48d9c64012a85de09e266e407f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 123
+    },
+    "updated_at": 1788422352.8792577
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422353.0373554,
+    "id": "30eb6c6228f74991abbddbdaa89733ed",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422353.0373554
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788422353.106309,
+    "id": "127ceae1db334f378afc7784f68592fa",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788422353.106309
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788422358.3633554,
+    "id": "cf77cec1d6c64ddeb9b828b9d2341b62",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788422358.3633554
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788423389.4742656,
+    "id": "ba0c01acf32d4deb9ca36f3d7f5c5629",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 8423
+    },
+    "updated_at": 1788423389.4742656
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788423389.6314692,
+    "id": "b76d376ef7934c0c8775db4b121280ce",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 6
+    },
+    "updated_at": 1788423389.6314692
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788423389.7122319,
+    "id": "d76ea028c10c4f62bb677bbe16ce5734",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788423389.7122319
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788423389.8584397,
+    "id": "4aad584f6c424f3ca3924fc05b888ac5",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 77
+    },
+    "updated_at": 1788423389.8584397
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788423390.1306326,
+    "id": "3f82237bf38d449484d239ba9a9174ed",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 37
+    },
+    "updated_at": 1788423390.1306326
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788423390.6939633,
+    "id": "8ca98a9337d3476abc1259bc2bb3f87e",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 319
+    },
+    "updated_at": 1788423390.6939633
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788423391.5747395,
+    "id": "9470c930792842eeb8920e21d74e1e7c",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 310
+    },
+    "updated_at": 1788423391.5747395
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788423391.6989496,
+    "id": "aba5ca058dd74ec3845c9ab69fe9d0d0",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788423391.6989496
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788423391.7542276,
+    "id": "eb30408a3464492983d1354ce3b74714",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788423391.7542276
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788423397.274139,
+    "id": "81ac1c668d7a4726983f489772c0f3cf",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788423397.274139
+  },
+  {
+    "content": "test",
+    "created_at": 1788425456.6361449,
+    "id": "0f4b516b7f8a4cd9bfc61ae92e1aa833",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "377b15db208149199929c59af79d94d4",
+      "tool": "slow"
+    },
+    "updated_at": 1788425456.6361449
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425482.0859177,
+    "id": "74f135a338ec45d2a149f9f6f86c94f5",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 7512
+    },
+    "updated_at": 1788425482.0859177
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425482.159669,
+    "id": "e016297000384f138616932205833046",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 6
+    },
+    "updated_at": 1788425482.159669
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425482.2145197,
+    "id": "4e7fb13407874352a25c75b6c2a6399f",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425482.2145197
+  },
+  {
+    "content": "test",
+    "created_at": 1788425482.2678962,
+    "id": "fbd983c652af49ad81be182421caafec",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "f489f9eadb84498aa8c7a97b1bbc854c",
+      "tool": "slow"
+    },
+    "updated_at": 1788425482.2678962
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425482.3705983,
+    "id": "950ee57b97ef4069acea20d93bd0f39d",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 18
+    },
+    "updated_at": 1788425482.3705983
+  },
+  {
+    "content": "test",
+    "created_at": 1788425482.48637,
+    "id": "9e31f527267544ba9c53bff73e2e0118",
+    "kind": "background_task_result",
+    "metadata": {
+      "task": {
+        "args": {},
+        "cancel_requested": true,
+        "created_at": 1788425482.2648273,
+        "error": "",
+        "finished_at": 1788425482.3644915,
+        "id": "f489f9eadb84498aa8c7a97b1bbc854c",
+        "label": "test",
+        "result": null,
+        "started_at": 1788425482.2678962,
+        "status": "cancelled",
+        "tool": "slow"
+      }
+    },
+    "updated_at": 1788425482.48637
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425482.5604112,
+    "id": "91093ed8045544e6b8091d411111e0d3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 20
+    },
+    "updated_at": 1788425482.5604112
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425482.9044528,
+    "id": "0417f2731df545bcb9ddb3f8d36eb081",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 268
+    },
+    "updated_at": 1788425482.9044528
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425483.5484471,
+    "id": "7cbee8be45ac4e809cc3e78cdfe755da",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 164
+    },
+    "updated_at": 1788425483.5484471
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425483.7172096,
+    "id": "f0493ffdfcb94741939e4e735d10f3e4",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425483.7172096
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425483.7697759,
+    "id": "16c382183f8c47ef86fbb9bdc78ca3a0",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425483.7697759
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788425489.8229535,
+    "id": "6892588178924d32861fa9f33e0085c4",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788425489.8229535
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425857.6349258,
+    "id": "256d012e0c1142198d043c53e0467316",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 3380
+    },
+    "updated_at": 1788425857.6349258
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425857.7244775,
+    "id": "dce37f0d2ed24ce790691f748c5fa879",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 5
+    },
+    "updated_at": 1788425857.7244775
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788425857.7924688,
+    "id": "12b4c77c26dc4b50a53bce9f9065ef97",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425857.7924688
+  },
+  {
+    "content": "test",
+    "created_at": 1788425858.4829347,
+    "id": "f5ce69e22e89494e988ffa988f4ed562",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "fb726a727b694449859d3510f0949f89",
+      "tool": "slow"
+    },
+    "updated_at": 1788425858.4829347
+  },
+  {
+    "content": "test",
+    "created_at": 1788425858.5850177,
+    "id": "9e2585f8599b49ebb40fe59480d8f40a",
+    "kind": "background_task_result",
+    "metadata": {
+      "task": {
+        "args": {},
+        "cancel_requested": true,
+        "created_at": 1788425858.4786353,
+        "error": "",
+        "finished_at": 1788425858.5700846,
+        "id": "fb726a727b694449859d3510f0949f89",
+        "label": "test",
+        "result": null,
+        "started_at": 1788425858.4829347,
+        "status": "cancelled",
+        "tool": "slow"
+      }
+    },
+    "updated_at": 1788425858.5850177
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425858.692267,
+    "id": "5bb68bc74e4c43e79f63212b66b43ae4",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 22
+    },
+    "updated_at": 1788425858.692267
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425858.8157744,
+    "id": "0a2f3c60273b4023845d1a3b369b7fc3",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 29
+    },
+    "updated_at": 1788425858.8157744
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788425859.1596754,
+    "id": "8d25bbf1f5fb4598a7a4964020a34c7c",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 240
+    },
+    "updated_at": 1788425859.1596754
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425859.6911469,
+    "id": "adadf12a62044838872d7e80ec5ee40d",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 81
+    },
+    "updated_at": 1788425859.6911469
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425859.8484004,
+    "id": "ac62f8b94a724a90a74b815347dac67d",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425859.8484004
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788425859.9253252,
+    "id": "0bd86abd27fc4c2ebad70d9dc4ae962b",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788425859.9253252
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788425864.7665431,
+    "id": "4bf0331099dc497bb18491c3f39e30d7",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788425864.7665431
+  },
+  {
+    "content": "test",
+    "created_at": 1788425988.6756923,
+    "id": "e67e68e205084c05a5be882cdddb09e7",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "57a0e7cd67b34490b39f061c99055b44",
+      "tool": "slow"
+    },
+    "updated_at": 1788425988.6756923
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788426032.8427355,
+    "id": "9f89c103b88e4653979a5eec2df5deb8",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788426032.8427355
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788426044.0177405,
+    "id": "f24e2e14046944d0b7c35576fb1e6a8b",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 3760
+    },
+    "updated_at": 1788426044.0177405
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788426044.1449,
+    "id": "3c360d66353742b9a001b0c2c26f55cb",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 5
+    },
+    "updated_at": 1788426044.1449
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788426044.242753,
+    "id": "e2831fdd770e43b0a4f91e8003d94dde",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788426044.242753
+  },
+  {
+    "content": "test",
+    "created_at": 1788426045.272514,
+    "id": "2d242d4cb6844b29892d4def223f91ba",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "31535b7e8fb14ed58c47afa64ce2f3ca",
+      "tool": "slow"
+    },
+    "updated_at": 1788426045.272514
+  },
+  {
+    "content": "test",
+    "created_at": 1788426045.3965042,
+    "id": "c7e21b36780047ea82aa63205d6ad192",
+    "kind": "background_task_result",
+    "metadata": {
+      "task": {
+        "args": {},
+        "cancel_requested": true,
+        "created_at": 1788426045.2418911,
+        "error": "",
+        "finished_at": 1788426045.3795133,
+        "id": "31535b7e8fb14ed58c47afa64ce2f3ca",
+        "label": "test",
+        "result": null,
+        "started_at": 1788426045.2715094,
+        "status": "cancelled",
+        "tool": "slow"
+      }
+    },
+    "updated_at": 1788426045.3965042
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788426045.5415885,
+    "id": "5276d862c6b84e12986b6bb967b69a71",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 69
+    },
+    "updated_at": 1788426045.5415885
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788426045.6775243,
+    "id": "ba205e341a754d50adfdf7934b14080d",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 34
+    },
+    "updated_at": 1788426045.6775243
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788426046.1359086,
+    "id": "4b82d5393571492aa7595481b09b2e20",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 346
+    },
+    "updated_at": 1788426046.1359086
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788426046.8445103,
+    "id": "0954b9dfc11540cbbba4c30a8fd69e0e",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 102
+    },
+    "updated_at": 1788426046.8445103
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788426047.0198317,
+    "id": "18de0761c107466d9f076694c39a0d88",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788426047.0198317
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788426047.0916114,
+    "id": "df3afbc9b3e34ed88af2353249a85776",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788426047.0916114
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788426053.2273636,
+    "id": "220f5c1794de425dbdac36ad28a1f390",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788426053.2273636
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788426053.4352672,
+    "id": "ac7969ad35e34e39b52c984e25c2fcb5",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788426053.4352672
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788428901.4682443,
+    "id": "c00a9c9881b14aa08c4f58e7b545fef5",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 9750
+    },
+    "updated_at": 1788428901.4682443
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788428902.130761,
+    "id": "8d511043b7704b65963e44c500e04228",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 3
+    },
+    "updated_at": 1788428902.130761
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788428902.5526364,
+    "id": "90e1ab6f20334a038e6c2667006ae11c",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788428902.5526364
+  },
+  {
+    "content": "test",
+    "created_at": 1788428903.5483787,
+    "id": "0484319eaa474031b171b6ef7a6a266f",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "fd7643e8c82b4c53b6304d4bb5e26e2d",
+      "tool": "slow"
+    },
+    "updated_at": 1788428903.5483787
+  },
+  {
+    "content": "test",
+    "created_at": 1788428903.8349051,
+    "id": "16f48079c53c479da1a335c6ea52a35d",
+    "kind": "background_task_result",
+    "metadata": {
+      "task": {
+        "args": {},
+        "cancel_requested": false,
+        "created_at": 1788428903.5049675,
+        "error": "",
+        "finished_at": 1788428903.6929884,
+        "id": "fd7643e8c82b4c53b6304d4bb5e26e2d",
+        "label": "test",
+        "result": null,
+        "started_at": 1788428903.5483787,
+        "status": "completed",
+        "tool": "slow"
+      }
+    },
+    "updated_at": 1788428903.8349051
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788428905.9327242,
+    "id": "4f3f6c91ac4b47b5a797f829f5df767f",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 27
+    },
+    "updated_at": 1788428905.9327242
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788428906.0631413,
+    "id": "00fc18f728054bd18f2c0bf92a10c633",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 28
+    },
+    "updated_at": 1788428906.0631413
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788428906.5296726,
+    "id": "95e564b66b374e978aae472c47bde494",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 348
+    },
+    "updated_at": 1788428906.5296726
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788428907.8136814,
+    "id": "fde09c264ce14e58b510b4f7e6d3ec21",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 428
+    },
+    "updated_at": 1788428907.8136814
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788428908.2293022,
+    "id": "0c22dca16b364c88aa723d0e0bb40dd0",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788428908.2293022
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788428908.4423752,
+    "id": "310e940cd51b498bbc5e85fbb9f30899",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788428908.4423752
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788428918.155732,
+    "id": "171b0e686863471094a25ed8e1e748b7",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788428918.155732
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788428918.4840257,
+    "id": "5ea9914ce0a646c9b43cec3f9fce0da1",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788428918.4840257
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788428999.638162,
+    "id": "eace365486624a9586beb09cefd48745",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 4925
+    },
+    "updated_at": 1788428999.638162
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788428999.9625752,
+    "id": "da1030c41fb047b4ae845294851a4924",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 9
+    },
+    "updated_at": 1788428999.9625752
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429000.2656126,
+    "id": "eb09434f8b1448e48142f9d7d3c37cbf",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429000.2656126
+  },
+  {
+    "content": "test",
+    "created_at": 1788429001.003488,
+    "id": "792765df74fe4ca08845e03a086103df",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "411a777bcb19470fb103712fb55cb0a9",
+      "tool": "slow"
+    },
+    "updated_at": 1788429001.003488
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429001.2800999,
+    "id": "987eff0097e040faa1352db86f2f78bb",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 97
+    },
+    "updated_at": 1788429001.2800999
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429001.588337,
+    "id": "b718bd030afb4d31a6fa97c1977212f2",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 61
+    },
+    "updated_at": 1788429001.588337
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429002.5483162,
+    "id": "4746317742b248c9910fd426dad1fc6e",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 760
+    },
+    "updated_at": 1788429002.5483162
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429005.7694936,
+    "id": "d93116b3694048d286c4c2c4ae6fe9bb",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 621
+    },
+    "updated_at": 1788429005.7694936
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429006.445868,
+    "id": "1fc7a3d4fc9d4ea188b73086cab35413",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429006.445868
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429006.6568618,
+    "id": "a456e9710be74e4083d58ac169ae0181",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429006.6568618
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788429018.080729,
+    "id": "e5ba2d6e986142148a703b4c186ab505",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788429018.080729
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788429018.4753368,
+    "id": "8f7eb7c9448b4d0e96af2c87cd3db50a",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788429018.4753368
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429306.557244,
+    "id": "f321067c9a0249ca86fdbb425e39885d",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 3933
+    },
+    "updated_at": 1788429306.557244
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429306.7154205,
+    "id": "05c9101095dc4818bdeb2dfb1c61ce95",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 4
+    },
+    "updated_at": 1788429306.7154205
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429306.9691164,
+    "id": "0d42a479068845a0854295848b872e14",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429306.9691164
+  },
+  {
+    "content": "test",
+    "created_at": 1788429307.8795204,
+    "id": "09e26cced7f244a9b850964390d944c5",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "2a89f7dd0adc4b35bd1998342daa64d4",
+      "tool": "slow"
+    },
+    "updated_at": 1788429307.8795204
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429308.1957266,
+    "id": "c09a6654469b424eb38e11787aa4035a",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 38
+    },
+    "updated_at": 1788429308.1957266
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429308.350887,
+    "id": "e23cf570c3254aca8e872c03009a6b32",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 71
+    },
+    "updated_at": 1788429308.350887
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429308.8234296,
+    "id": "9d95ed4cf315450c859f958657a705a7",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 369
+    },
+    "updated_at": 1788429308.8234296
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429309.901749,
+    "id": "dc08b184350d45d18d57f8f6f614f89f",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 376
+    },
+    "updated_at": 1788429309.901749
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429310.4093847,
+    "id": "54ca1a8c0b0a4661b83588cfcc7df0ad",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429310.4093847
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429310.474637,
+    "id": "5d83bee5d1b245ca90ea5aca4ebe05fa",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429310.474637
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788429315.0190902,
+    "id": "a488ed88ec1147aa93121651ec9c0d3f",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788429315.0190902
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788429315.1552298,
+    "id": "1d1cb7ccd85f44fbb952d8ef57e84001",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788429315.1552298
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429624.9570332,
+    "id": "b7c7c74212b44d55a85428232c452d45",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "open",
+      "app": "Instagram",
+      "args": {},
+      "confirmed": false,
+      "duration_ms": 15791
+    },
+    "updated_at": 1788429624.9570332
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429625.8436291,
+    "id": "39d436596fbf45a299e453fadfabacee",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "send_message",
+      "app": "WhatsApp",
+      "args": {
+        "text": "Send Mom: I'll be home at 7."
+      },
+      "confirmed": true,
+      "duration_ms": 16
+    },
+    "updated_at": 1788429625.8436291
+  },
+  {
+    "content": "application_automation",
+    "created_at": 1788429626.545833,
+    "id": "456c8fd5bbcd43d2ad8c7fef46b50d9c",
+    "kind": "application_automation_log",
+    "metadata": {
+      "action": "play",
+      "app": "YouTube",
+      "args": {
+        "query": "Python lecture"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429626.545833
+  },
+  {
+    "content": "test",
+    "created_at": 1788429627.7710545,
+    "id": "bf3a6374ccb14745945da5dddb945a0e",
+    "kind": "background_task",
+    "metadata": {
+      "status": "queued",
+      "task_id": "29997edeae304197adf6b570608cffd0",
+      "tool": "slow"
+    },
+    "updated_at": 1788429627.7710545
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429628.4807098,
+    "id": "3e6db2b3cd7948d294772ba79d90a885",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "login_state",
+      "args": {
+        "text": "User signed in"
+      },
+      "confirmed": false,
+      "duration_ms": 81
+    },
+    "updated_at": 1788429628.4807098
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429629.0150635,
+    "id": "6f99c51358d04fb4b58b79f2d1641ff9",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "detect_captcha",
+      "args": {
+        "text": "Please solve the reCAPTCHA"
+      },
+      "confirmed": false,
+      "duration_ms": 239
+    },
+    "updated_at": 1788429629.0150635
+  },
+  {
+    "content": "browser_action",
+    "created_at": 1788429631.0665314,
+    "id": "3815ac7336b141f3a8a22fe3e95771f6",
+    "kind": "browser_automation_log",
+    "metadata": {
+      "action": "open",
+      "args": {
+        "url": "https://example.com"
+      },
+      "confirmed": false,
+      "duration_ms": 1482
+    },
+    "updated_at": 1788429631.0665314
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429634.8493233,
+    "id": "b845dc2e93f94256ab3e353e459f6f19",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_app",
+      "args": {
+        "name": "notepad"
+      },
+      "confirmed": false,
+      "duration_ms": 1701
+    },
+    "updated_at": 1788429634.8493233
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429636.617211,
+    "id": "c4426a02a3274bd0ac1c1acd8ba90877",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "open_folder",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429636.617211
+  },
+  {
+    "content": "os_action",
+    "created_at": 1788429636.912254,
+    "id": "846bfdc562c0459285e51a27af7d4c70",
+    "kind": "os_control_log",
+    "metadata": {
+      "action": "list_files",
+      "args": {
+        "path": "Desktop"
+      },
+      "confirmed": false,
+      "duration_ms": 0
+    },
+    "updated_at": 1788429636.912254
+  },
+  {
+    "content": "Hello Sara",
+    "created_at": 1788429659.015893,
+    "id": "a87414c2d96149c6815d526b56bdb549",
+    "kind": "conversation_context",
+    "metadata": {
+      "emotion": "neutral",
+      "source": "social_intelligence",
+      "topic": ""
+    },
+    "updated_at": 1788429659.015893
+  },
+  {
+    "content": "Playing YouTube video: https://www.youtube.com/watch?v=abc123",
+    "created_at": 1788429661.8237123,
+    "id": "551a8ccb1b694093bdf1a326368363cb",
+    "kind": "youtube_playback",
+    "metadata": {
+      "url": "https://www.youtube.com/watch?v=abc123"
+    },
+    "updated_at": 1788429661.8237123
   }
 ]

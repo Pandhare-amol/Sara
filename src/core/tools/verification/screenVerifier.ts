@@ -40,6 +40,40 @@ export class ScreenVerifier implements ToolVerifier {
 
     try {
       if (["captureScreen", "takeScreenshot", "screenCapture"].includes(tool)) {
+        const canonical = executionResult && typeof executionResult === "object"
+          ? executionResult as Record<string, any>
+          : {};
+        const payload = canonical.data && typeof canonical.data === "object"
+          ? { ...canonical, ...canonical.data }
+          : canonical;
+        const captureEvidence = Boolean(
+          payload.path || payload.image || payload.base64 || payload.image_base64 || payload.file ||
+          (Number(payload.width) > 0 && Number(payload.height) > 0),
+        );
+        if (captureEvidence) {
+          checks.push({
+            name: "capture_execution_evidence",
+            passed: true,
+            evidence: { width: payload.width, height: payload.height, hasReference: Boolean(payload.path || payload.image || payload.base64 || payload.image_base64 || payload.file) },
+          });
+          observedState.imageAvailable = Boolean(payload.path || payload.image || payload.base64 || payload.image_base64 || payload.file);
+          observedState.dimensions = { width: payload.width, height: payload.height };
+          checks.push({
+            name: "capture_dimensions_valid",
+            passed: Number(payload.width) > 0 && Number(payload.height) > 0,
+            evidence: { width: payload.width, height: payload.height },
+          });
+          observedState.screenshotId = payload.screenshot_id || payload.capture_id || null;
+          observedState.dimensions = { width: Number(payload.width), height: Number(payload.height) };
+          return {
+            verified: Number(payload.width) > 0 && Number(payload.height) > 0,
+            method: "screen",
+            checks,
+            details: "Screen capture artifact and dimensions verified.",
+            confidence: 0.95,
+            observedState,
+          };
+        }
         passed = await this.verifyScreenCapture(executionResult, checks, observedState);
       } else if (
         [
@@ -82,11 +116,13 @@ export class ScreenVerifier implements ToolVerifier {
     checks: any[],
     observedState: Record<string, unknown>,
   ): boolean {
-    const result = executionResult && typeof executionResult === "object" ? executionResult : {};
-    const payload = result as Record<string, any>;
+    const result = executionResult && typeof executionResult === "object" ? executionResult as Record<string, any> : {};
+    const payload = result.data && typeof result.data === "object"
+      ? { ...result, ...result.data }
+      : result;
 
     // Check if image was captured
-    const hasImage = !!(payload.path || payload.image || payload.base64 || payload.file);
+    const hasImage = !!(payload.path || payload.image || payload.base64 || payload.image_base64 || payload.file);
     checks.push({
       name: "image_captured",
       passed: hasImage,

@@ -12,7 +12,8 @@ import {
   Users, 
   Flame, 
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  CircleAlert
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -20,6 +21,9 @@ interface MemoryDashboardProps {
   isOpen: boolean;
   onClose: () => void;
   memories: Memory[];
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onAddMemory: (category: MemoryCategory, text: string) => Promise<void>;
   onDeleteMemory: (id: string) => Promise<void>;
   themeColor: string;
@@ -29,6 +33,9 @@ export function MemoryDashboard({
   isOpen,
   onClose,
   memories,
+  loading = false,
+  error = null,
+  onRetry,
   onAddMemory,
   onDeleteMemory,
   themeColor
@@ -83,6 +90,18 @@ export function MemoryDashboard({
       color: "text-indigo-400 border-indigo-500/25", 
       bg: "bg-indigo-500/5 hover:bg-indigo-500/10" 
     },
+    decision: {
+      label: "Decisions",
+      icon: Target,
+      color: "text-orange-400 border-orange-500/25",
+      bg: "bg-orange-500/5 hover:bg-orange-500/10"
+    },
+    question: {
+      label: "Open Questions",
+      icon: Sparkles,
+      color: "text-sky-400 border-sky-500/25",
+      bg: "bg-sky-500/5 hover:bg-sky-500/10"
+    },
   };
 
   const getThemeBadgeGlow = () => {
@@ -99,9 +118,10 @@ export function MemoryDashboard({
     }
   };
 
-  const filteredMemories = activeTab === "all" 
-    ? memories 
-    : memories.filter(m => m.category === activeTab);
+  const safeMemories = (Array.isArray(memories) ? memories : []).filter((memory): memory is Memory => Boolean(memory && typeof memory === "object"));
+  const filteredMemories = activeTab === "all"
+    ? safeMemories
+    : safeMemories.filter(m => m.category === activeTab);
 
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +187,7 @@ export function MemoryDashboard({
               </div>
               <button
                 onClick={onClose}
+                aria-label="Close Recall"
                 className="p-2 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 <X size={18} />
@@ -292,9 +313,24 @@ export function MemoryDashboard({
             </div>
 
             {/* RECOLLECTION ITEMS CARDS CONTAINER */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-3.5">
+            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-3.5" role="region" aria-label="Recalled memories">
               <AnimatePresence initial={false}>
-                {filteredMemories.length === 0 ? (
+                {loading ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex items-center justify-center p-8 text-center text-slate-400">
+                    <div className="space-y-3">
+                      <RefreshCw size={24} className="mx-auto animate-spin text-cyan-400" />
+                      <p className="text-sm font-mono">Loading your memories...</p>
+                    </div>
+                  </motion.div>
+                ) : error ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                    <CircleAlert size={28} className="mb-3 text-rose-400" />
+                    <p className="text-sm font-mono text-rose-200">{error}</p>
+                    <button onClick={onRetry} className="mt-4 rounded-lg border border-cyan-400/30 px-4 py-2 text-xs font-mono uppercase tracking-widest text-cyan-300 hover:bg-cyan-400/10" disabled={!onRetry}>
+                      Retry
+                    </button>
+                  </motion.div>
+                ) : filteredMemories.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -311,13 +347,13 @@ export function MemoryDashboard({
                     </p>
                   </motion.div>
                 ) : (
-                  filteredMemories.map((m) => {
-                    const cfg = categoryConfig[m.category];
+                  filteredMemories.map((m, index) => {
+                    const cfg = categoryConfig[m.category] || categoryConfig.behavior;
                     const Icon = cfg.icon;
 
                     return (
                       <motion.div
-                        key={m.id}
+                        key={m.id || `memory-${index}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
@@ -334,15 +370,15 @@ export function MemoryDashboard({
                               </span>
                               {m.tier && (
                                 <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-cyan-300">
-                                  {m.tier.replace("_", " ")}
+                                  {String(m.tier).replace("_", " ")}
                                 </span>
                               )}
                             </div>
                             <p className="text-xs text-slate-200 mt-1 font-sans leading-relaxed break-words font-medium">
-                              {m.text}
+                              {String(m.text || "No memory text available.")}
                             </p>
                             <span className="text-[9px] font-mono text-slate-500 mt-2 block">
-                              Recalled: {formatDate(m.createdAt)}
+                              Recalled: {formatDate(m.createdAt || m.updatedAt || "")}
                             </span>
                           </div>
                         </div>
@@ -350,6 +386,7 @@ export function MemoryDashboard({
                         {/* Forget / Delete trigger button */}
                         <button
                           onClick={() => onDeleteMemory(m.id)}
+                          aria-label="Forget this memory"
                           className="opacity-0 group-hover:opacity-100 p-2 rounded-lg border border-red-500/25 bg-red-950/15 text-red-400 hover:bg-red-500 hover:text-white transition duration-150 absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 shrink-0 cursor-pointer"
                           title="Forget this memory"
                         >

@@ -2,14 +2,13 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
 import crypto from "crypto";
-import { fileURLToPath } from "url";
 import { dataFile } from "./server_paths";
 
 let resolvedFilename = "";
 try {
   resolvedFilename = __filename;
 } catch {
-  resolvedFilename = fileURLToPath(import.meta.url);
+  resolvedFilename = path.join(process.cwd(), "server_state.ts");
 }
 const resolvedDirname = path.dirname(resolvedFilename);
 const __dirname = resolvedDirname;
@@ -30,7 +29,33 @@ export interface ConversationRecord {
   title: string;
   createdAt: string;
   updatedAt: string;
+  summary?: string;
+  activeContext?: Record<string, unknown>;
+  taskState?: Record<string, unknown>;
+  status?: "active" | "archived" | "deleted";
+  userId?: string;
+  lastMessageAt?: string | null;
   messages: ConversationMessage[];
+}
+
+export function normalizeConversationRecord(record?: Partial<ConversationRecord> & { conversationId?: string } | null): ConversationRecord {
+  const now = new Date().toISOString();
+  const legacyConversationId = (record as { conversationId?: string } | undefined)?.conversationId;
+  const id = String(record?.id || legacyConversationId || "").trim() || `conv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const safeTitle = String(record?.title || "SARA Voice Conversation").trim() || "SARA Voice Conversation";
+  return {
+    id,
+    title: safeTitle,
+    createdAt: record?.createdAt || now,
+    updatedAt: record?.updatedAt || now,
+    summary: record?.summary || "",
+    activeContext: record?.activeContext || {},
+    taskState: record?.taskState || {},
+    status: record?.status || "active",
+    userId: record?.userId || "default-user",
+    lastMessageAt: record?.lastMessageAt || null,
+    messages: Array.isArray(record?.messages) ? record.messages : [],
+  };
 }
 
 export type TaskStatus =
@@ -191,9 +216,61 @@ CREATE TABLE IF NOT EXISTS idempotency (
   status TEXT,
   created_at TEXT
 );
+
+-- Music Studio Tables
+CREATE TABLE IF NOT EXISTS music_projects (
+  project_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  title TEXT,
+  concept TEXT,
+  genre TEXT,
+  mood TEXT,
+  language TEXT,
+  target_audience TEXT,
+  lyrics TEXT,
+  composition_metadata TEXT,
+  bpm INTEGER,
+  key TEXT,
+  time_signature TEXT,
+  vocal_configuration TEXT,
+  instrument_configuration TEXT,
+  production_status TEXT,
+  quality_report TEXT,
+  publishing_status TEXT,
+  youtube_metadata TEXT,
+  instagram_metadata TEXT,
+  analytics_summary TEXT,
+  created_at TEXT,
+  updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS music_assets (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  asset_type TEXT,
+  file_path TEXT,
+  metadata TEXT,
+  created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS music_workflow_tasks (
+  task_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  conversation_id TEXT,
+  stage TEXT NOT NULL,
+  status TEXT NOT NULL,
+  progress INTEGER NOT NULL DEFAULT 0,
+  current_step TEXT,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  checkpoint TEXT,
+  provider_job_id TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `;
 
-async function initSqlBridge() {
+export async function initSqlBridge() {
   if (sqlInitPromise) return sqlInitPromise;
   sqlInitPromise = (async () => {
     try {
@@ -259,11 +336,114 @@ async function readJson<T>(filePath: string, fallback: T): Promise<T> {
 async function writeJson(filePath: string, data: unknown): Promise<void> { await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8"); }
 function createId(prefix = ""): string { return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
 
-export async function loadConversations(): Promise<ConversationRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((row: any[]) => { const [id, title, createdAt, updatedAt] = row; const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`); const msgs: ConversationMessage[] = []; if (mres?.[0]) for (const mrow of mres[0].values) { const [mid, role, content, timestamp, metadata] = mrow; let meta = null; try { meta = metadata ? JSON.parse(metadata) : null; } catch {} msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta }); } return { id, title, createdAt, updatedAt, messages: msgs }; }); } catch {} } return await readJson<ConversationRecord[]>(CONVERSATIONS_FILE, []); }
-export async function saveConversations(conversations: ConversationRecord[]): Promise<void> { await writeJson(CONVERSATIONS_FILE, conversations); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const c of conversations) { const stmt = db.prepare("INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)"); stmt.run([c.id, c.title, c.createdAt, c.updatedAt]); for (const m of c.messages || []) { const mstmt = db.prepare("INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)"); mstmt.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]); } } db.run("COMMIT"); bridge.persist(); } catch {} }
-export async function getConversation(conversationId: string): Promise<ConversationRecord | null> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const cres = bridge.db.exec(`SELECT id,title,createdAt,updatedAt FROM conversations WHERE id='${conversationId}' LIMIT 1;`); if (!cres?.[0]?.values.length) return null; const [id, title, createdAt, updatedAt] = cres[0].values[0]; const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`); const msgs: ConversationMessage[] = []; if (mres?.[0]) for (const mrow of mres[0].values) { const [mid, role, content, timestamp, metadata] = mrow; let meta = null; try { meta = metadata ? JSON.parse(metadata) : null; } catch {} msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta }); } return { id, title, createdAt, updatedAt, messages: msgs }; } catch { return (await loadConversations()).find((item) => item.id === conversationId) ?? null; } } const conversations = await loadConversations(); return conversations.find((item) => item.id === conversationId) ?? null; }
-export async function getOrCreateConversation(conversationId?: string): Promise<ConversationRecord> { const existing = conversationId ? await getConversation(conversationId) : null; if (existing) return existing; const conversations = await loadConversations(); const id = conversationId || createId("conv-"); const timestamp = new Date().toISOString(); const record: ConversationRecord = { id, title: "SARA Voice Conversation", createdAt: timestamp, updatedAt: timestamp, messages: [] }; conversations.push(record); await saveConversations(conversations); return record; }
-export async function appendConversationMessage(message: ConversationMessage): Promise<void> { const conversations = await loadConversations(); const conversation = conversations.find((item) => item.id === message.conversationId); if (!conversation) conversations.push({ id: message.conversationId, title: "SARA Voice Conversation", createdAt: message.timestamp, updatedAt: message.timestamp, messages: [message] }); else { conversation.messages.push(message); conversation.updatedAt = message.timestamp; } await saveConversations(conversations); }
+export async function loadConversations(): Promise<ConversationRecord[]> {
+  const bridge = await initSqlBridge();
+  if (bridge?.db) {
+    try {
+      const res = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;");
+      if (!res?.[0]) return []; 
+      const rows = res[0].values.map((row: any[]) => {
+        const [id, title, createdAt, updatedAt] = row;
+        const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
+        const msgs: ConversationMessage[] = [];
+        if (mres?.[0]) for (const mrow of mres[0].values) {
+          const [mid, role, content, timestamp, metadata] = mrow;
+          let meta = null;
+          try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
+          msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta || undefined });
+        }
+        return normalizeConversationRecord({ id, title, createdAt, updatedAt, messages: msgs });
+      });
+      return rows;
+    } catch {}
+  }
+  const stored = await readJson<Partial<ConversationRecord>[]>(CONVERSATIONS_FILE, []);
+  return stored.map((item) => normalizeConversationRecord(item));
+}
+
+export async function saveConversations(conversations: ConversationRecord[]): Promise<void> {
+  const normalized = conversations.map((item) => normalizeConversationRecord(item));
+  await writeJson(CONVERSATIONS_FILE, normalized);
+  const bridge = await initSqlBridge();
+  if (!bridge?.db) return;
+  try {
+    const db = bridge.db;
+    db.run("BEGIN");
+    for (const c of normalized) {
+      const stmt = db.prepare("INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)");
+      stmt.run([c.id, c.title, c.createdAt, c.updatedAt]);
+      for (const m of c.messages || []) {
+        const mstmt = db.prepare("INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)");
+        mstmt.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]);
+      }
+    }
+    db.run("COMMIT");
+    bridge.persist();
+  } catch {}
+}
+
+export async function getConversation(conversationId: string): Promise<ConversationRecord | null> {
+  const targetId = String(conversationId || "").trim();
+  if (!targetId) return null;
+  const bridge = await initSqlBridge();
+  if (bridge?.db) {
+    try {
+      const cres = bridge.db.exec(`SELECT id,title,createdAt,updatedAt FROM conversations WHERE id='${targetId}' LIMIT 1;`);
+      if (!cres?.[0]?.values.length) return null;
+      const [id, title, createdAt, updatedAt] = cres[0].values[0];
+      const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
+      const msgs: ConversationMessage[] = [];
+      if (mres?.[0]) for (const mrow of mres[0].values) {
+        const [mid, role, content, timestamp, metadata] = mrow;
+        let meta = null;
+        try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
+        msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta || undefined });
+      }
+      return normalizeConversationRecord({ id, title, createdAt, updatedAt, messages: msgs });
+    } catch { return (await loadConversations()).find((item) => item.id === targetId) ?? null; }
+  }
+  const conversations = await loadConversations();
+  return conversations.find((item) => item.id === targetId) ?? null;
+}
+
+export async function getOrCreateConversation(conversationId?: string): Promise<ConversationRecord> {
+  const targetId = String(conversationId || "").trim();
+  const existing = targetId ? await getConversation(targetId) : null;
+  if (existing) return existing;
+  const conversations = await loadConversations();
+  const id = targetId || createId("conv-");
+  const timestamp = new Date().toISOString();
+  const record = normalizeConversationRecord({
+    id,
+    title: "SARA Voice Conversation",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    summary: "Conversation started.",
+    activeContext: { objective: "Continue the active project context" },
+    taskState: { status: "new" },
+    messages: [],
+  });
+  conversations.push(record);
+  await saveConversations(conversations);
+  return record;
+}
+
+export async function appendConversationMessage(message: ConversationMessage): Promise<void> {
+  const conversations = await loadConversations();
+  const targetId = String(message.conversationId || "").trim();
+  if (!targetId) return;
+  const conversation = conversations.find((item) => item.id === targetId) ?? normalizeConversationRecord({ id: targetId, title: "SARA Voice Conversation", createdAt: message.timestamp, updatedAt: message.timestamp, messages: [] });
+  const exists = conversation.messages.some((entry) => entry.id === message.id || (entry.content === message.content && entry.timestamp === message.timestamp && entry.role === message.role));
+  if (!exists) {
+    conversation.messages.push(message);
+    conversation.updatedAt = message.timestamp;
+    conversation.lastMessageAt = message.timestamp;
+  }
+  const index = conversations.findIndex((item) => item.id === targetId);
+  if (index >= 0) conversations[index] = conversation; else conversations.push(conversation);
+  await saveConversations(conversations);
+}
+
 export async function getRecentConversationMessages(conversationId: string, limit = 20): Promise<ConversationMessage[]> { const conversation = await getConversation(conversationId); if (!conversation) return []; return conversation.messages.slice(-limit); }
 export async function loadTasks(): Promise<TaskRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((r: any[]) => { const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r; let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined; try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {} try { md = metadata ? JSON.parse(metadata) : undefined; } catch {} return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord; }); } catch {} } return await readJson<TaskRecord[]>(TASKS_FILE, []); }
 export async function saveTasks(tasks: TaskRecord[]): Promise<void> { await writeJson(TASKS_FILE, tasks); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const t of tasks) { const stmt = db.prepare("INSERT OR REPLACE INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"); stmt.run([t.taskId, t.conversationId, t.description, t.status, t.priority, t.assignedAgent || null, t.createdAt, t.updatedAt, t.startedAt || null, t.completedAt || null, t.checkpoint ? JSON.stringify(t.checkpoint) : null, t.result || null, t.error || null, t.retryCount || 0, t.metadata ? JSON.stringify(t.metadata) : null]); } db.run("COMMIT"); bridge.persist(); } catch {} }
@@ -412,6 +592,79 @@ export async function getLastSession(conversationId: string): Promise<SessionRec
   if (matches.length === 0) return null;
   matches.sort((a, b) => (a.lastSeen < b.lastSeen ? 1 : -1));
   return matches[0] ?? null;
+}
+
+export async function getSessionRecoveryContext(conversationId: string): Promise<{
+  session: SessionRecord | null;
+  lastTaskId?: string;
+  task?: TaskRecord | null;
+} | null> {
+  const sessions = await loadSessions();
+  const matches = sessions.filter((s) => s.conversationId === conversationId);
+  matches.sort((a, b) => (a.lastSeen < b.lastSeen ? 1 : -1));
+  const session = matches[0] ?? null;
+  const tasks = await loadTasks();
+  const unfinished = tasks
+    .filter((task) => task.conversationId === conversationId && !FINAL_TASK_STATES.has(normalizeTaskStatus(task.status) as TaskStatus))
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const lastTask = unfinished[0] ?? null;
+  const sessionTask = session?.lastTaskId && tasks.some((task) => task.taskId === session.lastTaskId)
+    ? tasks.find((task) => task.taskId === session.lastTaskId) ?? null
+    : null;
+  const preferredTask = lastTask
+    ? (sessionTask && sessionTask.taskId === lastTask.taskId ? sessionTask : lastTask)
+    : sessionTask;
+  const lastTaskId = preferredTask?.taskId ?? session?.lastTaskId ?? undefined;
+
+  if (!session && !lastTask && !sessionTask && !lastTaskId) {
+    return null;
+  }
+
+  return {
+    session,
+    lastTaskId,
+    task: lastTaskId ? tasks.find((task) => task.taskId === lastTaskId) ?? null : null,
+  };
+}
+
+export async function getConversationTaskContext(conversationId: string): Promise<{
+  conversationId: string;
+  summary: string;
+  activeContext: Record<string, unknown>;
+  taskState: Record<string, unknown>;
+  taskId?: string;
+  status?: string;
+  description?: string;
+  lastUpdatedAt?: string;
+} | null> {
+  const conversation = await getConversation(conversationId);
+  if (!conversation) return null;
+  const recovery = await getSessionRecoveryContext(conversationId);
+  const task = recovery?.task ?? null;
+  const activeContext = conversation.activeContext && Object.keys(conversation.activeContext).length > 0 ? conversation.activeContext : {};
+  const taskState = {
+    ...(conversation.taskState || {}),
+    ...(task ? {
+      taskId: task.taskId,
+      status: task.status,
+      description: task.description,
+      updatedAt: task.updatedAt,
+      checkpoint: task.checkpoint || undefined,
+    } : {}),
+    lastUpdatedAt: task?.updatedAt || conversation.updatedAt,
+  };
+
+  return {
+    conversationId: conversation.id,
+    summary: conversation.summary || conversation.title || "Continue the previous conversation context.",
+    activeContext,
+    taskState,
+    taskId: task?.taskId,
+    status: task?.status || conversation.status || "active",
+    description: task?.description || conversation.title,
+    lastUpdatedAt: task?.updatedAt || conversation.updatedAt,
+  };
 }
 
 export async function loadToolCalls(): Promise<ToolCallRecord[]> {

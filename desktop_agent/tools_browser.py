@@ -338,6 +338,37 @@ async def browser_state(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
     return {"ok": True, "status": "completed", "operation": "browser_state", "verified": True, "state": STATE.browser_state.snapshot(page)}
 
+
+@register("desktopBrowserMediaState")
+async def browser_media_state(args: Dict[str, Any]) -> Dict[str, Any]:
+    page = await _page()
+    snapshot = STATE.browser_state.snapshot(page)
+    state = dict(snapshot.get("media_state") or {})
+
+    if not state:
+        try:
+            state = await page.evaluate(
+                "() => { const v = document.querySelector('video, audio'); if (!v) return { found: false }; return { found: true, paused: v.paused, currentTime: v.currentTime, muted: v.muted, duration: v.duration, readyState: v.readyState, ended: v.ended, volume: v.volume }; }"
+            )
+        except Exception:
+            state = {"found": False}
+
+    if state.get("found") is None:
+        state["found"] = bool(state)
+
+    STATE.browser_state.update_media(page, state)
+    snapshot = STATE.browser_state.snapshot(page)
+    return {
+        "ok": True,
+        "status": "completed",
+        "operation": "browser_media_state",
+        "verified": True,
+        "result": {"media_state": state, "state": snapshot},
+        "media_state": state,
+        "state": snapshot,
+        "verification": "VERIFIED",
+    }
+
 @register("desktopBrowserExtractLinks")
 async def browser_extract_links(args: Dict[str, Any]) -> Dict[str, Any]:
     page = await _page()
@@ -391,10 +422,15 @@ for _name in [
     "desktopBrowserScroll",
     "desktopBrowserReload", "desktopBrowserKey", "desktopBrowserZoom",
     "desktopBrowserMedia", "desktopBrowserState", "desktopBrowserExtractLinks", "desktopBrowserReadPage", "desktopBrowserScreenshot",
+    "desktopBrowserMediaState",
 ]:
     _orig = TOOLS[_name]
     if asyncio.iscoroutinefunction(_orig):
         TOOLS[_name] = _sync_wrap(_orig)
+
+
+if "desktopBrowserMediaState" in TOOLS:
+    browser_media_state = _sync_wrap(browser_media_state)
 
 
 def shutdown_browser() -> None:

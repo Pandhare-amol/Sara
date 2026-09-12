@@ -6,7 +6,7 @@ import { Memory, MemoryTransaction } from "./src/lib/memoryTypes";
 import { dataFile } from "./server_paths";
 
 export type StoredMemory = Memory & {
-  source?: "desktop" | "mobile";
+  storageSource?: "desktop" | "mobile";
   lastReferencedAt?: string;
   keywords?: string[];
 };
@@ -14,6 +14,8 @@ export type StoredMemory = Memory & {
 const DESKTOP_MEMORY_FILE = dataFile("memories.json");
 const MOBILE_MEMORY_FILE = dataFile("memories_mobile.json");
 const MEMORY_DB_FILE = dataFile("sara_memory.db");
+const DECISIONS_FILE = dataFile("decisions.json");
+const QUESTIONS_FILE = dataFile("questions.json");
 const MEMORY_SCHEMA = `
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
@@ -24,9 +26,13 @@ CREATE TABLE IF NOT EXISTS memories (
   importance_level TEXT,
   tier TEXT,
   keywords TEXT,
+  confidence REAL,
+  verification_status TEXT,
+  evidence_text TEXT,
   createdAt TEXT,
   updatedAt TEXT,
-  lastReferencedAt TEXT
+  lastReferencedAt TEXT,
+  lastVerified TEXT
 );
 CREATE TABLE IF NOT EXISTS short_term_memory (id TEXT PRIMARY KEY, conversation_id TEXT, text TEXT, importance_level TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS conversation_summary (id TEXT PRIMARY KEY, conversation_id TEXT, summary TEXT, created_at TEXT);
@@ -36,6 +42,8 @@ CREATE TABLE IF NOT EXISTS task_memory (id TEXT PRIMARY KEY, task_id TEXT, resul
 CREATE TABLE IF NOT EXISTS project_memory (id TEXT PRIMARY KEY, project_name TEXT, fact TEXT, importance_level TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS user_preference_memory (id TEXT PRIMARY KEY, preference TEXT, importance_level TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS relationship_memory (id TEXT PRIMARY KEY, relation_name TEXT, fact TEXT, importance_level TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS decisions (id TEXT PRIMARY KEY, title TEXT, decision TEXT, reason TEXT, category TEXT, confidence REAL, expected_outcome TEXT, actual_outcome TEXT, evaluation_notes TEXT, metadata TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, question TEXT, category TEXT, importance REAL, reason TEXT, source TEXT, asked INTEGER, answered INTEGER, answer TEXT, metadata TEXT, created_at TEXT);
 `;
 
 type MemorySource = "desktop" | "mobile";
@@ -125,7 +133,7 @@ export async function loadMemories(source: MemorySource = "desktop"): Promise<St
           updatedAt: row.updatedAt,
           tier: row.tier || undefined,
           importance: row.importance === null || row.importance === undefined ? undefined : Number(row.importance),
-          source,
+          storageSource: source,
           lastReferencedAt: row.lastReferencedAt || undefined,
           keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
         });
@@ -147,7 +155,7 @@ export async function loadMemories(source: MemorySource = "desktop"): Promise<St
 export async function saveMemories(memories: StoredMemory[], source: MemorySource = "desktop"): Promise<void> {
   const normalized = memories.map((m) => ({
     ...m,
-    source,
+    storageSource: source,
     importance: m.importance ?? 5,
     keywords: m.keywords || normalizeKeywords(m.text),
   }));
@@ -180,7 +188,7 @@ export async function upsertMemory(memory: StoredMemory, source: MemorySource = 
   const next: StoredMemory = {
     ...memory,
     id: memory.id || Math.random().toString(36).substring(2, 11),
-    source,
+    storageSource: source,
     createdAt: memory.createdAt || timestamp,
     updatedAt: timestamp,
     importance: memory.importance ?? 5,
@@ -281,7 +289,7 @@ export async function processConversationSlice(apiKey: string, dialogueHistory: 
           text: trx.text,
           createdAt: timestamp,
           updatedAt: timestamp,
-          source,
+          storageSource: source,
           importance: 5,
           keywords: normalizeKeywords(trx.text),
         });
@@ -321,7 +329,7 @@ export async function rebuildMemoryIndexFromDatabase(source: MemorySource = "des
         updatedAt: row.updatedAt || new Date().toISOString(),
         tier: row.tier || undefined,
         importance: row.importance === null || row.importance === undefined ? 5 : Number(row.importance),
-        source,
+        storageSource: source,
         lastReferencedAt: row.lastReferencedAt || undefined,
         keywords: row.keywords ? JSON.parse(row.keywords) : normalizeKeywords(text),
       });
@@ -333,4 +341,51 @@ export async function rebuildMemoryIndexFromDatabase(source: MemorySource = "des
     return await loadMemories(source);
   }
 }
+
+// Decision Memory Persistence
+export async function loadDecisions(): Promise<any[]> {
+  return readJson<any[]>(DECISIONS_FILE, []);
+}
+
+export async function saveDecisions(decisions: any[]): Promise<void> {
+  await writeJson(DECISIONS_FILE, decisions);
+}
+
+export async function upsertDecision(decision: any): Promise<any[]> {
+  const current = await loadDecisions();
+  const existing = current.findIndex((d) => d.id === decision.id);
+  if (existing >= 0) {
+    current[existing] = { ...current[existing], ...decision, updatedAt: new Date().toISOString() };
+  } else {
+    current.push({ ...decision, createdAt: new Date().toISOString() });
+  }
+  await saveDecisions(current);
+  return current;
+}
+
+export async function loadQuestions(): Promise<any[]> {
+  return readJson<any[]>(QUESTIONS_FILE, []);
+}
+
+export async function saveQuestions(questions: any[]): Promise<void> {
+  await writeJson(QUESTIONS_FILE, questions);
+}
+
+export async function upsertQuestion(question: any): Promise<any[]> {
+  const current = await loadQuestions();
+  const existing = current.findIndex((q) => q.id === question.id);
+  if (existing >= 0) {
+    current[existing] = { ...current[existing], ...question };
+  } else {
+    current.push(question);
+  }
+  await saveQuestions(current);
+  return current;
+}
+
+export async function getUnansweredQuestions(): Promise<any[]> {
+  const questions = await loadQuestions();
+  return questions.filter((q: any) => !q.userResponded);
+}
+
 

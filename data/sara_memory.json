@@ -1,0 +1,697 @@
+[
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837436.4112732,
+    "id": "6f65b5111d4f4b59916e75e6b9221776",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "1c071472d0c44fa3a898588188add4ac"
+    },
+    "updated_at": 1787837436.4112732
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837513.259829,
+    "id": "4ba8cf3b41f741dba88e738dd25a9965",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "8949eccb962c47d1968518b99a58222d"
+    },
+    "updated_at": 1787837513.259829
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837534.1802976,
+    "id": "64cbf695ea93421a951b1fe4e60ac65b",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "d934afcd0e7e46d58b04bd34bdc34e2a"
+    },
+    "updated_at": 1787837534.1802976
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837535.3057678,
+    "id": "b64e7fcf08cc4a84b3254fb20a9a6aae",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "934dc5f731f64be0a8f3052964e62fb9"
+    },
+    "updated_at": 1787837535.3057678
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837561.8224075,
+    "id": "91cb860fcd624b78a8afd479826013ff",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "12defadbb12c4ac397a1c43daff9f54a"
+    },
+    "updated_at": 1787837561.8224075
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837621.9444249,
+    "id": "6b16f1c0ab2c4f4fa0340e44e4aecfed",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "741acc7489b248d2a63630d0a9ea7f32"
+    },
+    "updated_at": 1787837621.9444249
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837622.6575325,
+    "id": "79bd86f442e042149162028fa34c63f9",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "daaa358b62f441268bd9cd3ed74ecf9e"
+    },
+    "updated_at": 1787837622.6575325
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837767.1422663,
+    "id": "aa1f866ada1745bc9b12ee85199ec706",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "e95e723b7efd4157b3e8da0619bcf5ce"
+    },
+    "updated_at": 1787837767.1422663
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837776.9069476,
+    "id": "f221ecdc1c394334a16b129b4d0bf231",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "321ccdb1ae1541de84c91fa6d00d832a"
+    },
+    "updated_at": 1787837776.9069476
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837777.277663,
+    "id": "376e04c4dbd44184ad48706211db5379",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "0844141573e446af84d46bbb292d55b9"
+    },
+    "updated_at": 1787837777.277663
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837792.1231802,
+    "id": "18f85ec2fcd54a259396975504ef13b7",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "7b1f101f46164eff81aa5cd65af3cded"
+    },
+    "updated_at": 1787837792.1231802
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837812.6236012,
+    "id": "f9db89ef1eb84a66aa512f3e52ec72b2",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "759b6fba993b463f998393f030baedeb"
+    },
+    "updated_at": 1787837812.6236012
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837814.2161067,
+    "id": "46e2efcc528940ae85c57b43952445b1",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "cec11759a35d44f88215018b13e5937c"
+    },
+    "updated_at": 1787837814.2161067
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787837815.4280198,
+    "id": "e05aa0d61f374c239c87ff8cbda960f7",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "2d609cc86031452abb65ac8f180daf46"
+    },
+    "updated_at": 1787837815.4280198
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839145.651715,
+    "id": "a44db7c0740d4944aed512919cca47e1",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "775876485fbf434895cdb9f0d9d968da"
+    },
+    "updated_at": 1787839145.651715
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839148.190638,
+    "id": "d5a54c896df4472f9022b90dd915aeb8",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "c5900212e2c040a0b888016ceafa2300"
+    },
+    "updated_at": 1787839148.190638
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839150.1920512,
+    "id": "31e0400b7d894a37ad725c2c3bef3720",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "3ef57f29bb8a4ebfbc7ae2897eefd86a"
+    },
+    "updated_at": 1787839150.1920512
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839165.374971,
+    "id": "7805c6dd3c9f4b87beba558818f272dd",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "f10a280b88d042368ad1ee2307c0171c"
+    },
+    "updated_at": 1787839165.374971
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839891.214155,
+    "id": "8cf5b8990cd84cb2a24a62f0e172b54d",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "8126cb9145114b55a937c8bcbfe7a841"
+    },
+    "updated_at": 1787839891.214155
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839892.7189167,
+    "id": "b6a5f7e9159c41a6bb2501c2b3e839e7",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "78f2b1601faf4003a70b1bd81620f1a9"
+    },
+    "updated_at": 1787839892.7189167
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787839893.6213248,
+    "id": "d5daf0dbaade41debefecdb8ab75cb59",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "d68fffa8bf5540169e278426a4803056"
+    },
+    "updated_at": 1787839893.6213248
+  },
+  {
+    "content": "Completed through SARA's agent manager using: browser_agent.",
+    "created_at": 1787839940.94171,
+    "id": "866bbc0ba97745969e203295fb3affb9",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Search for a fix",
+      "plan": [
+        {
+          "action": "search",
+          "agent": "browser_agent",
+          "args": {
+            "engine": "google",
+            "query": "a fix"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "b48eae968c914f1caf82aa37775d997f"
+    },
+    "updated_at": 1787839940.94171
+  },
+  {
+    "content": "Completed through SARA's agent manager using: browser_agent.",
+    "created_at": 1787839945.7291207,
+    "id": "fa830919d83b4852a3c3a41971943d27",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Search for a fix",
+      "plan": [
+        {
+          "action": "search",
+          "agent": "browser_agent",
+          "args": {
+            "engine": "google",
+            "query": "a fix"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "9e6e5acdbf3940c1bc74501d31fc66cc"
+    },
+    "updated_at": 1787839945.7291207
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787844364.488738,
+    "id": "647ac515e9354888ba4fc8cf2c40c4b0",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "8fd29d9647dd4b678148a79ddfc375fc"
+    },
+    "updated_at": 1787844364.488738
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787844473.2678964,
+    "id": "3233383e350247a591472c0eab66d810",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "02d0d08e45f74eecab586f8aff6b71f5"
+    },
+    "updated_at": 1787844473.2678964
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787845074.5406675,
+    "id": "be286017646446eeb4f11fa715278b49",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "c29aeb1b23084468b8a368f9555df1ee"
+    },
+    "updated_at": 1787845074.5406675
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787845074.993806,
+    "id": "4fe9847c773c41ff97d5df0ea66c02f2",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "aa66b923264d43188e6080a07b52bfc0"
+    },
+    "updated_at": 1787845074.993806
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787845318.9858196,
+    "id": "96e9d49a059b4cb5801a6944b64e083a",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "03ab460567fc4708b725bca67da9e039"
+    },
+    "updated_at": 1787845318.9858196
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1787845319.2919285,
+    "id": "0c7ead1f1cc04ee69f5bd3b4c7867e7b",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "841a79dbd4ae4d14aa6b619733eb0e65"
+    },
+    "updated_at": 1787845319.2919285
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1788145271.2836883,
+    "id": "c3324c2bb7644f979206b631e36b90b7",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "458ae3bd64ac43b9b2661ab7ca4b9fe0"
+    },
+    "updated_at": 1788145271.2836883
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1788145272.4367268,
+    "id": "cd7f69613c9848c38380c6647b02fb05",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "c448c0fb52cb4d949c72933a3d9c6cb9"
+    },
+    "updated_at": 1788145272.4367268
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1788145725.366748,
+    "id": "27dbf7b79dc94b7ba013c9ba6b33bf49",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Prepare SARA context restoration",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Prepare SARA context restoration"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "61e27e23bfbd4d2bbaa77fe42efcea8e"
+    },
+    "updated_at": 1788145725.366748
+  },
+  {
+    "content": "Completed through SARA's agent manager using: task_planner.",
+    "created_at": 1788145728.4712844,
+    "id": "f5c3d8bf23794f7e90cbb16ea759a237",
+    "kind": "workflow",
+    "metadata": {
+      "goal": "Separate unrelated task",
+      "plan": [
+        {
+          "action": "plan",
+          "agent": "task_planner",
+          "args": {
+            "goal": "Separate unrelated task"
+          }
+        }
+      ],
+      "status": "completed",
+      "workflow_id": "d36a218c8aa94eadb15720ecc4b1ed21"
+    },
+    "updated_at": 1788145728.4712844
+  }
+]

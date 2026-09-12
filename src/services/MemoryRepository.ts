@@ -63,6 +63,8 @@ function toStoredMemory(memory: MemoryRecord): StoredMemory {
     "relationship",
     "emotional",
     "behavior",
+    "decision",
+    "question",
   ];
   const category = (validCategories.includes(memory.category as MemoryCategory)
     ? (memory.category as MemoryCategory)
@@ -73,7 +75,7 @@ function toStoredMemory(memory: MemoryRecord): StoredMemory {
     category,
     text: memory.value,
     importance: memory.importance ?? 5,
-    source: "desktop",
+    storageSource: "desktop",
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     lastReferencedAt: memory.lastAccessed,

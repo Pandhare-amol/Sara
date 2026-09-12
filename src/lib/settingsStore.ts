@@ -27,6 +27,16 @@ export interface SaraSettings {
   autoEnableGesture: boolean;
   /** Master toggle for UI animations. */
   animations: boolean;
+  proactiveConversation: boolean;
+  smartInterruption: boolean;
+  humor: boolean;
+  playfulMode: boolean;
+  prankMode: boolean;
+  emotionAwareness: boolean;
+  aiPerspective: boolean;
+  conversationMemory: boolean;
+  quietMode: boolean;
+  conversationCooldown: number;
 }
 
 export const DEFAULT_SETTINGS: SaraSettings = {
@@ -38,6 +48,16 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   language: "en",
   autoEnableGesture: false,
   animations: true,
+  proactiveConversation: false,
+  smartInterruption: false,
+  humor: true,
+  playfulMode: false,
+  prankMode: false,
+  emotionAwareness: true,
+  aiPerspective: true,
+  conversationMemory: true,
+  quietMode: false,
+  conversationCooldown: 1800,
 };
 
 const STORAGE_KEY = "sara.settings.v2";
@@ -88,11 +108,13 @@ export function saveSettings(patch: Partial<SaraSettings>): SaraSettings {
 /** Push settings to the backend (server.ts persists to settings.json). */
 async function syncSettingsToBackend(settings: SaraSettings): Promise<void> {
   try {
-    await fetch("/api/settings", {
+    const request = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
-    });
+    };
+    await fetch("/api/settings", request);
+    await fetch("/api/social/settings", request);
   } catch {
     /* Backend may be briefly unavailable during boot â€” non-fatal. */
   }

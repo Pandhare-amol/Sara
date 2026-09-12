@@ -1124,18 +1124,22 @@ export async function startService(
     return runningHandle;
   }
 
-  // ----------------------------------------------------------
-  // Already healthy but identity mismatch
-  // ----------------------------------------------------------
-
-  if (
+  const isOwnerMismatch =
     healthRes.healthy &&
     expectedServiceId &&
-    healthRes.data?.service !==
-      expectedServiceId
-  ) {
+    (!healthRes.data?.service || healthRes.data.service !== expectedServiceId);
+
+  if (isOwnerMismatch && portOwnerPid && isSaraOwnedPid(portOwnerPid)) {
     console.warn(
-      `[SARA] Port ${port} is healthy but identity is '${healthRes.data?.service}' instead of expected '${expectedServiceId}'.`
+      `[SARA] Port ${port} is occupied by a stale SARA-owned service with identity '${healthRes.data?.service ?? "undefined"}' instead of '${expectedServiceId}'. Restarting it with the expected identity.`
+    );
+
+    terminatePidIfSaraOwned(portOwnerPid);
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  } else if (isOwnerMismatch) {
+    console.warn(
+      `[SARA] Port ${port} is healthy but identity is '${healthRes.data?.service ?? "undefined"}' instead of expected '${expectedServiceId}'.`
     );
 
     return {
@@ -1166,8 +1170,9 @@ export async function startService(
       healthRes.data?.service ===
         expectedServiceId
     ) {
+      const isAlreadyTracked = !!runningHandle && runningHandle.port === port;
       console.log(
-        `[SARA] Existing ${name} detected on port ${port}; service identity matches.`
+        `[SARA] Existing ${name} detected on port ${port}; service identity matches. adopted=${String(isAlreadyTracked)}.`
       );
 
       const handle: ServiceHandle = {
@@ -1176,7 +1181,7 @@ export async function startService(
         port,
         healthy: true,
         retries: 0,
-        adopted: true,
+        adopted: isAlreadyTracked,
         opts,
         consecutiveFailures: 0,
         state: "READY",

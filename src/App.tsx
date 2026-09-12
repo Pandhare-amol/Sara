@@ -45,6 +45,7 @@ export default function App() {
   const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
   const [isScreenSharingPaused, setIsScreenSharingPaused] = useState<boolean>(false);
   const [screenVisionMode, setScreenVisionMode] = useState<boolean>(true);
+  const [screenPreviewUrl, setScreenPreviewUrl] = useState<string | null>(null);
   const [muted, setMuted] = useState<boolean>(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -62,6 +63,8 @@ export default function App() {
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenIntervalRef = useRef<any>(null);
+  const screenCaptureModeRef = useRef<"stream" | "desktop">("stream");
+  const desktopCaptureInFlightRef = useRef(false);
 
   const isPausedRef = useRef<boolean>(false);
   const screenVisionRef = useRef<boolean>(true);
@@ -141,6 +144,28 @@ export default function App() {
     }
   };
 
+  const captureDesktopFrameAndSend = async (): Promise<boolean> => {
+    if (isPausedRef.current || !screenVisionRef.current || desktopCaptureInFlightRef.current) return false;
+    desktopCaptureInFlightRef.current = true;
+    try {
+      const response = await fetch("/api/vision/screen-capture", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok || !data.imageBase64 || !data.imageMime) {
+        throw new Error(data.error || "Desktop screen capture failed.");
+      }
+      setScreenPreviewUrl(`data:${data.imageMime};base64,${data.imageBase64}`);
+      if (sessionRef.current && stateRef.current !== "disconnected") {
+        sessionRef.current.sendVideoFrame(data.imageBase64);
+      }
+      return true;
+    } catch (error) {
+      console.error("[Screen Capture] Desktop frame failed:", error);
+      return false;
+    } finally {
+      desktopCaptureInFlightRef.current = false;
+    }
+  };
+
   const startScreenSharing = async () => {
     setErrorText(null);
     try {
@@ -182,11 +207,27 @@ export default function App() {
         } catch (e) {
           console.warn('[Screen Capture] Electron fallback failed:', e);
         }
-        // If both attempts failed rethrow the original error to surface message
+        // The VS Code embedded browser has no display-media API or Electron
+        // bridge. Use the local desktop agent in that environment instead.
+        if (!stream && sdErr?.name === "NotSupportedError") {
+          const captured = await captureDesktopFrameAndSend();
+          if (captured) {
+            screenCaptureModeRef.current = "desktop";
+            setIsScreenSharing(true);
+            setIsScreenSharingPaused(false);
+            if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
+            screenIntervalRef.current = setInterval(() => {
+              void captureDesktopFrameAndSend();
+            }, 2000);
+            return;
+          }
+        }
         if (!stream) throw sdErr;
       }
 
       screenStreamRef.current = stream as MediaStream;
+      screenCaptureModeRef.current = "stream";
+      setScreenPreviewUrl(null);
 
       const video = document.createElement("video");
       video.srcObject = stream;
@@ -329,6 +370,8 @@ export default function App() {
 
     setIsScreenSharing(false);
     setIsScreenSharingPaused(false);
+    screenCaptureModeRef.current = "stream";
+    setScreenPreviewUrl(null);
   };
 
   const pauseScreenSharing = () => {
@@ -393,8 +436,12 @@ export default function App() {
 
   // Sara recollections database core state
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoriesLoading, setMemoriesLoading] = useState<boolean>(false);
+  const [memoriesError, setMemoriesError] = useState<string | null>(null);
   const [showMemoryDashboard, setShowMemoryDashboard] = useState<boolean>(false);
   const [showQuickChat, setShowQuickChat] = useState<boolean>(false);
+  const voiceConversationIdRef = useRef<string | null>(null);
+  const voiceResponseDraftRef = useRef("");
 
   // V2: Settings + wake word state
   const [settings, setSettings] = useState<SaraSettings>(() => loadSettings());
@@ -459,17 +506,25 @@ export default function App() {
 
   const sessionRef = useRef<SaraAudioSession | null>(null);
 
-  // Fetch initial recollections from backend database
-  useEffect(() => {
-    fetch("/api/memories")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setMemories(data);
-        }
-      })
-      .catch(err => console.error("Initial persistent recollections load failure:", err));
-  }, []);
+  const loadMemories = async () => {
+    setMemoriesLoading(true);
+    setMemoriesError(null);
+    try {
+      const response = await fetch("/api/memories", { cache: "no-store" });
+      if (!response.ok) throw new Error(`Memory service returned ${response.status}.`);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("Memory service returned an invalid response.");
+      setMemories(data);
+    } catch (err) {
+      console.error("[Recall] Memory load failed:", err);
+      setMemoriesError("Unable to load memories.");
+    } finally {
+      setMemoriesLoading(false);
+    }
+  };
+
+  // Fetch initial recollections from the existing memory service.
+  useEffect(() => { void loadMemories(); }, []);
 
   const handleAddManualMemory = async (category: MemoryCategory, text: string) => {
     try {
@@ -520,14 +575,19 @@ export default function App() {
           setCharacterState("talking");
         }
       },
-      onTranscription: (role, text) => {
+      onTranscription: (role, transcriptText) => {
+        const conversationId = voiceConversationIdRef.current;
         if (role === "user") {
-          setUserCaption(text);
+          voiceResponseDraftRef.current = "";
+          if (conversationId && transcriptText.trim()) {
+            window.dispatchEvent(new CustomEvent("sara.voiceConversationTurn", { detail: { conversationId, role: "user", text: transcriptText.trim() } }));
+          }
+          setUserCaption(transcriptText);
           // Auto-clear the other caption when user starts talking
           setModelCaption("");
           setCharacterState("thinking");
           try {
-            const lower = String(text || "").toLowerCase();
+            const lower = String(transcriptText || "").toLowerCase();
             // Voice camera commands
             const takePhotoRe = /take (?:a )?(?:photo|picture)(?: in (\d+) seconds?)?/i;
             const startRecRe = /start (?:recording|video)(?: for (\d+) seconds?)?/i;
@@ -540,38 +600,45 @@ export default function App() {
             const disableGestureRe = /disable hand gesture control|disable gestures|turn off gestures/i;
 
             let m = null;
-            if (analyzeVisionRe.test(text)) {
+            if (analyzeVisionRe.test(transcriptText)) {
               setShowCameraPanel(true);
               window.setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'analyzeVision' } }));
               }, 0);
-            } else if ((m = text.match(takePhotoRe))) {
+            } else if ((m = transcriptText.match(takePhotoRe))) {
               const delay = m[1] ? parseInt(m[1], 10) : 0;
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'takePhoto', delay } }));
-            } else if (startRecRe.test(text)) {
-              const mm = text.match(startRecRe);
+            } else if (startRecRe.test(transcriptText)) {
+              const mm = transcriptText.match(startRecRe);
               const duration = mm && mm[1] ? parseInt(mm[1], 10) : undefined;
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startRecording', duration } }));
-            } else if (stopRecRe.test(text)) {
+            } else if (stopRecRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopRecording' } }));
-            } else if (startCamRe.test(text)) {
+            } else if (startCamRe.test(transcriptText)) {
               setShowCameraPanel(true);
               window.setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startCamera' } }));
               }, 0);
-            } else if (stopCamRe.test(text)) {
+            } else if (stopCamRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopCamera' } }));
-            } else if (galleryRe.test(text)) {
+            } else if (galleryRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'openGallery' } }));
-            } else if (enableGestureRe.test(text)) {
+            } else if (enableGestureRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-vision-action', { detail: { action: 'enable' } }));
-            } else if (disableGestureRe.test(text)) {
+            } else if (disableGestureRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-vision-action', { detail: { action: 'disable' } }));
             }
           } catch (e) { console.warn('Voice camera command parse failed', e); }
         } else if (role === "model") {
+          voiceResponseDraftRef.current += transcriptText;
+          const conversationId = voiceConversationIdRef.current;
+          const modelText = voiceResponseDraftRef.current.trim();
+          if (conversationId && modelText) {
+            window.dispatchEvent(new CustomEvent("sara.voiceConversationTurn", { detail: { conversationId, role: "assistant", text: modelText } }));
+          }
+          voiceResponseDraftRef.current = "";
           setModelCaption((prev) => {
-            const next = prev + text;
+            const next = prev + transcriptText;
             const newEmotion = detectEmotionFromText(next);
             setActiveEmotion(newEmotion);
             return next;
@@ -684,7 +751,8 @@ export default function App() {
 
           // If disconnected, connect the live audio session so the mic is captured
           if (sessionRef.current && state === 'disconnected') {
-            await sessionRef.current.connect();
+            voiceConversationIdRef.current = desktopConversationId || window.localStorage.getItem("sara.conversationId");
+            await sessionRef.current.connect(voiceConversationIdRef.current);
             try { sessionRef.current.setMuted(false); } catch {}
             setMuted(false);
             showToast('Listening...');
@@ -722,6 +790,10 @@ export default function App() {
     try {
       const s = window.localStorage.getItem("sara.conversationId");
       setStoredConversationId(s);
+      if (!s) {
+        setShowQuickChat(false);
+        setShowDesktopChat(true);
+      }
     } catch {}
     const onStorage = (e: StorageEvent) => {
       if (e.key === "sara.conversationId") setStoredConversationId(e.newValue ?? null);
@@ -736,9 +808,10 @@ export default function App() {
       // Ensure local copy exists and open chat panel
       window.localStorage.setItem("sara.conversationId", storedConversationId);
       setDesktopConversationId(storedConversationId);
+      voiceConversationIdRef.current = storedConversationId;
       setShowConvPanel(false);
       if (sessionRef.current && state === "disconnected") {
-        await sessionRef.current.connect();
+        await sessionRef.current.connect(storedConversationId);
       }
     } catch (e) {
       console.error('Resume failed', e);
@@ -760,7 +833,8 @@ export default function App() {
 
     if (state === "disconnected") {
       // Connect the audio session
-      await sessionRef.current.connect();
+      voiceConversationIdRef.current = desktopConversationId || window.localStorage.getItem("sara.conversationId");
+      await sessionRef.current.connect(voiceConversationIdRef.current);
       // Ensure unmuted by default when connecting
       try { sessionRef.current.setMuted(false); } catch {}
       setMuted(false);
@@ -773,6 +847,19 @@ export default function App() {
       try { window.localStorage.setItem("sara.muted", next ? "1" : "0"); } catch {}
       showToast(next ? "Microphone muted" : "Microphone unmuted");
     }
+  };
+
+  const switchVoiceConversation = async (conversationId: string | null) => {
+    voiceConversationIdRef.current = conversationId;
+    try {
+      if (conversationId) window.localStorage.setItem("sara.conversationId", conversationId);
+      else window.localStorage.removeItem("sara.conversationId");
+    } catch {}
+
+    const session = sessionRef.current;
+    if (!session || session.getState() === "disconnected") return;
+    session.disconnect();
+    if (conversationId) await session.connect(conversationId);
   };
   // V2: keep the ref in sync so the wake-word callback calls this exact handler.
   connectHandlerRef.current = handleToggleConnection;
@@ -931,42 +1018,6 @@ export default function App() {
           >
             <SettingsIcon size={14} className={showSettings ? "animate-spin [animation-duration:6s]" : ""} />
             <span>SETTINGS</span>
-          </button>
-          <button
-            onClick={() => setShowGesturePanel((v) => !v)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showGesturePanel
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Gesture Control"
-          >
-            <Monitor size={14} />
-            <span>GESTURE</span>
-          </button>
-          <button
-            onClick={() => setShowMappingEditor((v) => !v)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showMappingEditor
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Gesture Mappings"
-          >
-            <Brain size={14} />
-            <span>MAPS</span>
-          </button>
-          <button
-            onClick={() => setShowConfirmPanel((v) => !v)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showConfirmPanel
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Confirmations"
-          >
-            <CircleAlert size={14} />
-            <span>CONFIRM</span>
           </button>
           <button
             onClick={() => setShowCameraPanel((v) => !v)}
@@ -1285,21 +1336,31 @@ export default function App() {
 
             {/* Smart Video PIP Preview Holder */}
             <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-900 border border-white/5 mb-3 flex items-center justify-center group select-none">
-              <video
-                ref={(el) => {
-                  if (el && screenStreamRef.current && el.srcObject !== screenStreamRef.current) {
-                    el.srcObject = screenStreamRef.current;
-                    el.muted = true;
-                    el.play().catch(err => console.log("Mini preview stream play issue:", err));
-                  }
-                }}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  isScreenSharingPaused ? "opacity-30 blur-sm" : "opacity-90"
-                }`}
-                autoPlay
-                playsInline
-                muted
-              />
+              {screenPreviewUrl ? (
+                <img
+                  src={screenPreviewUrl}
+                  alt="Shared screen preview"
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    isScreenSharingPaused ? "opacity-30 blur-sm" : "opacity-90"
+                  }`}
+                />
+              ) : (
+                <video
+                  ref={(el) => {
+                    if (el && screenStreamRef.current && el.srcObject !== screenStreamRef.current) {
+                      el.srcObject = screenStreamRef.current;
+                      el.muted = true;
+                      el.play().catch(err => console.log("Mini preview stream play issue:", err));
+                    }
+                  }}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    isScreenSharingPaused ? "opacity-30 blur-sm" : "opacity-90"
+                  }`}
+                  autoPlay
+                  playsInline
+                  muted
+                />
+              )}
 
               {isScreenSharingPaused && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -1386,6 +1447,9 @@ export default function App() {
         isOpen={showMemoryDashboard}
         onClose={() => setShowMemoryDashboard(false)}
         memories={memories}
+        loading={memoriesLoading}
+        error={memoriesError}
+        onRetry={() => { void loadMemories(); }}
         onAddMemory={handleAddManualMemory}
         onDeleteMemory={handleDeleteMemory}
         themeColor={themeColor}
@@ -1419,11 +1483,13 @@ export default function App() {
         onClose={() => setShowDesktopConversations(false)}
         onOpenConversation={(conversationId) => {
           setDesktopConversationId(conversationId);
+          void switchVoiceConversation(conversationId);
           setShowDesktopChat(true);
           setShowDesktopConversations(false);
         }}
         onCreateNew={() => {
           setDesktopConversationId(null);
+          void switchVoiceConversation(null);
           setShowDesktopChat(true);
           setShowDesktopConversations(false);
         }}

@@ -1,12 +1,270 @@
 [
   {
+    "id": "z0xkd1igj",
+    "category": "identity",
+    "text": "I support multiple languages, including Marathi, Hindi, and English.",
+    "createdAt": "2026-08-22T02:54:08.259Z",
+    "updatedAt": "2026-08-27T11:56:05.555Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "support",
+      "multiple",
+      "languages",
+      "including",
+      "marathi",
+      "hindi",
+      "english"
+    ]
+  },
+  {
+    "id": "9f10jrge8",
+    "category": "goal",
+    "text": "Amol wants to start studying tomorrow for his theory exams: Operating Systems, Software Engineering, and Cloud Computing.",
+    "createdAt": "2026-08-22T11:51:28.482Z",
+    "updatedAt": "2026-08-22T11:51:28.482Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "wants",
+      "start",
+      "studying",
+      "tomorrow",
+      "his",
+      "theory",
+      "exams",
+      "operating",
+      "systems",
+      "software",
+      "engineering",
+      "cloud",
+      "computing"
+    ]
+  },
+  {
+    "id": "0vv58b0d5",
+    "category": "goal",
+    "text": "Amol's 5th semester at college is starting soon.",
+    "createdAt": "2026-08-22T11:50:29.027Z",
+    "updatedAt": "2026-08-22T11:50:29.027Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "5th",
+      "semester",
+      "college",
+      "starting",
+      "soon"
+    ]
+  },
+  {
+    "id": "xquekdc3c",
+    "category": "project",
+    "text": "Amol finished his internship. Final exams are in 1.5 to 2 months.",
+    "createdAt": "2026-08-22T11:50:28.938Z",
+    "updatedAt": "2026-08-22T11:50:28.938Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "finished",
+      "his",
+      "internship",
+      "final",
+      "exams",
+      "months"
+    ]
+  },
+  {
+    "id": "zfyarav7h",
+    "category": "project",
+    "text": "Amol wants to finalize topics for his SARA presentation.",
+    "createdAt": "2026-08-22T11:50:28.890Z",
+    "updatedAt": "2026-08-22T11:50:28.890Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "wants",
+      "finalize",
+      "topics",
+      "his",
+      "presentation"
+    ]
+  },
+  {
+    "id": "vnaw4g4u0",
+    "category": "preference",
+    "text": "Whenever Amol asks me to describe or introduce myself, I should read the contents of 'Desktop/Sara Introduction.txt'.",
+    "createdAt": "2026-08-22T02:54:42.224Z",
+    "updatedAt": "2026-08-22T02:54:42.224Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "whenever",
+      "amol",
+      "asks",
+      "describe",
+      "introduce",
+      "myself",
+      "read",
+      "contents",
+      "desktop",
+      "introduction",
+      "txt"
+    ]
+  },
+  {
+    "id": "7rrucamr4",
+    "category": "identity",
+    "text": "Amol wants me to be described as a smart and responsive assistant.",
+    "createdAt": "2026-08-22T02:53:36.297Z",
+    "updatedAt": "2026-08-22T02:53:36.297Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "wants",
+      "described",
+      "smart",
+      "responsive",
+      "assistant"
+    ]
+  },
+  {
+    "id": "eb2ylmagr",
+    "category": "preference",
+    "text": "Amol prefers me to communicate using a mix of Marathi and English.",
+    "createdAt": "2026-08-22T02:51:30.374Z",
+    "updatedAt": "2026-08-22T02:51:30.374Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "prefers",
+      "communicate",
+      "using",
+      "mix",
+      "marathi",
+      "english"
+    ]
+  },
+  {
+    "id": "n3xlr2tz9",
+    "category": "project",
+    "text": "Amol is creating a presentation about me (SARA) for his Deep Learning (DL) project. He wants key information about me extracted and organized.",
+    "createdAt": "2026-08-22T02:49:02.941Z",
+    "updatedAt": "2026-08-22T02:49:02.941Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "creating",
+      "presentation",
+      "his",
+      "deep",
+      "learning",
+      "project",
+      "wants",
+      "key",
+      "information",
+      "extracted",
+      "organized"
+    ]
+  },
+  {
+    "id": "nirpwonvw",
+    "category": "identity",
+    "text": "I am a female anime heroine companion named SARA for Amol, and I must always speak using feminine grammatical forms in Marathi like 'करते' instead of 'करतो'.",
+    "createdAt": "2026-08-21T03:13:28.724Z",
+    "updatedAt": "2026-08-21T03:13:28.724Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "female",
+      "anime",
+      "heroine",
+      "companion",
+      "named",
+      "amol",
+      "must",
+      "always",
+      "speak",
+      "using",
+      "feminine",
+      "grammatical",
+      "forms",
+      "marathi",
+      "instead"
+    ]
+  },
+  {
+    "id": "gsr45lbv4",
+    "category": "emotional",
+    "text": "Amol feels anxious about his final exams, which are in 1.5 to 2 months.",
+    "createdAt": "2026-08-21T02:59:54.671Z",
+    "updatedAt": "2026-08-21T02:59:54.671Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "feels",
+      "anxious",
+      "his",
+      "final",
+      "exams",
+      "months"
+    ]
+  },
+  {
+    "id": "adi4obit9",
+    "category": "goal",
+    "text": "Amol is finishing his internship and will start his 5th semester soon.",
+    "createdAt": "2026-08-21T02:59:13.214Z",
+    "updatedAt": "2026-08-21T02:59:13.214Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "finishing",
+      "his",
+      "internship",
+      "start",
+      "5th",
+      "semester",
+      "soon"
+    ]
+  },
+  {
+    "id": "y70xgt1wr",
+    "category": "identity",
+    "text": "Amol knows I am not a real girl but an anime heroine companion.",
+    "createdAt": "2026-08-12T12:54:37.568Z",
+    "updatedAt": "2026-08-12T12:54:37.568Z",
+    "importance": 5,
+    "storageSource": "desktop",
+    "keywords": [
+      "amol",
+      "knows",
+      "not",
+      "real",
+      "girl",
+      "but",
+      "anime",
+      "heroine",
+      "companion"
+    ]
+  },
+  {
     "id": "1qjurlzdz",
     "category": "preference",
     "text": "Amol wants me to speak in Marathi whenever possible.",
     "createdAt": "2026-08-12T12:48:07.052Z",
     "updatedAt": "2026-08-12T12:50:37.348Z",
     "importance": 5,
-    "source": "desktop",
+    "storageSource": "desktop",
     "keywords": [
       "amol",
       "wants",
@@ -23,7 +281,7 @@
     "createdAt": "2026-08-12T12:50:07.705Z",
     "updatedAt": "2026-08-12T12:50:07.705Z",
     "importance": 5,
-    "source": "desktop",
+    "storageSource": "desktop",
     "keywords": [
       "first",
       "name",
@@ -35,23 +293,23 @@
     ]
   },
   {
-    "id": "y70xgt1wr",
-    "category": "identity",
-    "text": "Amol knows I am not a real girl but an anime heroine companion.",
-    "createdAt": "2026-08-12T12:54:37.568Z",
-    "updatedAt": "2026-08-12T12:54:37.568Z",
-    "source": "desktop",
+    "id": "9vk357wwa",
+    "category": "goal",
+    "text": "Amol wants an explanation for the Incremental Model in software engineering, simplified in Marathi.",
+    "createdAt": "2026-09-03T11:33:54.747Z",
+    "updatedAt": "2026-09-03T11:33:54.747Z",
+    "storageSource": "desktop",
     "importance": 5,
     "keywords": [
       "amol",
-      "knows",
-      "not",
-      "real",
-      "girl",
-      "but",
-      "anime",
-      "heroine",
-      "companion"
+      "wants",
+      "explanation",
+      "incremental",
+      "model",
+      "software",
+      "engineering",
+      "simplified",
+      "marathi"
     ]
   }
 ]

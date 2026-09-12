@@ -9,11 +9,19 @@
     "dev": "tsx server_full.ts",
     "test:e2e": "playwright test",
     "build": "vite build && esbuild server_full.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "mobile:init": "npm run build && npx cap add android",
+    "mobile:sync": "npm run build && npx cap sync android",
+    "mobile:dev": "npx cap open android",
+    "mobile:build": "npm run mobile:sync && cd android && gradlew.bat assembleDebug",
+    "mobile:apk": "npm run mobile:build",
+    "mobile:release": "npm run mobile:sync && cd android && gradlew.bat bundleRelease assembleRelease",
     "mobile-server": "tsx mobile_server.ts",
     "start": "node dist/server.cjs",
     "start:prod": "tsx startup/startupManager.ts",
     "prod": "start-sara-prod.bat",
     "preview": "vite preview",
+    "test": "npm run test:agi",
+    "test:agi": "tsx --test agi/*.test.ts tests/agi-layer.test.ts",
     "clean": "rimraf dist server.js",
     "lint": "tsc --noEmit",
     "electron": "electron .",
@@ -41,6 +49,8 @@
     "test:all": "npm run test:autonomous && npm run test:persistence"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
@@ -57,6 +67,7 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.40.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",

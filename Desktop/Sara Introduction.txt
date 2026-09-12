@@ -1,0 +1,8 @@
+SARA Introduction Key Points:
+- Specialized Deep Learning model for interactive companionship.
+- Personalized, anime-inspired design.
+- Merges advanced technologies with human-like, supportive communication.
+- Multimodal: understands text, images, and voice.
+- Capable of automation, file management, and system tasks.
+- A smart and responsive assistant.
+- Supports multiple languages, including Marathi, Hindi, and English.

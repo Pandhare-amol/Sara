@@ -59,6 +59,8 @@ export class ExecutionOrchestrator {
     const startTime = Date.now();
     const executionStartedAt = new Date(startTime).toISOString();
 
+    this.toolRouter.ensureToolRegistered(tool);
+
     const policy = this.policyEngine.evaluate(tool, args, this.toolRouter.registry, {
       ...options.policy,
       confirmed: options.policy?.confirmed ?? args.confirmed === true,
@@ -115,6 +117,35 @@ export class ExecutionOrchestrator {
         ),
       ])) as any;
 
+      // Handle ASK_USER outcome from policy middleware
+      if ((routedResult as any).error === "WAITING_FOR_APPROVAL") {
+        const approvalResult: UnifiedToolExecutionResult = {
+          tool,
+          toolCallId,
+          correlationId,
+          executionStatus: "unknown",
+          executionDurationMs: 0,
+          executionStartedAt,
+          executionCompletedAt: new Date().toISOString(),
+          executionError: { code: "CONFIRMATION_REQUIRED", message: routedResult.result?.message ?? "User confirmation required", retryable: false },
+          executionResult: routedResult.result,
+          verificationStatus: "skipped",
+          verificationDurationMs: 0,
+          verificationChecks: [],
+          verificationError: undefined,
+          status: "uncertain",
+          success: false,
+          verified: false,
+          totalDurationMs: Date.now() - startTime,
+          message: routedResult.result?.message ?? "",
+          timestamp: Date.now(),
+          metadata: {
+            toolRouter: true,
+            verificationEnabled: enableVerification,
+          },
+        };
+        return approvalResult;
+      }
       executionResult = routedResult.canonical || routedResult.result;
       const canonical = routedResult.canonical || {};
       executionStatus =

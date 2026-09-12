@@ -29,6 +29,12 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
     if not low:
         return ParsedCommand("empty", "none", {}, 0.0, response="I did not hear a command.")
 
+    if any(phrase in low for phrase in ("shut yourself down", "shutdown yourself", "close sara", "exit sara", "stop yourself")):
+        return ParsedCommand("sara.self_shutdown", "saraSelfShutdown", {}, 0.99, response="I will shut SARA down without shutting down the computer.")
+
+    if low in {"shutdown", "shut down", "close", "stop", "exit"}:
+        return ParsedCommand("power.ambiguous", "saraShutdownClarification", {}, 0.99, response="Do you want me to shut down SARA or the computer?")
+
     power = _power_intent(low)
     if power:
         return ParsedCommand(
@@ -200,6 +206,9 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
     if low.startswith(("search youtube", "youtube search")) or ("youtube" in low and "search" in low):
         query = _after(raw, ["search youtube for ", "youtube search ", "for "])
         return ParsedCommand("browser.search", "desktopBrowserSearch", {"engine": "youtube", "query": query}, 0.9, response=f"Searching YouTube for {query}.")
+    if "youtube" in low and any(word in low for word in ("play", "watch")):
+        query = _after(raw, ["play youtube ", "watch youtube ", "play ", "watch "]) or "popular videos"
+        return ParsedCommand("youtube.play", "youtube_play", {"query": query}, 0.92, response=f"Playing {query} on YouTube.")
     if low.startswith(("open youtube", "open google", "open github", "open gmail", "open chatgpt")):
         return ParsedCommand("browser.open", "desktopBrowserOpen", {"url": _site_url(low)}, 0.91, response="Opening it in the browser.")
     if low.startswith(("open instagram", "open insta")):
@@ -305,13 +314,18 @@ def _extract_window_target(text: str) -> str:
 
 
 def _power_intent(text: str) -> str:
-    if "restart" in text and ("pc" in text or "computer" in text or "system" in text):
+    # Explicitly separate SARA shutdown/self-close from Windows power actions.
+    power_targets = ("pc", "computer", "system", "desktop")
+
+    if "restart" in text and any(term in text for term in power_targets):
         return "restart"
-    if "shutdown" in text or "shut down" in text:
+    if any(phrase in text for phrase in ("shutdown", "shut down", "turn off", "power off", "power down")) and any(term in text for term in power_targets):
         return "shutdown"
-    if "sleep" in text:
+    if "sleep" in text and any(term in text for term in power_targets):
         return "sleep"
-    if "lock" in text and ("computer" in text or "pc" in text):
+    if "hibernate" in text and any(term in text for term in power_targets):
+        return "sleep"
+    if "lock" in text and any(term in text for term in ("computer", "pc", "system")):
         return "lock"
     return ""
 

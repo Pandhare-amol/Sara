@@ -354,6 +354,7 @@ class AgentManager:
                         "open_website": "openWebsite",
                         "search_web": "searchWeb",
                         "search_youtube": "searchYouTube",
+                        "play_youtube": "youtube_play",
                         "search_google": "searchGoogle",
                         "search_github": "searchGitHub",
                     },
@@ -476,7 +477,7 @@ class AgentManager:
             self.register_agent(ToolAgent("sms_agent", ["sms", "text_messages"], {"send_sms": "saraAndroidExecute"}))
             self.register_agent(ToolAgent("whatsapp_agent", ["whatsapp", "messaging"], {"message": "saraAndroidExecute"}))
             self.register_agent(ToolAgent("instagram_agent", ["instagram", "social_media"], {"post": "saraAndroidExecute"}))
-            self.register_agent(ToolAgent("youtube_agent", ["youtube", "media_playback"], {"search": "searchYouTube"}))
+            self.register_agent(ToolAgent("youtube_agent", ["youtube", "media_playback"], {"search": "searchYouTube", "play": "youtube_play"}))
             self.register_agent(ToolAgent("email_agent", ["email", "mail"], {"send_email": "saraAppExecuteGoal"}))
             self.register_agent(ToolAgent("calendar_agent", ["calendar", "events"], {"add_event": "saraAppExecuteGoal"}))
             self.register_agent(ToolAgent("camera_agent", ["camera", "capture"], {"take_screenshot": "takeScreenshot", "save_screenshot": "saveScreenshot"}))
@@ -836,9 +837,10 @@ def plan_goal(goal: str) -> List[Dict[str, Any]]:
         action = "power_shutdown" if "shutdown" in low or "shut down" in low else "power_restart" if "restart" in low else "power_sleep" if "sleep" in low else "power_hibernate" if "hibernate" in low else "power_lock" if "lock" in low else "session_lock"
         return [{"agent": "system_control_agent", "action": action, "args": {}}]
     if any(word in low for word in ("browser", "youtube", "google", "github", "gmail", "website", "search", "tab", "scroll")):
-        if "youtube" in low and any(word in low for word in ("search", "watch", "video")):
+        if "youtube" in low and any(word in low for word in ("search", "watch", "play", "video")):
             query = _after(low, ["for ", "about "]) or text
-            return [{"agent": "browser_agent", "action": "search", "args": {"engine": "youtube", "query": query}}]
+            action = "play" if any(word in low for word in ("watch", "play")) else "search"
+            return [{"agent": "youtube_agent", "action": action, "args": {"query": query}}]
         if "github" in low and "search" in low:
             query = _after(low, ["for ", "about "]) or text
             return [{"agent": "browser_agent", "action": "search", "args": {"engine": "github", "query": query}}]
@@ -851,7 +853,9 @@ def plan_goal(goal: str) -> List[Dict[str, Any]]:
         return [{"agent": "browser_agent", "action": "open", "args": {"url": _website_url(low)}}]
     if any(word in low for word in ("screenshot", "screen", "ocr", "see this")):
         return [{"agent": "vision_agent", "action": "read_screen", "args": {}}]
-    if any(word in low for word in ("mobile", "android", "phone", "sms", "message", "notification", "flashlight", "battery", "camera", "contact", "whatsapp", "telegram", "instagram")):
+    if "whatsapp" in low:
+        return [{"agent": "application_suite_agent", "action": "execute_goal", "args": {"goal": text}}]
+    if any(word in low for word in ("mobile", "android", "phone", "sms", "message", "notification", "flashlight", "battery", "camera", "contact", "telegram", "instagram")):
         return [{"agent": "mobile_control_agent", "action": "mobile_plan", "args": {"request": text}}]
     if any(word in low for word in ("open app", "launch", "start application", "calculator", "notepad")):
         app_name = text.replace("open", "").replace("launch", "").strip()

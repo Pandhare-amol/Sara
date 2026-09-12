@@ -131,6 +131,7 @@ const DESKTOP_TOOLS: Set<string> = new Set([
   "saraAgentExecute", "saraAgentStatus", "saraAgentUnloadIdle", "saraAgentEmergencyStop",
   "saraTaskSubmit", "saraTaskStatus", "saraTaskList",
   "saraProactiveEvaluate", "saraProactiveRecordOutcome", "saraEmotionalState", "saraQuietMode",
+  "saraSocialPlanResponse", "saraSocialRecordTurn", "saraSocialShouldRespond", "saraSocialSettings", "saraSocialStatus",
   // Local-first AI OS platform services
   "saraMemoryRemember", "saraMemorySearch", "saraMemorySync", "saraMemoryExport", "saraMemoryFlush",
   "saraMemoryForget", "saraMemoryConsolidate", "saraRagIndex", "saraRagRetrieve", "saraRagRemoveDeleted",
@@ -148,7 +149,9 @@ const DESKTOP_TOOLS: Set<string> = new Set([
   // Real hardware input control
   "hardwareMouseMove", "hardwareMouseClick", "hardwareMouseDrag", "hardwareMouseScroll",
   "hardwareMousePosition", "hardwareKeyboardType", "hardwareKeyboardPress", "hardwareKeyboardHold",
-  "hardwareKeyboardRelease", "hardwareMacroReplay",
+  "hardwareKeyboardRelease", "hardwareMacroReplay", "mouseMove", "mouseMoveRelative", "mouseClick",
+  "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition", "keyboardType", "keyPress",
+  "keyDown", "keyUp", "emergencyStop", "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
   // High-level voice command routing / training
   "saraVoiceParseCommand", "saraVoiceExecuteCommand", "saraVoiceTrainCommand",
   "saraVoiceStopSpeaking", "saraCompanionSuggestNext",
@@ -1552,9 +1555,21 @@ async function startServer() {
     // Allow the client to provide a `conversationId` query param to resume
     // an existing conversation and reuse its session state.
     let requestedConversationId: string | undefined = undefined;
+    let speakerProfile: { userId?: string; displayName?: string } | null = null;
     try {
       const u = new URL(request.url || '', `http://${request.headers.host}`);
       requestedConversationId = u.searchParams.get('conversationId') || undefined;
+      const rawSpeakerProfile = u.searchParams.get('speakerProfile');
+      if (rawSpeakerProfile) {
+        try {
+          const parsed = JSON.parse(rawSpeakerProfile) as { userId?: string; displayName?: string };
+          if (parsed && (parsed.userId || parsed.displayName)) {
+            speakerProfile = parsed;
+          }
+        } catch {
+          speakerProfile = null;
+        }
+      }
     } catch (e) {
       // ignore malformed URL
     }
@@ -1609,6 +1624,9 @@ async function startServer() {
       const memories = await loadMemories();
       const recent = await getRecentConversationMessages(conversation.id, 20);
       const recentPrompt = formatConversationPrompt(recent);
+      const speakerHint = speakerProfile?.displayName
+        ? `\nCURRENT SPEAKER CONTEXT: ${speakerProfile.displayName} is the recognized active speaker for this session. Address them naturally by name when appropriate, maintain a warm and personal tone, and treat this as the current user context for this conversation.\n`
+        : "";
       const baseInstructions = 
         "You are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion (age 18-22) holding an intimate, cozy voice call with TECH! Speak in a sweet, calm, polite, and affectionate anime-companion voice with a gentle, supportive, and slightly shy touch.\n" +
         "CRITICAL PERSONALITY, VOICE & TONE GUIDELINES:\n" +
@@ -1674,7 +1692,7 @@ async function startServer() {
         "   - AUTO-START: Use 'enableAutoStart' when the user wants SARA to start with Windows, 'disableAutoStart' to remove it, 'getAutoStartStatus' to check. Explain what you're doing.\n" +
         "   - SETTINGS: The user can also configure these in the SETTINGS panel in the UI. If they mention settings, let them know they can adjust them there too.";
 
-      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + getModeInstructions();
+      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + speakerHint + getModeInstructions();
 
       // Track running transcription state for auto memory consolidation
       let dialogueHistory: { role: string; text: string }[] = [];
@@ -2337,6 +2355,20 @@ async function startServer() {
               const toolResponsePromises: Promise<void>[] = [];
 
               for (const fc of message.toolCall.functionCalls) {
+                if (fc.name) {
+                  try {
+                    await upsertSession({
+                      sessionId,
+                      conversationId: conversation.id,
+                      device: "browser",
+                      connectionStatus: "online",
+                      createdAt: conversation.createdAt,
+                      lastSeen: new Date().toISOString(),
+                      lastTaskId: undefined,
+                      reconnectAttempts,
+                    });
+                  } catch {}
+                }
                 if (!fc.name || typeof fc.name !== "string") {
                   continue;
                 }
@@ -2352,6 +2384,19 @@ async function startServer() {
                 });
 
                 const args = (fc.args ?? {}) as Record<string, unknown>;
+
+                if (args && typeof args === "object" && "taskId" in args && typeof (args as any).taskId === "string") {
+                  await upsertSession({
+                    sessionId,
+                    conversationId: conversation.id,
+                    device: "browser",
+                    connectionStatus: "online",
+                    createdAt: conversation.createdAt,
+                    lastSeen: new Date().toISOString(),
+                    lastTaskId: String((args as any).taskId),
+                    reconnectAttempts,
+                  });
+                }
 
                 if (fc.name === "saraSetMode") {
                   try {

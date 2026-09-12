@@ -31,9 +31,11 @@ import { Memory, MemoryCategory } from "./src/lib/memoryTypes";
 import { MemoryDashboard } from "./src/components/MemoryDashboard";
 import { SettingsPanel } from "./src/components/SettingsPanel";
 import { TaskManagerPanel } from "./TaskManagerPanel";
+import { MusicProjectsPanel } from "./src/components/MusicProjectsPanel";
 import WhatsAppPanel from "./src/components/WhatsAppPanel";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./src/lib/settingsStore";
 import { SaraWakeWordDetector } from "./src/lib/wakeWord";
+import { SingerPlayer } from "./src/components/SingerPlayer";
 
 export default function App() {
   const [state, setState] = useState<LiveState>("disconnected");
@@ -338,6 +340,7 @@ export default function App() {
   const [showDesktopConversations, setShowDesktopConversations] = useState<boolean>(false);
   const [desktopConversationId, setDesktopConversationId] = useState<string | null>(null);
   const [showTaskManager, setShowTaskManager] = useState<boolean>(false);
+  const [showMusicProjects, setShowMusicProjects] = useState<boolean>(false);
   const [showQuickChat, setShowQuickChat] = useState<boolean>(true);
     const [showWhatsAppPanel, setShowWhatsAppPanel] = useState<boolean>(false);
   const [quickChatPinned, setQuickChatPinned] = useState<boolean>(false);
@@ -760,7 +763,7 @@ export default function App() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, history: next.map((m) => ({ role: m.role, text: m.text })), source: "desktop" }),
+        body: JSON.stringify({ text, history: next.map((m) => ({ role: m.role, text: m.text })), source: "desktop", conversationId: quickChatConversationId }),
       });
       const data = await res.json();
       const reply = data.text || data.result || data.error || "No response.";
@@ -841,6 +844,7 @@ export default function App() {
 
   return (
     <>
+      <SingerPlayer conversationId={storedConversationId} conversationIds={[quickChatConversationId]} />
       {showWhatsAppPanel && <WhatsAppPanel onClose={() => setShowWhatsAppPanel(false)} />}
       <div style={{ position: 'fixed', right: 20, bottom: 100, zIndex: 9998 }}>
         <button onClick={toggleWhatsAppPanel} style={{ padding: '8px 12px', borderRadius: 8 }}>WhatsApp</button>
@@ -1369,6 +1373,11 @@ export default function App() {
         onClose={() => setShowTaskManager(false)}
       />
 
+      <MusicProjectsPanel
+        isOpen={showMusicProjects}
+        onClose={() => setShowMusicProjects(false)}
+      />
+
       {/* Quick floating chat dock */}
       <AnimatePresence>
         {showQuickChat && (
@@ -1410,6 +1419,12 @@ export default function App() {
                 <div className="text-sm text-white font-medium">Sara is ready</div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowMusicProjects(true)}
+                  className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-200 hover:bg-cyan-400/20"
+                >
+                  Music
+                </button>
                 <button
                   onClick={() => setQuickChatPinned((v) => !v)}
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-slate-300 hover:bg-white/10"

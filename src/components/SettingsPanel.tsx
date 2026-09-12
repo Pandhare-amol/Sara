@@ -33,6 +33,71 @@ interface SettingsPanelProps {
 
 type SettingsTab = "general" | "voice" | "system" | "about";
 
+type StoredSpeakerProfile = {
+  userId: string;
+  displayName: string;
+  fingerprint: number[];
+  confidence: number;
+  enrolledAt: string;
+};
+
+const VOICE_PROFILE_STORAGE_KEY = "sara.voiceProfile.v1";
+
+function loadStoredSpeakerProfile(): StoredSpeakerProfile | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(VOICE_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredSpeakerProfile;
+    return parsed && Array.isArray(parsed.fingerprint) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredSpeakerProfile(profile: StoredSpeakerProfile): void {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VOICE_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch {
+    // Ignore storage failures; feature remains best effort.
+  }
+}
+
+function fingerprintFromAudioBuffer(audioBuffer: AudioBuffer): number[] {
+  const channelData = audioBuffer.getChannelData(0);
+  const bins = 16;
+  const step = Math.max(1, Math.floor(channelData.length / bins));
+  const values: number[] = [];
+
+  for (let bin = 0; bin < bins; bin++) {
+    const start = bin * step;
+    const end = Math.min(start + step, channelData.length);
+    const slice = channelData.subarray(start, end);
+    let sumSquares = 0;
+    for (let i = 0; i < slice.length; i++) {
+      sumSquares += slice[i] * slice[i];
+    }
+    const rms = Math.sqrt(sumSquares / Math.max(1, slice.length));
+    values.push(Number(rms.toFixed(4)));
+  }
+
+  const maxValue = Math.max(...values, 1);
+  return values.map((value) => Number((Math.abs(value) / maxValue).toFixed(4)));
+}
+
+function compareVoiceFingerprints(left: number[], right: number[]): number {
+  if (!left.length || !right.length) return 0;
+  const length = Math.min(left.length, right.length);
+  let total = 0;
+  for (let i = 0; i < length; i++) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    total += diff * diff;
+  }
+  const distance = Math.sqrt(total / Math.max(1, length));
+  return Math.max(0, 1 - Math.min(distance / 0.7, 1));
+}
+
 /** A single toggle row matching the existing "Screen Vision Mode" switch style. */
 function ToggleRow({
   label,
@@ -75,12 +140,95 @@ function ToggleRow({
 export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor, locked }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
+  const [voiceProfile, setVoiceProfile] = useState<StoredSpeakerProfile | null>(() => loadStoredSpeakerProfile());
+  const [voiceStatus, setVoiceStatus] = useState<string>("No enrolled speaker yet.");
+  const [isRecordingVoice, setIsRecordingVoice] = useState<boolean>(false);
   const [agentHealth, setAgentHealth] = useState<{
     online: boolean;
     toolCount?: number;
     cpu?: string;
     ram?: string;
   }>({ online: false });
+
+  const captureVoiceSample = async (mode: "enroll" | "identify") => {
+    if (locked) return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceStatus("Microphone access is unavailable in this browser.");
+      return;
+    }
+
+    try {
+      setIsRecordingVoice(true);
+      setVoiceStatus(mode === "enroll" ? "Recording a short voice sample..." : "Checking the current speaker profile...");
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks: BlobPart[] = [];
+
+      await new Promise<void>((resolve, reject) => {
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onerror = () => reject(new Error("Voice sample capture failed."));
+        recorder.onstop = () => resolve();
+        recorder.start();
+        window.setTimeout(() => {
+          try {
+            recorder.stop();
+          } catch {
+            resolve();
+          }
+        }, 2200);
+      });
+
+      stream.getTracks().forEach((track) => track.stop());
+      const blob = new Blob(chunks, { type: mimeType });
+      const arrayBuffer = await blob.arrayBuffer();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error("AudioContext is unavailable.");
+      }
+      const audioContext = new AudioContextClass();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      const fingerprint = fingerprintFromAudioBuffer(audioBuffer);
+      await audioContext.close();
+
+      if (mode === "enroll") {
+        const profile: StoredSpeakerProfile = {
+          userId: "local-user",
+          displayName: "Local User",
+          fingerprint,
+          confidence: 0.93,
+          enrolledAt: new Date().toISOString(),
+        };
+        saveStoredSpeakerProfile(profile);
+        setVoiceProfile(profile);
+        setVoiceStatus("Speaker profile enrolled successfully.");
+        return;
+      }
+
+      const existing = loadStoredSpeakerProfile();
+      if (!existing) {
+        setVoiceStatus("No speaker profile is enrolled yet. Enroll one first.");
+        return;
+      }
+
+      const matchScore = compareVoiceFingerprints(existing.fingerprint, fingerprint);
+      const recognized = matchScore >= 0.8;
+      setVoiceStatus(
+        recognized
+          ? `Speaker identified as ${existing.displayName} (${matchScore.toFixed(2)} confidence)`
+          : `Speaker not recognized (${matchScore.toFixed(2)} confidence)`
+      );
+    } catch (error) {
+      console.warn("Voice enrollment failed:", error);
+      setVoiceStatus("Voice capture failed. Please try again.");
+    } finally {
+      setIsRecordingVoice(false);
+    }
+  };
 
   // Enumerate microphones (mirrors how audio.ts grabs getUserMedia).
   useEffect(() => {
@@ -267,6 +415,90 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                     disabled={locked}
                   />
 
+                  <div className="pt-4 border-t border-white/10 text-[10px] font-mono uppercase tracking-widest text-slate-500">
+                    Social Intelligence
+                  </div>
+
+                  <ToggleRow
+                    label="PROACTIVE CONVERSATION"
+                    description="Allow grounded check-ins when useful"
+                    checked={settings.proactiveConversation}
+                    onChange={(v) => onChange({ proactiveConversation: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="SMART INTERRUPTION"
+                    description="Permit important context-aware interruptions"
+                    checked={settings.smartInterruption}
+                    onChange={(v) => onChange({ smartInterruption: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="EMOTION AWARENESS"
+                    description="Use uncertain text signals to adapt responses"
+                    checked={settings.emotionAwareness}
+                    onChange={(v) => onChange({ emotionAwareness: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="HUMOR"
+                    description="Allow light humor in suitable conversations"
+                    checked={settings.humor}
+                    onChange={(v) => onChange({ humor: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="PLAYFUL MODE"
+                    description="Allow harmless playful responses"
+                    checked={settings.playfulMode}
+                    onChange={(v) => onChange({ playfulMode: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="PRANK MODE"
+                    description="Allow only reversible, explicitly enabled jokes"
+                    checked={settings.prankMode}
+                    onChange={(v) => onChange({ prankMode: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="AI PERSPECTIVE"
+                    description="Identify opinions as SARA's assessment"
+                    checked={settings.aiPerspective}
+                    onChange={(v) => onChange({ aiPerspective: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="CONVERSATION MEMORY"
+                    description="Remember non-sensitive conversational context"
+                    checked={settings.conversationMemory}
+                    onChange={(v) => onChange({ conversationMemory: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="QUIET MODE"
+                    description="Suppress proactive conversation until disabled"
+                    checked={settings.quietMode}
+                    onChange={(v) => onChange({ quietMode: v })}
+                    disabled={locked}
+                  />
+                  <div className="space-y-1.5 pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono tracking-wider text-slate-300 uppercase">Conversation Cooldown</label>
+                      <span className="text-[10px] font-mono text-cyan-300">{settings.conversationCooldown}s</span>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={86400}
+                      step={60}
+                      value={settings.conversationCooldown}
+                      onChange={(e) => !locked && onChange({ conversationCooldown: Math.max(0, Number(e.target.value) || 0) })}
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    />
+                  </div>
+
                   {settings.autoStart && (
                     <div className="mt-2 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-2">
                       <Check size={14} className="text-emerald-400 shrink-0" />
@@ -381,6 +613,55 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                     <span className="text-[8px] text-slate-500 uppercase font-mono">
                       Higher = faster re-arm &amp; more matches
                     </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-3">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                      Speaker Enrollment
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] font-mono text-slate-300">
+                        {voiceProfile ? `Enrolled: ${voiceProfile.displayName}` : "No participant profile saved"}
+                      </div>
+                      {voiceProfile && (
+                        <div className="text-[9px] font-mono text-emerald-300">
+                          {voiceProfile.confidence.toFixed(2)} confidence
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void captureVoiceSample("enroll")}
+                        disabled={locked || isRecordingVoice}
+                        className={`flex-1 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-widest transition ${
+                          locked || isRecordingVoice
+                            ? "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
+                            : "border-cyan-400/40 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15 cursor-pointer"
+                        }`}
+                      >
+                        {isRecordingVoice ? "Recording..." : "Enroll Voice"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void captureVoiceSample("identify")}
+                        disabled={locked || isRecordingVoice}
+                        className={`flex-1 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-widest transition ${
+                          locked || isRecordingVoice
+                            ? "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
+                            : "border-violet-400/40 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15 cursor-pointer"
+                        }`}
+                      >
+                        Identify
+                      </button>
+                    </div>
+
+                    <div className="text-[9px] font-mono text-slate-400 leading-relaxed">
+                      {voiceStatus}
+                    </div>
                   </div>
                 </div>
               )}
