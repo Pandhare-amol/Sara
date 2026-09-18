@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+agent_dist/
 release/
 coverage/
 .DS_Store
@@ -16,6 +17,7 @@ coverage/
 *.key
 *.pem
 data/browser-profile/
+data/sara_memory.db
 data/logs/
 data/memories/backups/
 data/memories/exports/
