@@ -305,6 +305,26 @@ class TaskRunner extends EventEmitter {
         return;
       }
 
+      if (task.metadata?.parsedIntent && task.metadata?.parsedIntent?.intent === 'task') {
+        const { AgentGraph } = await import("./src/core/engine/GraphEngine");
+        const graph = new AgentGraph();
+        const finalState = await graph.run(task.taskId, task.description);
+        
+        const succeeded = finalState.status === "completed";
+        const updated = await updateTask(task.taskId, {
+          status: succeeded ? "completed" : finalState.status === "awaiting_approval" ? "waiting" : "failed",
+          completedAt: succeeded || finalState.status === "failed" ? new Date().toISOString() : undefined,
+          error: finalState.error,
+          result: JSON.stringify({ finalState }),
+          metadata: { ...(task.metadata || {}), langGraphFinalState: finalState },
+        });
+        
+        // suppress TS emit errors gracefully
+        try { (this as any).emit("taskUpdated", updated); } catch {}
+        try { (this as any).emit(succeeded ? "taskCompleted" : "taskFailed", updated); } catch {}
+        return;
+      }
+
       const callSpec = await this.extractCallFromTask(task);
       if (!callSpec) {
         await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: 'No call spec' });

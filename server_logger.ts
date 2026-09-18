@@ -15,6 +15,7 @@ export interface StructuredLog {
   latency_ms?: number;
   error?: string;
   verification?: string;
+  verified?: boolean;
   memory_event?: string;
 }
 

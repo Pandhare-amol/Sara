@@ -4,6 +4,7 @@ from unittest.mock import patch
 from desktop_agent.desktop_input_controller import DesktopInputController
 from desktop_agent.registry import TOOLS, load_all
 from desktop_agent.screen_state_manager import ScreenStateManager
+from desktop_agent.tools_hardware import hardware_keyboard_press, keyboard_shortcut
 
 
 class FakeBackend:
@@ -34,8 +35,26 @@ class RealtimeControlContractTest(unittest.TestCase):
 
     def test_first_class_tools_are_registered(self):
         load_all()
-        for name in ("mouseMove", "mouseDoubleClick", "keyboardType", "keyDown", "observeScreen", "waitForScreenChange"):
+        for name in ("mouseMove", "mouseDoubleClick", "keyboardType", "keyboardShortcut", "keyDown", "observeScreen", "waitForScreenChange"):
             self.assertIn(name, TOOLS)
+
+    def test_keyboard_shortcut_normalizes_named_action(self):
+        controller = DesktopInputController()
+        backend = FakeBackend()
+        backend.press_calls = []
+        backend.hotkey = lambda *keys: backend.press_calls.append(keys)
+        with patch.object(controller, "press", side_effect=lambda keys: {"keys": list(keys), "verified": True}):
+            with patch("desktop_agent.tools_hardware.DESKTOP_INPUT", controller):
+                result = keyboard_shortcut({"name": "select all"})
+        self.assertEqual(result["shortcut"], "select_all")
+        self.assertEqual(result["keys"], ["ctrl", "a"])
+
+    def test_spoken_key_combination_is_normalized(self):
+        controller = DesktopInputController()
+        with patch.object(controller, "press", return_value={"keys": ["ctrl", "c"], "verified": True}):
+            with patch("desktop_agent.tools_hardware.DESKTOP_INPUT", controller):
+                result = hardware_keyboard_press({"keys": "control c"})
+        self.assertEqual(result["keys"], ["ctrl", "c"])
 
     def test_screen_state_uses_cache_until_forced(self):
         manager = ScreenStateManager(cache_ttl=60)

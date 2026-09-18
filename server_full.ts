@@ -26,6 +26,7 @@ import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/to
 import { AutomationOrchestrator, isAsyncAutomationTool } from "./src/core/automation/automationOrchestrator";
 import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
 import { evaluateRetryPolicy } from "./src/core/tools/retryPolicy";
+import { registerMouseTools, executeMouseTool } from "./src/core/tools/mouseTools";
 import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
 
 const SARA_SYSTEM_PROMPT_BASE = `You are Sara, a young Indian female AI personal assistant aged 20 to 25.
@@ -94,14 +95,22 @@ import { financeApiTool } from './src/core/api/tools/FinanceApiAdapter';
 import { searchApiTool } from './src/core/api/tools/SearchApiAdapter';
 import { weatherApiTool } from './src/core/api/tools/WeatherApiAdapter';
 import { publicApiCatalogManager } from './src/core/api/publicApiCatalog';
+import { executePublicApi } from './src/core/api/PublicApiAdapter';
 import { contextManager } from './src/core/context/ContextManager';
 import { userIdentityManager } from './src/core/identity/UserIdentityManager';
-import { conversationIntentAnalyzer } from './src/core/conversation/ConversationIntentAnalyzer';
+import { conversationIntentAnalyzer, type EmotionalResponsePolicy } from './src/core/conversation/ConversationIntentAnalyzer';
+import { getRelationshipContextManager, type RelationshipTurnContext } from './src/services/RelationshipContextManager';
 import { SingerAgent } from './src/agents/singer/SingerAgent';
 import { autonomousMusicCreator } from './src/services/music_studio/autonomous_creator';
 import { MusicProjectManager } from './src/services/music_studio/project_manager';
 import { musicProviderRegistry } from './src/services/music_studio/provider_registry';
 import { musicContentPreparation } from './src/services/music_studio/content_preparation';
+import { getOnlineLearningService } from './src/services/OnlineLearningService';
+import { PerformanceMonitor } from './src/self_improvement/PerformanceMonitor';
+import { SelfImprovementEngine } from './src/self_improvement/SelfImprovementEngine';
+import { createRuntimeHealthMonitor } from './src/self_improvement/runtimeHealthController';
+import { setCallDesktopAgent } from './desktop_agent_bridge';
+import { formatAdvancedReasoningContext, runAdvancedReasoningIfNeeded } from './src/asi/AdvancedReasoningCoordinator';
 
 dotenv.config();
 
@@ -112,6 +121,14 @@ dotenv.config();
 // ---------------------------------------------------------------------------
 const LOGS_DIR = path.join(DATA_DIR, "logs");
 try { fs.mkdirSync(LOGS_DIR, { recursive: true }); } catch { /* already exists */ }
+
+const performanceMonitor = PerformanceMonitor.instance;
+const selfImprovementEngine = new SelfImprovementEngine({
+  memoryThresholdMb: 512,
+  cpuThresholdPercent: 85,
+  eventLoopLagThresholdMs: 75,
+  healthCheckIntervalMs: 5000,
+});
 
 function appendLog(fileName: string, message: string): void {
   try {
@@ -124,6 +141,16 @@ function appendLog(fileName: string, message: string): void {
 const logCommand = (m: string) => appendLog("commands.log", m);
 const logStartup = (m: string) => appendLog("startup.log", m);
 const logError = (m: string) => appendLog("errors.log", m);
+const runtimeHealthMonitor = createRuntimeHealthMonitor({
+  projectRoot: process.cwd(),
+  reportDir: 'tmp/self-healing-runtime',
+  intervalMs: 30_000,
+  cooldownMs: 5 * 60_000,
+  getSnapshot: () => performanceMonitor.getLatestSnapshot() ?? performanceMonitor.collectSnapshot(),
+  onMaintenance: (result) => {
+    logStartup(`Health degraded to ${result.status}; self-healing maintenance triggered and report saved to ${result.reportPath}`);
+  },
+});
 
 // Security subsystems initialized at startup
 
@@ -168,7 +195,7 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // real foreground mouse and keyboard input
   "hardwareMouseMove", "hardwareMouseClick", "hardwareMouseDrag", "hardwareMouseScroll",
   "hardwareMousePosition", "hardwareMouseButtonDown", "hardwareMouseButtonUp",
-  "hardwareKeyboardType", "hardwareKeyboardPress", "hardwareKeyboardHold", "hardwareKeyboardRelease", "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition", "keyboardType", "keyPress", "keyDown", "keyUp", "emergencyStop", "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
+  "hardwareKeyboardType", "hardwareKeyboardPress", "hardwareKeyboardHold", "hardwareKeyboardRelease", "keyboardShortcut", "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition", "keyboardType", "keyPress", "keyDown", "keyUp", "emergencyStop", "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
   "hardwareEmergencyRelease", "hardwareMonitors", "hardwareMacroReplay",
   // screenshot / screen reading
   "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen",
@@ -441,7 +468,12 @@ async function callDesktopAgentTransport(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), DESKTOP_AGENT_TIMEOUT);
 
-      const payload: any = { tool, args };
+      const payload: any = { tool, args: { ...args } };
+      if (originalArgs && Object.keys(originalArgs).length) {
+        payload.args.taskId = payload.args.taskId || originalArgs.taskId;
+        payload.args.actionId = payload.args.actionId || originalArgs.toolCallId || originalArgs.actionId;
+        payload.args.correlationId = payload.args.correlationId || originalArgs.sessionId;
+      }
       if (originalArgs && Object.keys(originalArgs).length) payload.original_args = originalArgs;
 
       const bodyText = JSON.stringify(payload);
@@ -490,20 +522,33 @@ async function callDesktopAgentTransport(
 }
 
 const desktopToolRouter = new ToolRouter({
-  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool) || [newsApiTool.capability, financeApiTool.capability, searchApiTool.capability, weatherApiTool.capability].includes(tool),
+  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool) || [newsApiTool.capability, financeApiTool.capability, searchApiTool.capability, weatherApiTool.capability, "discoverCapability", "executeDiscoveredCapability", "getCapabilityStatus", "listPublicApis", "refreshPublicApiCatalog"].includes(tool) || tool.startsWith("mouse."),
 });
 desktopToolRouter.registry.registerRuntimeTools(DESKTOP_TOOLS, {
   version: "1.0",
   supportsCancellation: false,
   allowedContexts: ["voice", "chat", "task", "api"],
+  verificationMethod: "UIA"
 });
+
 
 desktopToolRouter.registry.register({ name: newsApiTool.capability, owner: "node", category: "API_GATEWAY" });
 desktopToolRouter.registry.register({ name: financeApiTool.capability, owner: "node", category: "API_GATEWAY" });
 desktopToolRouter.registry.register({ name: searchApiTool.capability, owner: "node", category: "API_GATEWAY" });
 desktopToolRouter.registry.register({ name: weatherApiTool.capability, owner: "node", category: "API_GATEWAY" });
+desktopToolRouter.registry.registerMany([
+  { name: "discoverCapability", owner: "node", category: "API_DISCOVERY" },
+  { name: "executeDiscoveredCapability", owner: "node", category: "API_DISCOVERY", metadata: { riskLevel: "READ_ONLY", supportsRetry: true } },
+  { name: "getCapabilityStatus", owner: "node", category: "API_DISCOVERY" },
+  { name: "listPublicApis", owner: "node", category: "API_DISCOVERY" },
+  { name: "refreshPublicApiCatalog", owner: "node", category: "API_DISCOVERY", metadata: { riskLevel: "READ_ONLY", supportsRetry: true } },
+]);
+registerMouseTools(desktopToolRouter);
 
 desktopToolRouter.setAdapter(async (tool, args) => {
+  if (tool.startsWith("mouse.")) {
+    return executeMouseTool(tool, args);
+  }
   if (tool === newsApiTool.capability) {
     const res = await newsApiTool.execute(args, {});
     return { ok: res.success, result: res.data, error: res.error?.message };
@@ -519,6 +564,23 @@ desktopToolRouter.setAdapter(async (tool, args) => {
   if (tool === weatherApiTool.capability) {
     const res = await weatherApiTool.execute(args, {});
     return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === "discoverCapability") {
+    return { ok: true, result: publicApiCatalogManager.discoverCapability(String(args.capability || args.intent || ""), { intent: String(args.intent || args.capability || ""), knownTools: desktopToolRouter.registry.list().map((item) => item.name) }) };
+  }
+  if (tool === "getCapabilityStatus") {
+    return { ok: true, result: publicApiCatalogManager.getCapabilityStatus(String(args.capability || "")) };
+  }
+  if (tool === "listPublicApis") {
+    return { ok: true, result: publicApiCatalogManager.listEnabled() };
+  }
+  if (tool === "refreshPublicApiCatalog") {
+    const summary = await publicApiCatalogManager.refreshFromPublicApis({ maxEntries: Number(args.maxEntries || 100) });
+    return { ok: true, result: summary };
+  }
+  if (tool === "executeDiscoveredCapability") {
+    const result = await executePublicApi(args as any);
+    return { ok: result.status === "SUCCESS", result, error: result.error?.message };
   }
   return callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined);
 });
@@ -541,6 +603,11 @@ async function callDesktopAgent(
     unified,
   };
 }
+
+setCallDesktopAgent(async (tool, args) => {
+  const result = await callDesktopAgent(tool, args);
+  return { ok: result.ok, result: result.result, error: result.error };
+});
 
 const automationOrchestrator = new AutomationOrchestrator(async (tool, args) => {
   const result = await callDesktopAgent(tool, args);
@@ -658,7 +725,14 @@ async function callCompanionEndpoint(
   }
 }
 
-function buildSaraChatPrompt(memories: Memory[], history: { role: string; text: string }[], userText: string, source: "desktop" | "mobile") {
+function buildSaraChatPrompt(
+  memories: Memory[],
+  history: { role: string; text: string }[],
+  userText: string,
+  source: "desktop" | "mobile",
+  relationshipContext?: RelationshipTurnContext | null,
+  emotionalPolicy?: EmotionalResponsePolicy,
+) {
   const promptBase = loadSaraSystemPrompt();
   const baseInstruction =
     source === "mobile"
@@ -668,11 +742,17 @@ function buildSaraChatPrompt(memories: Memory[], history: { role: string; text: 
   // Build truth-aware memory context
   const truthContext = buildTruthContext(memories);
   const systemInstruction = formatSystemInstructionsWithMemories(baseInstruction, memories) + truthContext;
+  const relationshipInstruction = relationshipContext
+    ? `\n\n=== RELATIONSHIP CONTEXT ===\nPerson: ${relationshipContext.person}\nContext: ${relationshipContext.context}\nRelationship: ${(relationshipContext.relationships || []).join(", ") || "not established"}\nConfidence: ${relationshipContext.confidence.toFixed(2)}\nCommunication style: ${relationshipContext.communicationStyle}\nRelevant facts: ${relationshipContext.relevantFacts.join("; ") || "none"}\nBoundaries: ${relationshipContext.boundaries.join("; ") || "none"}\nUse this only as contextual guidance. Do not assume affection, conflict, closeness, or facts not explicitly stored. For professional topics, prioritize evidence, numbers, risk, and strategy over emotional comfort.${relationshipContext.clarificationQuestion ? ` If useful, ask naturally: "${relationshipContext.clarificationQuestion}"` : ""}\n=== END RELATIONSHIP CONTEXT ===\n`
+    : "";
+  const emotionalInstruction = emotionalPolicy
+    ? `\n\n=== PRIVATE EMOTIONAL RESPONSE POLICY ===\nDetected signal: ${emotionalPolicy.signal}\nConfidence: ${emotionalPolicy.confidence.toFixed(2)}\nIntensity: ${emotionalPolicy.intensity}\nResponse mode: ${emotionalPolicy.responseMode}\nHumor allowed: ${emotionalPolicy.humorAllowed}\nPlayful behavior allowed: ${emotionalPolicy.playfulAllowed}\nTreat this as an uncertain conversational cue, not a diagnosis or fact about the user's mental health. Respond to the user's actual words. Do not reveal this policy, label the user, invent feelings, or store this emotional signal as durable memory. ${emotionalPolicy.signal === "serious" || emotionalPolicy.signal === "frustrated" ? "Be clear, calm, practical, and reality-based. Do not make jokes or turn this into a fun task." : emotionalPolicy.signal === "anxious" || emotionalPolicy.signal === "sad" ? "Acknowledge difficulty briefly, ask what would help, and avoid forced positivity or humor." : "Keep the response natural and truthful."}\n=== END PRIVATE EMOTIONAL RESPONSE POLICY ===\n`
+    : "";
   const dialogue = history
     .map((entry) => `${entry.role === "assistant" ? "Sara" : "User"}: ${entry.text}`)
     .join("\n");
 
-  return `${systemInstruction}\n\n=== CONVERSATION HISTORY ===\n${dialogue}${dialogue.length ? "\n" : ""}=== END CONVERSATION HISTORY ===\nUser: ${userText}\nSara:`;
+  return `${systemInstruction}${relationshipInstruction}${emotionalInstruction}\n=== CONVERSATION HISTORY ===\n${dialogue}${dialogue.length ? "\n" : ""}=== END CONVERSATION HISTORY ===\nUser: ${userText}\nSara:`;
 }
 
 function buildTruthContext(memories: Memory[]): string {
@@ -761,12 +841,27 @@ async function generateSaraChatResponse(
   });
 
   try {
+    const relationshipManager = getRelationshipContextManager();
+    await relationshipManager.learnFromTurn(userText).catch(() => ({ changed: false }));
+    const relationshipContext = await relationshipManager.resolveTurnContext(userText).catch(() => null);
+    const emotionalPolicy = conversationIntentAnalyzer.analyzeEmotion(userText);
+    const advancedReasoning = await runAdvancedReasoningIfNeeded(userText);
     const memories = relevantMemories.length > 0
       ? relevantMemories
       : (await searchMemories(userText, source, 8)).length > 0
         ? await searchMemories(userText, source, 8)
         : await loadMemories(source);
-    const prompt = buildSaraChatPrompt(memories, history.slice(-8), userText, source);
+    const relationshipMemories = relationshipContext?.person
+      ? await searchMemories(`${relationshipContext.person} ${relationshipContext.context} ${userText}`, source, 4).catch(() => [])
+      : [];
+    const prompt = buildSaraChatPrompt(
+      [...memories, ...relationshipMemories].filter((memory, index, list) => list.findIndex((item) => item.id === memory.id) === index),
+      history.slice(-8),
+      userText,
+      source,
+      relationshipContext,
+      emotionalPolicy,
+    );
     const boundedContext = contextManager.build({
       userInput: userText,
       recentMessages: history.slice(-20).map((entry) => ({ role: entry.role, content: entry.text })),
@@ -786,7 +881,7 @@ async function generateSaraChatResponse(
     ) : "";
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
-      contents: `${prompt}${conversationContextText}\n\n=== BOUNDED CONTEXT ===\n${boundedContext.text}\n=== END BOUNDED CONTEXT ===${getModeInstructions()}`,
+      contents: `${prompt}${formatAdvancedReasoningContext(advancedReasoning)}${conversationContextText}\n\n=== BOUNDED CONTEXT ===\n${boundedContext.text}\n=== END BOUNDED CONTEXT ===${getModeInstructions()}`,
       config: {
         maxOutputTokens: 512,
         temperature: 0.7,
@@ -820,7 +915,7 @@ async function restoreConversationContextRecord(conversation: any) {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT || 3000);
+  const PORT = Number(process.env.PORT || 3001);
   if (!Number.isFinite(PORT) || PORT <= 0) {
     throw new Error(`Invalid PORT configuration: ${process.env.PORT}`);
   }
@@ -886,13 +981,57 @@ async function startServer() {
     }
   } catch (e) { console.warn('Task recovery failure', String(e)); }
 
-  app.get("/health", (req, res) => {
-    res.json({
-      status: "ok",
+  app.get("/health", (_req, res) => {
+    const snapshot = performanceMonitor.getLatestSnapshot() ?? performanceMonitor.collectSnapshot();
+    const analysis = selfImprovementEngine.analyze({
+      memoryUsageMb: snapshot.memoryUsageMb,
+      cpuUsagePercent: snapshot.cpuUsagePercent,
+      eventLoopLagMs: snapshot.eventLoopLagMs,
+      warnings: snapshot.warnings,
+    });
+
+    const healthResponse = {
+      status: analysis.status,
       service: "sara-backend",
       service_version: "1.0.0",
-      protocol_version: "1"
-    });
+      protocol_version: "1",
+      health: analysis,
+      runtime: snapshot,
+    };
+
+    res.json(healthResponse);
+  });
+
+  app.get("/api/relationships", async (_req, res) => {
+    try {
+      res.json({ ok: true, relationships: await getRelationshipContextManager().list() });
+    } catch (error: any) {
+      res.status(500).json({ error: "RELATIONSHIP_STORE_ERROR", message: error?.message || String(error) });
+    }
+  });
+
+  app.post("/api/relationships", async (req, res) => {
+    try {
+      const { name, relationshipType, context, confidence, status, source, strength, alias } = req.body || {};
+      if (!name || !relationshipType) {
+        return res.status(400).json({ error: "RELATIONSHIP_NOT_FOUND", message: "name and relationshipType are required" });
+      }
+      const person = await getRelationshipContextManager().rememberRelationship({
+        name, relationshipType, context, confidence, status, source, strength, alias,
+      });
+      res.status(201).json({ ok: true, person });
+    } catch (error: any) {
+      res.status(500).json({ error: "RELATIONSHIP_STORE_ERROR", message: error?.message || String(error) });
+    }
+  });
+
+  app.delete("/api/relationships/:personId", async (req, res) => {
+    try {
+      const deleted = await getRelationshipContextManager().removePerson(req.params.personId);
+      res.json({ ok: deleted, deleted });
+    } catch (error: any) {
+      res.status(500).json({ error: "RELATIONSHIP_STORE_ERROR", message: error?.message || String(error) });
+    }
   });
 
   // Memory REST API Endpoints
@@ -1184,12 +1323,27 @@ async function startServer() {
       const singerIntent = singerAgent.analyze(text);
       if (["STOP_SINGING", "PAUSE_SINGING", "RESUME_SINGING"].includes(singerIntent.intent)) {
         broadcastToClients({ type: "singer:control", action: singerIntent.intent.replace("_SINGING", ""), conversationId });
-        return res.json({ text: singerIntent.intent === "STOP_SINGING" ? "I’ve stopped singing." : singerIntent.intent === "PAUSE_SINGING" ? "I’ve paused the song." : "I’m continuing the song." });
+        const singerReply = singerIntent.intent === "STOP_SINGING" ? "I’ve stopped singing." : singerIntent.intent === "PAUSE_SINGING" ? "I’ve paused the song." : "I’m continuing the song.";
+        getOnlineLearningService().observeInteraction({ conversationId: conversationId || undefined, source, userText: text, assistantText: singerReply, history: normalizedHistory, apiKey });
+        return res.json({ text: singerReply });
       }
       if (["SING_ORIGINAL", "SING_USER_LYRICS", "SING_PUBLIC_DOMAIN", "GENERATE_SONG"].includes(singerIntent.intent)) {
         const singerTask = singerAgent.submit({ request: text, lyrics: req.body?.lyrics ? String(req.body.lyrics) : undefined, userId: String(req.body?.userId || "default-user"), conversationId: conversationId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
-        return res.status(202).json({ text: "I’m preparing an original SARA song for you.", singerTask });
+        const singerReply = "I’m preparing an original SARA song for you.";
+        getOnlineLearningService().observeInteraction({ conversationId: conversationId || undefined, source, userText: text, assistantText: singerReply, history: normalizedHistory, apiKey });
+        return res.status(202).json({ text: singerReply, singerTask });
       }
+
+      // Route through IntentEngine/SaraCore first
+      const { SaraCore } = await import("./src/core/engine/SaraCore");
+      const core = new SaraCore();
+      const coreResponse = await core.processRequest(conversationId || `desktop-${Date.now()}`, text, activeContext);
+
+      if (coreResponse.type === 'task_queued' || coreResponse.type === 'system_response') {
+        getOnlineLearningService().observeInteraction({ conversationId: conversationId || undefined, source, userText: text, assistantText: coreResponse.message, history: normalizedHistory, apiKey });
+        return res.json({ ok: true, text: coreResponse.message, conversationId: conversationId || null, taskId: coreResponse.taskId });
+      }
+
       const userProfile = userIdentityManager.get(String(req.body?.userId || "default-user"));
       const relevantMemories = await searchMemories(text, source, 10);
       const reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source, relevantMemories, {
@@ -1226,11 +1380,35 @@ async function startServer() {
         } catch {}
       }
 
-      await processConversationSlice(apiKey, [...normalizedHistory, { role: "user", text }, { role: "assistant", text: reply }], source);
+      getOnlineLearningService().observeInteraction({
+        conversationId: persisted?.id || conversationId || undefined,
+        userId: persisted?.userId || userProfile?.userId || "default-user",
+        source,
+        userText: text,
+        assistantText: reply,
+        history: normalizedHistory,
+        apiKey,
+      });
       res.json({ ok: true, text: reply, conversationId: persisted?.id || conversationId || null, userId: persisted?.userId || userProfile?.userId || "default-user" });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Failed to generate chat response." });
     }
+  });
+
+  app.get("/api/learning/status", (_req, res) => {
+    res.json({ ok: true, learning: getOnlineLearningService().getStatus() });
+  });
+
+  app.post("/api/learning/feedback", (req, res) => {
+    const feedback = String(req.body?.feedback || "").trim();
+    if (!feedback) return res.status(400).json({ ok: false, error: "Feedback is required." });
+    getOnlineLearningService().recordFeedback({
+      conversationId: req.body?.conversationId ? String(req.body.conversationId) : undefined,
+      source: req.body?.source === "mobile" ? "mobile" : "desktop",
+      feedback,
+      correctedAnswer: req.body?.correctedAnswer ? String(req.body.correctedAnswer) : undefined,
+    });
+    return res.status(202).json({ ok: true, queued: true });
   });
 
   // ---------------------------------------------------------------------------
@@ -1295,6 +1473,19 @@ async function startServer() {
       res.json({ online: false });
     } finally {
       clearTimeout(timer);
+    }
+  });
+
+  app.get("/api/desktop/mouse-position", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("mousePosition", {});
+      const position = (result as any)?.result ?? result;
+      if (!(result as any)?.ok || typeof position?.x !== "number" || typeof position?.y !== "number") {
+        return res.status(503).json({ ok: false, error: "Desktop mouse position is unavailable." });
+      }
+      return res.json({ ok: true, position });
+    } catch (error: any) {
+      return res.status(503).json({ ok: false, error: error?.message || "Desktop mouse position failed." });
     }
   });
 
@@ -1757,6 +1948,17 @@ async function startServer() {
       return res.json({ ok: true, version: "1", summary });
     } catch (error: any) {
       return res.status(502).json({ ok: false, error: error?.message || "Catalog refresh failed." });
+    }
+  });
+
+  app.post("/api/public-apis/execute", async (req, res) => {
+    try {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      if (!body.api_id || !body.operation) return res.status(400).json({ ok: false, error: "api_id and operation are required." });
+      const result = await executePublicApi(body);
+      return res.status(result.status === "SUCCESS" ? 200 : 502).json({ ok: result.status === "SUCCESS", result });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "API execution failed." });
     }
   });
 
@@ -2596,6 +2798,37 @@ async function startServer() {
     }
   });
 
+  app.post("/api/camera/activity", async (req, res) => {
+    try {
+      const { eventType, status, metadata } = req.body || {};
+      if (!eventType || !status) return res.status(400).json({ ok: false, error: "eventType and status are required" });
+      const { recordCameraActivity } = await import("./server_memory");
+      await recordCameraActivity(String(eventType), String(status), metadata && typeof metadata === "object" ? metadata : {});
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ ok: false, error: error?.message || "Could not persist camera activity metadata" });
+    }
+  });
+
+  app.get("/api/camera/activity", async (req, res) => {
+    try {
+      const { listCameraActivity } = await import("./server_memory");
+      res.json({ ok: true, activity: await listCameraActivity(Number(req.query.limit || 100)) });
+    } catch (error: any) {
+      res.status(500).json({ ok: false, error: error?.message || "Could not load camera activity metadata" });
+    }
+  });
+
+  app.delete("/api/camera/activity", async (_req, res) => {
+    try {
+      const { clearCameraActivity } = await import("./server_memory");
+      await clearCameraActivity();
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ ok: false, error: error?.message || "Could not clear camera activity metadata" });
+    }
+  });
+
   app.post("/api/camera/video", async (req, res) => {
     try {
       const dataBase64 = String(req.body?.dataBase64 || "");
@@ -3392,8 +3625,12 @@ async function startServer() {
       // Load persistent recollections card
       const memories = await loadMemories();
       const recent = await getRecentConversationMessages(conversation.id, 20);
+      const relationshipManager = getRelationshipContextManager();
+      const lastUserMessage = recent.filter((message) => message.role === "user").slice(-1)[0]?.content || "";
+      await relationshipManager.learnFromTurn(lastUserMessage).catch(() => ({ changed: false }));
+      const activeRelationshipContext = await relationshipManager.resolveTurnContext(lastUserMessage).catch(() => null);
       const recentPrompt = contextManager.build({
-        userInput: recent.filter((message) => message.role === "user").slice(-1)[0]?.content || "",
+        userInput: lastUserMessage,
         recentMessages: recent,
         userProfile: userIdentityManager.get(String(conversation.userId || "default-user")) || undefined,
         maxCharacters: 12_000,
@@ -3463,7 +3700,18 @@ async function startServer() {
         "   - AUTO-START: Use 'enableAutoStart' when the user wants SARA to start with Windows, 'disableAutoStart' to remove it, 'getAutoStartStatus' to check. Explain what you're doing.\n" +
         "   - SETTINGS: The user can also configure these in the SETTINGS panel in the UI. If they mention settings, let them know they can adjust them there too.";
 
-      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + getModeInstructions();
+      const relationshipPrompt = activeRelationshipContext
+        ? `\n\nRELATIONSHIP CONTEXT FOR THIS CALL:\n${JSON.stringify({
+            person: activeRelationshipContext.person,
+            relationship: activeRelationshipContext.relationships,
+            context: activeRelationshipContext.context,
+            confidence: activeRelationshipContext.confidence,
+            communicationStyle: activeRelationshipContext.communicationStyle,
+            relevantFacts: activeRelationshipContext.relevantFacts,
+            boundaries: activeRelationshipContext.boundaries,
+          })}\nUse this context carefully. Do not assume closeness or feelings. For professional matters, prioritize facts, evidence, numbers, and risk. Adapt voice pacing and warmth subtly: casual-warm for personal friends/family, calm-respectful for sensitive personal topics, and clear-direct for professional topics.\n`
+        : "";
+      const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + relationshipPrompt + getModeInstructions();
 
       // Track running transcription state for auto memory consolidation
       let dialogueHistory: { role: string; text: string }[] = [];
@@ -3482,6 +3730,33 @@ async function startServer() {
           tools: [
             {
               functionDeclarations: [
+                {
+                  name: "discoverCapability",
+                  description: "Find safe, read-only public API capabilities available to SARA, such as weather, currency, research, books, or knowledge.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    capability: { type: Type.STRING, description: "Capability to find, for example weather, currency, research, books, or knowledge." },
+                    intent: { type: Type.STRING, description: "Optional natural-language description of what the user needs." },
+                  }, required: ["capability"] },
+                },
+                {
+                  name: "executeDiscoveredCapability",
+                  description: "Execute an approved read-only operation from the public API catalog. Never use this for sending, modifying, purchasing, or deleting anything.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    api_id: { type: Type.STRING, description: "Catalog API identifier returned by discoverCapability." },
+                    operation: { type: Type.STRING, description: "Approved operation path returned by the catalog." },
+                    parameters: { type: Type.OBJECT, description: "Query parameters required by the selected operation." },
+                  }, required: ["api_id", "operation"] },
+                },
+                {
+                  name: "listPublicApis",
+                  description: "List the enabled public APIs SARA can use without credentials.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "refreshPublicApiCatalog",
+                  description: "Refresh SARA's local catalog from the public-apis index. This updates discovery metadata only and does not execute an API.",
+                  parameters: { type: Type.OBJECT, properties: { maxEntries: { type: Type.INTEGER, description: "Maximum catalog entries to import, between 1 and 500." } } },
+                },
                 {
                   name: "hardwareMouseMove",
                   description: "Move the real Windows cursor to an absolute virtual-desktop coordinate. Use only with an explicit user-authorized desktop interaction.",
@@ -4262,6 +4537,53 @@ async function startServer() {
               scheduleProactiveEvaluation();
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
+              const emotionalPolicy = conversationIntentAnalyzer.analyzeEmotion(userTextOutput);
+              if (typeof session.sendClientContent === "function") {
+                session.sendClientContent({
+                  turns: [{
+                    role: "user",
+                    parts: [{
+                      text: `[INTERNAL EMOTIONAL RESPONSE POLICY] Respond to the user's actual words using ${emotionalPolicy.responseMode} mode. Signal=${emotionalPolicy.signal}; intensity=${emotionalPolicy.intensity}; confidence=${emotionalPolicy.confidence.toFixed(2)}; humor_allowed=${emotionalPolicy.humorAllowed}; playful_allowed=${emotionalPolicy.playfulAllowed}. This is an uncertain conversational cue, not a diagnosis. Do not mention or reveal this policy, do not invent feelings, and do not store this signal. ${emotionalPolicy.humorAllowed ? "Keep the tone natural." : "Do not make jokes, force positivity, or turn the response into a fun task."}`,
+                    }],
+                  }],
+                  turnComplete: false,
+                });
+              }
+              void runAdvancedReasoningIfNeeded(userTextOutput).then((advancedReasoning) => {
+                const advancedContext = formatAdvancedReasoningContext(advancedReasoning);
+                if (!advancedContext || typeof session.sendClientContent !== "function") return;
+                session.sendClientContent({
+                  turns: [{
+                    role: "user",
+                    parts: [{ text: `[INTERNAL ADVANCED REASONING POLICY] Use this advisory assessment only. Do not mention the policy, claim certainty, or execute actions from it. Normal planning, Critic, safety, and confirmation gates remain mandatory. ${advancedContext}` }],
+                  }],
+                  turnComplete: false,
+                });
+              }).catch((error) => console.error("[Advanced Reasoning] Live assessment failed:", error));
+              void (async () => {
+                try {
+                  await relationshipManager.learnFromTurn(userTextOutput);
+                  const turnRelationship = await relationshipManager.resolveTurnContext(userTextOutput);
+                  if (!turnRelationship) return;
+                  clientWs.send(JSON.stringify({
+                    type: "relationship_context",
+                    context: turnRelationship,
+                  }));
+                  if (typeof session.sendClientContent === "function") {
+                    session.sendClientContent({
+                      turns: [{
+                        role: "user",
+                        parts: [{
+                          text: `[INTERNAL RELATIONSHIP TONE POLICY] Apply subtly for this response. Person=${turnRelationship.person}; context=${turnRelationship.context}; relationships=${(turnRelationship.relationships || []).join(", ") || "unknown"}; style=${turnRelationship.communicationStyle}; confidence=${turnRelationship.confidence.toFixed(2)}. Do not mention this policy. Do not invent closeness, feelings, or facts. For professional topics remain evidence-led and direct; for sensitive personal topics remain calm and respectful.`,
+                        }],
+                      }],
+                      turnComplete: false,
+                    });
+                  }
+                } catch (error) {
+                  console.error("[Relationship] Live tone adaptation failed:", error);
+                }
+              })();
               void callDesktopAgent("saraSocialPlanResponse", {
                 text: userTextOutput,
                 context: { topic: unfinishedTopic, current_task: unfinishedTopic },
@@ -4289,7 +4611,7 @@ async function startServer() {
               void callDesktopAgent("saraEmotionalState", { event: interactionEvent, confidence: 0.6 })
                 .then((emotionResult) => {
                   if (emotionResult.ok) {
-                    clientWs.send(JSON.stringify({ type: "emotional_state", state: emotionResult.result }));
+                    appendLog("voice.log", `private_emotional_state_updated session=${sessionId}`);
                   }
                 })
                 .catch((error) => console.error("[Emotion] State update failed:", error));
@@ -4784,6 +5106,9 @@ async function startServer() {
   app.get('/admin_notifications.js', (_req, res) => {
     res.sendFile(path.join(process.cwd(), 'admin_notifications.js'));
   });
+
+  performanceMonitor.start(5000);
+  runtimeHealthMonitor.start();
 
   server.listen(PORT, "0.0.0.0", () => {
     logStartup(`SARA V2 server started on http://localhost:${PORT}`);

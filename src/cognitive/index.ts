@@ -16,6 +16,7 @@ export * from "./planner";
 export * from "./strategyManager";
 export * from "./evaluator";
 export * from "./integrationBridge";
+export * from "./digitalWorldContext";
 
 // Re-export singletons for convenience
 export {
@@ -31,6 +32,7 @@ export { getSemanticMemory } from "./semanticMemory";
 export { getProceduralMemory } from "./proceduralMemory";
 export { getAutobiographicalMemory } from "./autobiographicalMemory";
 export { getMemoryConsolidator } from "./memoryConsolidator";
+export { getDigitalWorldContext } from "./digitalWorldContext";
 export {
   getCognitiveIntegrationBridge,
   resetCognitiveIntegrationBridge,

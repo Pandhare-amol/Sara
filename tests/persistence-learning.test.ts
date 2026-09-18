@@ -42,6 +42,79 @@ const workflowCoordinator = new LearningWorkflowCoordinator(memoryService, skill
 });
 const executor = new ClosedLoopExecutor();
 
+test('Critic rejects low-confidence plans before desktop execution', async () => {
+  const goal = {
+    id: 'critic-gate-goal',
+    description: 'Open a controlled test application',
+    priority: 'normal',
+    context: {},
+    authorityLevel: 'LOW_RISK',
+  } as any;
+  const task = executor.createTask(goal);
+  task.plan = {
+    id: 'low-confidence-plan',
+    taskId: task.id,
+    goalId: goal.id,
+    version: 1,
+    createdAt: Date.now(),
+    confidence: 0.4,
+    status: 'active',
+    estimatedDuration: 1000,
+    subgoals: [{
+      id: 'subgoal-1',
+      parentGoalId: goal.id,
+      description: 'Open the application',
+      preconditions: [],
+      expectedEffect: 'The application window is visible',
+      expectedEffectObservable: true,
+      recovery: [],
+      status: 'PLANNING',
+      order: 0,
+      skills: [{
+        id: 'skill-1',
+        name: 'open application',
+        description: 'Open the application',
+        preconditions: [],
+        expectedEffect: 'The application window is visible',
+        verification: [],
+        failureModes: [],
+        recovery: [],
+        successHistory: { count: 0, averageDuration: 0, lastUsed: 0 },
+        failureHistory: { count: 0, lastFailed: 0 },
+        confidence: 0.4,
+        estimatedDuration: 1000,
+        authorityLevel: 'LOW_RISK',
+        actions: [{
+          id: 'action-1',
+          type: 'open_application',
+          parameters: { application: 'test-app' },
+          expectedEffect: 'The application window is visible',
+          timeoutMs: 1000,
+          retryable: false,
+          maxRetries: 0,
+          authorityLevel: 'LOW_RISK',
+        }],
+      }],
+    }],
+  } as any;
+
+  let dispatchCalls = 0;
+  const originalDispatch = (executor as any).executeActionViaDesktopAgent;
+  (executor as any).executeActionViaDesktopAgent = async () => {
+    dispatchCalls += 1;
+    return { success: true };
+  };
+
+  try {
+    const result = await executor.executeTask(task.id);
+    assert.equal(result.success, false);
+    assert.equal(dispatchCalls, 0);
+    assert.equal(task.metadata.criticRejectionCount, 3);
+  } finally {
+    (executor as any).executeActionViaDesktopAgent = originalDispatch;
+  }
+});
+
 // Cleanup function
 function cleanup() {
   if (fs.existsSync(testDataDir)) {

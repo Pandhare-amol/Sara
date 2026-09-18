@@ -12,6 +12,8 @@ import { getSemanticMemory } from "./semanticMemory";
 import { getProceduralMemory } from "./proceduralMemory";
 import { getAutobiographicalMemory } from "./autobiographicalMemory";
 import { getMemoryConsolidator } from "./memoryConsolidator";
+import { getRelationshipContextManager } from "../services/RelationshipContextManager";
+import { getDigitalWorldContext } from "./digitalWorldContext";
 import {
   CognitiveContext,
   MemoryRetrievalContext,
@@ -29,6 +31,7 @@ export class CognitiveOrchestrator {
   private procedural = getProceduralMemory();
   private autobiographical = getAutobiographicalMemory();
   private consolidator = getMemoryConsolidator();
+  private digitalWorld = getDigitalWorldContext();
 
   /**
    * Build complete cognitive context for decision-making.
@@ -55,6 +58,9 @@ export class CognitiveOrchestrator {
       limit: options.maxMemories ?? 20,
       scoreThreshold: 0.5,
     });
+    const relationshipContext = await getRelationshipContextManager()
+      .resolveTurnContext(options.goal || "")
+      .catch(() => null);
 
     // 3. Get recent actions from episodic memory
     const recentEpisodes = this.episodic.list(5);
@@ -69,6 +75,8 @@ export class CognitiveOrchestrator {
       currentGoal: options.goal,
       recentActions,
       projectContext: options.projectContext,
+      digitalWorld: this.digitalWorld.getSnapshot(),
+      relationshipContext,
       timeOfDay: Date.now(),
     };
 

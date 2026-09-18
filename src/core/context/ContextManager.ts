@@ -33,6 +33,17 @@ export interface ContextConversationSignal {
   cues: string[];
 }
 
+export interface ContextDigitalWorld {
+  observedAt: string;
+  activeApplication?: string;
+  activeWindow?: string;
+  activeProject?: string;
+  applications: unknown[];
+  browserTabs: unknown[];
+  unfinishedWork: string[];
+  attentionItems: unknown[];
+}
+
 export interface ContextInput {
   userInput: string;
   recentMessages?: ContextMessage[];
@@ -41,13 +52,14 @@ export interface ContextInput {
   summary?: string;
   userProfile?: ContextUserProfile;
   conversationSignal?: ContextConversationSignal;
+  digitalWorld?: ContextDigitalWorld;
   maxCharacters?: number;
 }
 
 export interface BuiltContext {
   text: string;
   characters: number;
-  included: { currentInput: boolean; activeTasks: number; recentMessages: number; memories: number; summary: boolean; userProfile: boolean; conversationSignal: boolean };
+  included: { currentInput: boolean; activeTasks: number; recentMessages: number; memories: number; summary: boolean; userProfile: boolean; conversationSignal: boolean; digitalWorld: boolean };
 }
 
 /** Builds a bounded context window without replacing persistent memory ownership. */
@@ -55,7 +67,7 @@ export class ContextManager {
   public build(input: ContextInput): BuiltContext {
     const maxCharacters = Math.max(1000, input.maxCharacters ?? 12_000);
     const sections: string[] = [];
-    const included = { currentInput: false, activeTasks: 0, recentMessages: 0, memories: 0, summary: false, userProfile: false, conversationSignal: false };
+    const included = { currentInput: false, activeTasks: 0, recentMessages: 0, memories: 0, summary: false, userProfile: false, conversationSignal: false, digitalWorld: false };
 
     this.append(sections, `CURRENT USER REQUEST:\n${input.userInput.trim()}`, maxCharacters, included, "currentInput");
 
@@ -80,6 +92,24 @@ export class ContextManager {
     for (const task of input.activeTasks || []) {
       const checkpoint = task.checkpoint ? ` checkpoint=${JSON.stringify(task.checkpoint)}` : "";
       if (this.append(sections, `ACTIVE TASK: ${task.taskId || "unknown"} | ${task.status || "unknown"} | ${task.description || ""}${checkpoint}`, maxCharacters, included, "activeTasks")) included.activeTasks += 1;
+    }
+
+    if (input.digitalWorld) {
+      included.digitalWorld = this.append(
+        sections,
+        `DIGITAL WORLD (observed ${input.digitalWorld.observedAt}): ${JSON.stringify({
+          activeApplication: input.digitalWorld.activeApplication,
+          activeWindow: input.digitalWorld.activeWindow,
+          activeProject: input.digitalWorld.activeProject,
+          applications: input.digitalWorld.applications,
+          browserTabs: input.digitalWorld.browserTabs,
+          unfinishedWork: input.digitalWorld.unfinishedWork,
+          attentionItems: input.digitalWorld.attentionItems,
+        })}`,
+        maxCharacters,
+        included,
+        "digitalWorld",
+      );
     }
 
     if (input.summary?.trim() && this.append(sections, `CONVERSATION SUMMARY:\n${input.summary.trim()}`, maxCharacters, included, "summary")) included.summary = true;

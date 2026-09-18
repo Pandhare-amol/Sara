@@ -17,6 +17,21 @@
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import type { PlanStep } from './types';
+
+export interface PlanReview {
+  approved: boolean;
+  reason?: string;
+  requiredChanges?: string[];
+}
+
+interface ReviewMetadata {
+  confidence?: number;
+  reasoning?: {
+    risks?: string[];
+    fallbacks?: string[];
+  };
+}
 
 export interface AgentCapability {
   agentId: string;
@@ -69,10 +84,62 @@ export class MultiAgentCoordinator {
   private messageLog: AgentMessage[] = [];
   private dataPath: string;
   private collaborativeResults: CollaborativeResult[] = [];
+  private readonly criticMinConfidence: number;
 
-  constructor(dataPath: string = './data') {
+  constructor(dataPath: string = './data', options: { criticMinConfidence?: number } = {}) {
     this.dataPath = dataPath;
+    this.criticMinConfidence = options.criticMinConfidence ?? 0.6;
     this.loadAgentRegistry();
+  }
+
+  /**
+   * Critic gate: approve only plans whose execution and verification contracts
+   * are explicit enough for the Executor to act safely.
+   */
+  reviewPlan(plan: PlanStep[]): PlanReview {
+    const reviewMetadata = plan as PlanStep[] & ReviewMetadata;
+    const requiredChanges: string[] = [];
+    if (plan.length === 0) {
+      requiredChanges.push('Add at least one executable plan step');
+    }
+    const stepsWithoutEffects = plan.filter((step) => {
+      const expectedEffect = (step as PlanStep & { expectedEffect?: string }).expectedEffect;
+      return typeof expectedEffect !== 'string' || expectedEffect.trim().length === 0 || !step.verifiable;
+    });
+
+    if (stepsWithoutEffects.length > 0) {
+      requiredChanges.push(
+        `Add a non-empty verifiable expectedEffect to step(s): ${stepsWithoutEffects.map((step) => step.id).join(', ')}`,
+      );
+    }
+
+    if (typeof reviewMetadata.confidence !== 'number' || reviewMetadata.confidence < this.criticMinConfidence) {
+      requiredChanges.push(`Raise plan confidence to at least ${this.criticMinConfidence}`);
+    }
+
+    const risks = reviewMetadata.reasoning?.risks ?? [];
+    const fallbacks = reviewMetadata.reasoning?.fallbacks ?? [];
+    const unaddressedRisks = risks.filter((risk) => {
+      const riskWords = risk.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2);
+      return !fallbacks.some((fallback) => {
+        const fallbackText = fallback.toLowerCase();
+        return fallbackText.includes(risk.toLowerCase()) || riskWords.some((word) => fallbackText.includes(word));
+      });
+    });
+
+    if (unaddressedRisks.length > 0) {
+      requiredChanges.push(`Add fallbacks for risks: ${unaddressedRisks.join('; ')}`);
+    }
+
+    if (requiredChanges.length > 0) {
+      return {
+        approved: false,
+        reason: 'Critic rejected the plan because it failed one or more execution-safety criteria.',
+        requiredChanges,
+      };
+    }
+
+    return { approved: true };
   }
 
   /**

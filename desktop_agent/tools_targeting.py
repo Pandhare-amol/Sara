@@ -17,9 +17,29 @@ def _resolve(text: str, min_confidence: float = 70.0) -> Dict[str, Any]:
     query = _normalize(text)
     if not query:
         raise ToolError("Parameter 'text' or 'target' is required.")
+        
+    # Priority 1: Semantic Target Resolution (UI Automation)
+    try:
+        from .ui_automation import get_element_bounds
+        bounds = get_element_bounds(title=text)
+        if bounds:
+            center_x = bounds["left"] + bounds["width"] // 2
+            center_y = bounds["top"] + bounds["height"] // 2
+            return {
+                "target_type": "text", 
+                "name": text, 
+                "method": "uia", 
+                "confidence": 100.0, 
+                "bounds": [bounds["left"], bounds["top"], bounds["right"], bounds["bottom"]], 
+                "center": {"x": center_x, "y": center_y}
+            }
+    except Exception:
+        pass # Fallback to OCR
+        
+    # Priority 2: Computer Vision / OCR
     detector = TOOLS.get("detectUiElements")
     if detector is None:
-        raise ToolError("UI detection handler is unavailable.")
+        raise ToolError("UI detection handler is unavailable and UIA fallback failed.")
     detected = detector({})
     elements = detected.get("elements", []) if isinstance(detected, dict) else []
     candidates = []
@@ -44,11 +64,21 @@ def _resolve(text: str, min_confidence: float = 70.0) -> Dict[str, Any]:
 @register("resolveUiTarget")
 def resolve_ui_target(args: Dict[str, Any]) -> Dict[str, Any]:
     target = _resolve(str(args.get("text") or args.get("target") or ""), float(args.get("min_confidence", 70)))
-    return {"result": "UI target resolved; no input was sent.", "target": target, "verified": True}
+    return {
+        "actionId": args.get("actionId", ""),
+        "type": "ui.resolveTarget",
+        "execution": {"success": True},
+        "verification": {"success": True, "details": {"target": target}},
+    }
 
 
 @register("clickUiTarget")
 def click_ui_target(args: Dict[str, Any]) -> Dict[str, Any]:
     target = _resolve(str(args.get("text") or args.get("target") or ""), float(args.get("min_confidence", 80)))
     click = DESKTOP_INPUT.click({"x": target["center"]["x"], "y": target["center"]["y"], "button": args.get("button", "left"), "clicks": args.get("clicks", 1)})
-    return {"result": "Confidence-qualified UI target clicked; postcondition remains unverified.", "target": target, "action_sent": True, "verified": False, "click": click}
+    return {
+        "actionId": args.get("actionId", ""),
+        "type": "ui.clickTarget",
+        "execution": {"success": click.get("execution", {}).get("success", False)},
+        "verification": {"success": click.get("verification", {}).get("success", False), "details": {"target": target}},
+    }

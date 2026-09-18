@@ -128,3 +128,22 @@ test("PublicApiCatalogManager keeps canonical execution result contract for API 
   assert.equal(result.request_id, "req-1");
   assert.ok(result.operation_id);
 });
+
+test("PublicApiCatalogManager seeds useful no-key public APIs", () => {
+  const manager = new PublicApiCatalogManager({ storagePath: "./data/test-public-api-builtins.json" });
+  const ids = manager.listEnabled().map((entry) => entry.id);
+
+  assert.ok(ids.includes("open_meteo"));
+  assert.ok(ids.includes("frankfurter"));
+  assert.ok(ids.includes("openalex"));
+  assert.ok(ids.includes("wikipedia"));
+  assert.ok(ids.includes("open_library"));
+});
+
+test("PublicApiCatalogManager preserves operation allowlists", () => {
+  const manager = new PublicApiCatalogManager({ storagePath: "./data/test-public-api-builtins.json" });
+  const entry = manager.getById("open_meteo");
+
+  assert.ok(entry);
+  assert.deepEqual(entry.supported_operations, ["v1/forecast"]);
+});

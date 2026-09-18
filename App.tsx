@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { SaraAudioSession, LiveState } from "./src/lib/audio";
 import { SaraCoreVisualizer, SaraEmotion } from "./src/components/SaraCoreVisualizer";
 import { BrowserAgent } from "./src/components/BrowserAgent";
@@ -36,6 +36,7 @@ import WhatsAppPanel from "./src/components/WhatsAppPanel";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./src/lib/settingsStore";
 import { SaraWakeWordDetector } from "./src/lib/wakeWord";
 import { SingerPlayer } from "./src/components/SingerPlayer";
+import { getAnimationProfile } from "./src/lib/saraAnimationProfiles";
 
 export default function App() {
   const [state, setState] = useState<LiveState>("disconnected");
@@ -315,7 +316,7 @@ export default function App() {
   };
 
   const [activeEmotion, setActiveEmotion] = useState<SaraEmotion>("idle");
-  const [themeColor, setThemeColor] = useState<string>("charcoal");
+  const [themeColor, setThemeColor] = useState<string>(() => loadSettings().themeColor || "charcoal");
   const [userCaption, setUserCaption] = useState<string>("");
   const [characterState, setCharacterState] = useState<"idle" | "thinking" | "talking">("idle");
 
@@ -426,6 +427,35 @@ export default function App() {
   const handleSettingsChange = (patch: Partial<SaraSettings>) => {
     const next = saveSettings(patch);
     setSettings(next);
+    if (patch.themeColor) setThemeColor(patch.themeColor);
+  };
+
+  const handleThemeChange = (nextTheme: string) => {
+    setThemeColor(nextTheme);
+    handleSettingsChange({ themeColor: nextTheme });
+  };
+
+  const handleAnimationProfileChange = (profileId: string) => {
+    const profile = getAnimationProfile(profileId);
+    handleSettingsChange({ animationProfile: profile.id });
+    void fetch("/api/memories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "preference",
+        text: `User prefers the ${profile.label} animation persona for SARA (${profile.id}).`,
+      }),
+    }).catch(() => {});
+    setModelCaption(`I will remember the ${profile.label} animation persona.`);
+  };
+
+  const handleSaraCurate = () => {
+    const profiles = ["celestial", "emerald", "violet", "rose", "gold", "charcoal"];
+    const nextTheme = profiles[(profiles.indexOf(themeColor) + 1) % profiles.length];
+    const density = nextTheme === "charcoal" || nextTheme === "celestial" ? "balanced" : "spacious";
+    handleSettingsChange({ themeColor: nextTheme, uiDensity: density, glassIntensity: nextTheme === "gold" ? 64 : 76 });
+    setThemeColor(nextTheme);
+    setModelCaption(`I tuned my atmosphere to ${nextTheme}, with a ${density} layout.`);
   };
 
   const toggleWhatsAppPanel = () => setShowWhatsAppPanel((s) => !s);
@@ -674,7 +704,7 @@ export default function App() {
           const validColors = ["violet", "crimson", "emerald", "celestial", "gold", "rose", "charcoal"];
           
           if (colorName && validColors.includes(colorName)) {
-            setThemeColor(colorName);
+            handleThemeChange(colorName);
             callback({ result: `Successfully shifted aesthetic atmosphere to ${colorName}.` });
           } else {
             callback({ error: `Unsupported color '${colorName}'. Supported themes are: ${validColors.join(", ")}` });
@@ -851,7 +881,11 @@ export default function App() {
       </div>
       <div
         id="sara-holographic-desktop"
-        className={`relative w-full h-screen overflow-hidden bg-[#020205] text-white ${getAmbientStyles()} theme-transition flex flex-col justify-between p-6 sm:p-10 select-none`}
+        style={{
+          "--sara-glass-alpha": `${Math.round(0.04 + (settings.glassIntensity / 100) * 0.12)}`,
+          "--sara-stage-accent": themeColor === "emerald" ? "16,185,129" : themeColor === "crimson" ? "244,63,94" : themeColor === "gold" ? "245,158,11" : themeColor === "violet" ? "168,85,247" : themeColor === "rose" ? "251,113,133" : themeColor === "celestial" ? "56,189,248" : "99,102,241",
+        } as CSSProperties}
+        className={`relative w-full h-screen overflow-hidden bg-[#020205] text-white ${getAmbientStyles()} theme-transition flex flex-col justify-between ${settings.uiDensity === "compact" ? "p-4 sm:p-6" : settings.uiDensity === "spacious" ? "p-8 sm:p-12" : "p-6 sm:p-10"} ${settings.animations ? "" : "[&_*]:!transition-none [&_*]:!animate-none"} select-none`}
       >
       {/* Ambient Background Gradients matching Frosted Glass theme */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/15 rounded-full blur-[120px] pointer-events-none" />
@@ -867,6 +901,7 @@ export default function App() {
           session={sessionRef.current}
           state={state}
           themeColor={themeColor}
+          animationProfile={settings.animationProfile}
           activeEmotion={activeEmotion}
           characterState={characterState}
         />
@@ -877,6 +912,9 @@ export default function App() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold tracking-[0.4em] text-white/50 uppercase font-sans">
             Sara
+          </span>
+          <span className="hidden rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[8px] font-mono uppercase tracking-[0.18em] text-white/35 sm:inline-block">
+            {themeColor} / {settings.uiDensity}
           </span>
           <div className={`w-1.5 h-1.5 rounded-full ${
             state === "listening" || state === "speaking" 
@@ -1529,6 +1567,9 @@ export default function App() {
         settings={settings}
         onChange={handleSettingsChange}
         themeColor={themeColor}
+        onThemeChange={handleThemeChange}
+        onSaraCurate={handleSaraCurate}
+        onAnimationProfileChange={handleAnimationProfileChange}
       />
       </div>
     </>

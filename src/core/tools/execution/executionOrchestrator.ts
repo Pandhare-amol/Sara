@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import { ToolRouter } from "../toolRouter";
 import { VerificationRegistry } from "../verification/verificationRegistry";
+import { IsolationRuntime } from "../../isolation/isolationRuntime";
+import { evaluateRetryPolicy } from "../retryPolicy";
+import { RecoveryPolicyEngine } from "../recoveryPolicy";
 import {
   determineFinalStatus,
   buildResultMessage,
@@ -34,13 +37,129 @@ export interface ExecutionContextOptions {
 export class ExecutionOrchestrator {
   private toolRouter: ToolRouter;
   private verificationRegistry: VerificationRegistry;
+  private isolationRuntime: IsolationRuntime;
   private defaultTimeout = 30000;
   private enableVerificationByDefault = true;
   private policyEngine = new ToolPolicyEngine();
+  private recoveryPolicyEngine = new RecoveryPolicyEngine();
 
-  constructor(toolRouter: ToolRouter, verificationRegistry: VerificationRegistry) {
+  constructor(toolRouter: ToolRouter, verificationRegistry: VerificationRegistry, isolationRuntime?: IsolationRuntime) {
     this.toolRouter = toolRouter;
     this.verificationRegistry = verificationRegistry;
+    this.isolationRuntime = isolationRuntime ?? new IsolationRuntime(toolRouter);
+  }
+
+  private getRetryConfig(tool: string): { maxAttempts: number; supportsRetry: boolean; retryableErrors: string[] } {
+    const metadata = this.toolRouter.registry.getMetadata(tool);
+    const configured = metadata?.retryPolicy ?? { supportsRetry: true, maxAttempts: 2, retryableErrors: ["TIMEOUT", "NETWORK", "UNAVAILABLE", "BROWSER_TIMEOUT"] };
+    const supportsRetry = metadata?.supportsRetry ?? configured.supportsRetry ?? true;
+    const maxAttempts = Math.max(1, configured.maxAttempts ?? 2);
+    const retryableErrors = (configured.retryableErrors ?? ["TIMEOUT", "NETWORK", "UNAVAILABLE", "BROWSER_TIMEOUT"]).map((value) => value.toLowerCase());
+    return { maxAttempts, supportsRetry, retryableErrors };
+  }
+
+  private isRetryableFailure(
+    tool: string,
+    error: { message?: string } | undefined,
+    canonical: Record<string, unknown> | undefined,
+    allowRetry: boolean,
+  ): boolean {
+    if (!allowRetry) {
+      return false;
+    }
+
+    const retryDecision = evaluateRetryPolicy(tool, false);
+    if (!retryDecision.allowed) {
+      return false;
+    }
+
+    const retryText = [
+      error?.message,
+      typeof canonical?.message === "string" ? canonical.message : undefined,
+      typeof canonical?.status === "string" ? canonical.status : undefined,
+      typeof canonical?.execution_status === "string" ? canonical.execution_status : undefined,
+      typeof canonical?.error === "string" ? canonical.error : undefined,
+    ].filter((value): value is string => typeof value === "string").join(" ").toLowerCase();
+
+    const retryConfig = this.getRetryConfig(tool);
+    return retryConfig.retryableErrors.some((value) => retryText.includes(value));
+  }
+
+  private async executeWithFallback(
+    tool: string,
+    args: Record<string, unknown>,
+    context: { correlationId: string; toolCallId: string; timeout: number; enableVerification: boolean; },
+    fallbackTools: string[] = [],
+  ): Promise<UnifiedToolExecutionResult> {
+    const fallbackList = Array.from(new Set(fallbackTools.filter((name) => typeof name === "string" && name.length > 0 && name !== tool)));
+    let lastResult: UnifiedToolExecutionResult | undefined;
+
+    for (const candidate of [tool, ...fallbackList]) {
+      const candidateArgs = candidate === tool ? { ...args } : { ...args, fallback_used: tool, fallback_from: tool };
+      delete (candidateArgs as Record<string, unknown>).fallbackTools;
+      const candidateResult = await this.executeWithVerification(candidate, candidateArgs, {
+        correlationId: context.correlationId,
+        toolCallId: context.toolCallId,
+        timeout: context.timeout,
+        enableVerification: context.enableVerification,
+      });
+
+      if (candidateResult.success || candidateResult.status === "uncertain") {
+        if (candidate !== tool && candidateResult.success) {
+          candidateResult.message = `Fallback succeeded via ${candidate}. ${candidateResult.message}`.trim();
+        }
+        return candidateResult;
+      }
+
+      lastResult = candidateResult;
+    }
+
+    return lastResult ?? {
+      tool,
+      toolCallId: context.toolCallId,
+      correlationId: context.correlationId,
+      executionStatus: "failed",
+      executionDurationMs: 0,
+      executionStartedAt: new Date().toISOString(),
+      executionCompletedAt: new Date().toISOString(),
+      executionResult: { ok: false },
+      verificationStatus: "skipped",
+      verificationDurationMs: 0,
+      status: "failed",
+      success: false,
+      verified: false,
+      totalDurationMs: 0,
+      message: "All fallback routes failed.",
+      timestamp: Date.now(),
+    };
+  }
+
+  private applyRecoveryPlan(
+    tool: string,
+    error: { code?: string; message?: string; retryable?: boolean } | undefined,
+    args: Record<string, unknown>,
+  ): { fallbackTools?: string[]; retryable: boolean; reason?: string } {
+    const plan = this.recoveryPolicyEngine.selectRecoveryPlan(tool, error || {}, {
+      tool,
+      confirmed: args.confirmed === true || args.user_confirmed === true,
+      sandboxed: args.sandboxed === true || args.isolated === true,
+      source: typeof args.source === "string" ? args.source as "user" | "model" | "recovery" : "model",
+      riskLevel: typeof args.riskLevel === "string" ? args.riskLevel : "READ_ONLY",
+    });
+
+    if (!plan) {
+      return { retryable: false };
+    }
+
+    if (plan.action === "FALLBACK_TOOL") {
+      return { fallbackTools: plan.fallbackTools || [], retryable: false, reason: plan.reason };
+    }
+
+    if (plan.action === "RETRY") {
+      return { retryable: true, reason: plan.reason };
+    }
+
+    return { retryable: false, reason: plan.reason };
   }
 
   /**
@@ -51,15 +170,70 @@ export class ExecutionOrchestrator {
     args: Record<string, unknown>,
     options: ExecutionContextOptions = {},
   ): Promise<UnifiedToolExecutionResult> {
+    const fallbackTools = Array.isArray(args.fallbackTools) ? args.fallbackTools.filter((value): value is string => typeof value === "string") : [];
+    const cleanArgs = { ...args };
+    delete cleanArgs.fallbackTools;
+
     const correlationId = options.correlationId || crypto.randomUUID();
     const toolCallId = options.toolCallId || `${tool}-${Date.now()}`;
     const enableVerification = options.enableVerification ?? this.enableVerificationByDefault;
     const timeout = options.timeout ?? this.defaultTimeout;
 
+    if (fallbackTools.length > 0) {
+      return this.executeWithFallback(tool, cleanArgs, { correlationId, toolCallId, timeout, enableVerification }, fallbackTools);
+    }
+
     const startTime = Date.now();
     const executionStartedAt = new Date(startTime).toISOString();
 
     this.toolRouter.ensureToolRegistered(tool);
+
+    const isolationContext = {
+      confirmed: (options.policy?.confirmed ?? args.confirmed === true) || args.user_confirmed === true || args.policy_override === true,
+      sandboxed: args.sandboxed === true || args.isolated === true || args.containerized === true,
+      source: typeof args.source === "string" && ["user", "model", "recovery"].includes(args.source)
+        ? (args.source as "user" | "model" | "recovery")
+        : "model",
+      maxSteps: 12,
+    };
+
+    const isolationReview = this.isolationRuntime.review([
+      {
+        tool,
+        args: { ...args },
+        purpose: "execution-gate",
+        requiresVerification: enableVerification,
+      },
+    ], isolationContext);
+
+    if (isolationReview.decision !== "ALLOW") {
+      const isolationMessage = isolationReview.reasons.join("; ") || "Tool execution is blocked by the isolation runtime.";
+      const isolationResult: UnifiedToolExecutionResult = {
+        tool,
+        toolCallId,
+        correlationId,
+        executionStatus: "failed",
+        executionDurationMs: 0,
+        executionStartedAt,
+        executionCompletedAt: new Date().toISOString(),
+        executionError: {
+          code: isolationReview.decision === "ASK_USER" ? "ISOLATION_CONFIRMATION_REQUIRED" : "ISOLATION_DENIED",
+          message: isolationMessage,
+          retryable: false,
+        },
+        executionResult: { ok: false, status: isolationReview.decision, policy_decision: isolationReview.decision, message: isolationMessage },
+        verificationStatus: "skipped",
+        verificationDurationMs: 0,
+        verificationChecks: [],
+        verificationError: undefined,
+        status: "failed",
+        success: false,
+        verified: false,
+        totalDurationMs: Date.now() - startTime,
+        message: isolationMessage,
+      } as UnifiedToolExecutionResult;
+      return isolationResult;
+    }
 
     const policy = this.policyEngine.evaluate(tool, args, this.toolRouter.registry, {
       ...options.policy,
@@ -90,7 +264,7 @@ export class ExecutionOrchestrator {
       return policyResult;
     }
 
-  logToolStarted(correlationId, toolCallId, tool);
+    logToolStarted(correlationId, toolCallId, tool);
 
     let executionStatus: ExecutionStatus = "unknown";
     let executionDurationMs = 0;
@@ -101,78 +275,131 @@ export class ExecutionOrchestrator {
     const executionPhaseStart = Date.now();
     logToolExecuting(correlationId, toolCallId, tool);
 
+    const retryConfig = this.getRetryConfig(tool);
+    let attempt = 0;
+    let routedResult: any;
+    let canonical: Record<string, any> | undefined;
     let executionTimeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const routedResult = (await Promise.race([
-        this.toolRouter.execute(tool, {
-          ...args,
-          correlation_id: correlationId,
-          tool_call_id: toolCallId,
-        }),
-        new Promise((_, reject) =>
-          executionTimeout = setTimeout(
-            () => reject(new Error(`Tool execution timeout after ${timeout}ms`)),
-            timeout,
+
+    while (attempt < Math.max(1, retryConfig.maxAttempts)) {
+      attempt += 1;
+      try {
+        routedResult = (await Promise.race([
+          this.toolRouter.execute(tool, {
+            ...args,
+            correlation_id: correlationId,
+            tool_call_id: toolCallId,
+          }),
+          new Promise((_, reject) =>
+            executionTimeout = setTimeout(
+              () => reject(new Error(`Tool execution timeout after ${timeout}ms`)),
+              timeout,
+            ),
           ),
-        ),
-      ])) as any;
+        ])) as any;
 
-      // Handle ASK_USER outcome from policy middleware
-      if ((routedResult as any).error === "WAITING_FOR_APPROVAL") {
-        const approvalResult: UnifiedToolExecutionResult = {
-          tool,
-          toolCallId,
-          correlationId,
-          executionStatus: "unknown",
-          executionDurationMs: 0,
-          executionStartedAt,
-          executionCompletedAt: new Date().toISOString(),
-          executionError: { code: "CONFIRMATION_REQUIRED", message: routedResult.result?.message ?? "User confirmation required", retryable: false },
-          executionResult: routedResult.result,
-          verificationStatus: "skipped",
-          verificationDurationMs: 0,
-          verificationChecks: [],
-          verificationError: undefined,
-          status: "uncertain",
-          success: false,
-          verified: false,
-          totalDurationMs: Date.now() - startTime,
-          message: routedResult.result?.message ?? "",
-          timestamp: Date.now(),
-          metadata: {
-            toolRouter: true,
-            verificationEnabled: enableVerification,
-          },
+        if ((routedResult as any).error === "WAITING_FOR_APPROVAL") {
+          const approvalResult: UnifiedToolExecutionResult = {
+            tool,
+            toolCallId,
+            correlationId,
+            executionStatus: "unknown",
+            executionDurationMs: 0,
+            executionStartedAt,
+            executionCompletedAt: new Date().toISOString(),
+            executionError: { code: "CONFIRMATION_REQUIRED", message: routedResult.result?.message ?? "User confirmation required", retryable: false },
+            executionResult: routedResult.result,
+            verificationStatus: "skipped",
+            verificationDurationMs: 0,
+            verificationChecks: [],
+            verificationError: undefined,
+            status: "uncertain",
+            success: false,
+            verified: false,
+            totalDurationMs: Date.now() - startTime,
+            message: routedResult.result?.message ?? "",
+            timestamp: Date.now(),
+            metadata: {
+              toolRouter: true,
+              verificationEnabled: enableVerification,
+            },
+          };
+          return approvalResult;
+        }
+
+        executionResult = routedResult.canonical || routedResult.result;
+        canonical = (routedResult.canonical as Record<string, any>) || {};
+        const execStatusRaw = (canonical.execution_status as string | undefined)?.toLowerCase();
+        const finalStatusRaw = (canonical.status as string | undefined)?.toLowerCase();
+
+        if (execStatusRaw === "success") {
+          executionStatus = "success";
+        } else if (execStatusRaw === "failed" || execStatusRaw === "error") {
+          executionStatus = "failed";
+        } else if (execStatusRaw === "timeout") {
+          executionStatus = "timeout";
+        } else if (finalStatusRaw === "success" || routedResult.ok === true) {
+          executionStatus = "success";
+        } else if (finalStatusRaw === "failed") {
+          executionStatus = "failed";
+        } else {
+          executionStatus = "unknown";
+        }
+
+        if (routedResult.ok === false || canonical.status === "FAILED" || canonical.ok === false) {
+          executionStatus = "failed";
+          const executionFailure = {
+            code: "TOOL_EXECUTION_FAILED",
+            message: routedResult.error || canonical.error?.message || "Tool execution failed",
+            retryable: this.isRetryableFailure(tool, { message: routedResult.error || canonical.error?.message }, canonical, retryConfig.supportsRetry),
+          };
+          const recoveryPlan = this.applyRecoveryPlan(tool, executionFailure, args);
+          executionError = {
+            ...executionFailure,
+            retryable: executionFailure.retryable || recoveryPlan.retryable,
+          };
+
+          if (recoveryPlan.fallbackTools && recoveryPlan.fallbackTools.length > 0) {
+            const fallbackResult = await this.executeWithFallback(tool, { ...args }, { correlationId, toolCallId, timeout, enableVerification }, recoveryPlan.fallbackTools);
+            if (fallbackResult.success) {
+              return fallbackResult;
+            }
+          }
+        }
+
+        if (executionStatus === "failed" && executionError?.retryable && attempt < retryConfig.maxAttempts) {
+          continue;
+        }
+        break;
+      } catch (error: any) {
+        executionStatus = error?.name === "AbortError" ? "timeout" : "failed";
+        const executionFailure = {
+          code: executionStatus === "timeout" ? "TOOL_TIMEOUT" : "TOOL_EXECUTION_FAILED",
+          message: error?.message || `Tool execution failed`,
+          retryable: executionStatus === "timeout" && retryConfig.supportsRetry,
         };
-        return approvalResult;
-      }
-      executionResult = routedResult.canonical || routedResult.result;
-      const canonical = routedResult.canonical || {};
-      executionStatus =
-        (canonical.execution_status as ExecutionStatus | undefined)?.toLowerCase() === "success"
-          ? "success"
-          : (canonical.execution_status as ExecutionStatus | undefined)?.toLowerCase() === "failed"
-            ? "failed"
-            : "unknown";
-
-      if (routedResult.ok === false || canonical.status === "FAILED") {
-        executionStatus = "failed";
+        const recoveryPlan = this.applyRecoveryPlan(tool, executionFailure, args);
         executionError = {
-          code: "TOOL_EXECUTION_FAILED",
-          message: routedResult.error || canonical.error?.message || "Tool execution failed",
-          retryable: true,
+          ...executionFailure,
+          retryable: executionFailure.retryable || recoveryPlan.retryable,
         };
-      }
-    } catch (error: any) {
-      executionStatus = error?.name === "AbortError" ? "timeout" : "failed";
-      executionError = {
-        code: executionStatus === "timeout" ? "TOOL_TIMEOUT" : "TOOL_EXECUTION_FAILED",
-        message: error?.message || `Tool execution failed`,
-        retryable: executionStatus === "timeout",
-      };
-    } finally {
-      if (executionTimeout) {
-        clearTimeout(executionTimeout);
+
+        if (recoveryPlan.fallbackTools && recoveryPlan.fallbackTools.length > 0) {
+          const fallbackResult = await this.executeWithFallback(tool, { ...args }, { correlationId, toolCallId, timeout, enableVerification }, recoveryPlan.fallbackTools);
+          if (fallbackResult.success) {
+            return fallbackResult;
+          }
+        }
+
+        if (executionError.retryable && attempt < retryConfig.maxAttempts) {
+          continue;
+        }
+        break;
+      } finally {
+        if (executionTimeout) {
+          clearTimeout(executionTimeout);
+          executionTimeout = undefined;
+        }
       }
     }
 

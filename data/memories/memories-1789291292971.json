@@ -1,0 +1,218 @@
+{
+  "timestamp": 1789291292971,
+  "version": "1.0.0",
+  "episodic": [],
+  "semantic": [
+    {
+      "id": "jb7i444xa",
+      "type": "semantic",
+      "timestamp": 1789291263159,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "luminous",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference",
+        "source": "desktop"
+      },
+      "fact": {
+        "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "8cmqbm8ds",
+      "type": "semantic",
+      "timestamp": 1789291263157,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "cinematic",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference",
+        "source": "desktop"
+      },
+      "fact": {
+        "statement": "User prefers the Cinematic Sara animation persona for SARA (cinematic).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Cinematic Sara animation persona for SARA (cinematic).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "8jrp0z9p8",
+      "type": "semantic",
+      "timestamp": 1789291263159,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "luminous",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference",
+        "source": "desktop"
+      },
+      "fact": {
+        "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "hu9ogjnvo",
+      "type": "semantic",
+      "timestamp": 1789271836273,
+      "confidence": 0.9,
+      "tags": [
+        "wants",
+        "help",
+        "revision",
+        "based",
+        "syllabus",
+        "even",
+        "topic",
+        "lists",
+        "specific",
+        "points",
+        "within",
+        "cloud",
+        "computing"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "project"
+      },
+      "fact": {
+        "statement": "The user wants me to help with revision based on their syllabus, even if it's just topic lists, like specific points within 'cloud computing'.",
+        "category": "project",
+        "assertions": [
+          {
+            "statement": "The user wants me to help with revision based on their syllabus, even if it's just topic lists, like specific points within 'cloud computing'.",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "xc7axqzwy",
+      "type": "semantic",
+      "timestamp": 1789291263167,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "speak",
+        "always",
+        "marathi"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference"
+      },
+      "fact": {
+        "statement": "The user prefers SARA to speak always in Marathi.",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "The user prefers SARA to speak always in Marathi.",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    }
+  ],
+  "procedural": [],
+  "preference": [],
+  "failure": [],
+  "achievement": [],
+  "autobiographical": [],
+  "metadata": {
+    "totalMemories": 5,
+    "averageConfidence": 0.9,
+    "memoryTypes": {
+      "episodic": 0,
+      "semantic": 5,
+      "procedural": 0,
+      "preference": 0,
+      "failure": 0,
+      "achievement": 0,
+      "autobiographical": 0
+    },
+    "lastUpdateTime": 1789291292971
+  }
+}

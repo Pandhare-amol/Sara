@@ -128,4 +128,16 @@ The final architecture is:
 - Verification registry = postcondition checks
 - Desktop Agent = actual local side-effect owner for OS/browser/file automation
 
+## Curated capabilities
+
+SARA seeds a small set of useful, read-only HTTPS APIs from the public-apis ecosystem:
+
+- Open-Meteo for weather and forecasts
+- Frankfurter for currency and exchange rates
+- OpenAlex for scholarly research
+- Wikipedia for encyclopedia lookup
+- Open Library for books and authors
+
+Each entry has an explicit operation allowlist. Credential-gated providers such as NewsAPI, OpenWeatherMap, and AlphaVantage remain available as catalog entries only after the user configures and authorizes their credentials. Catalog refresh imports metadata; it does not turn arbitrary entries into executable tools.
+
 This is the safe architecture that keeps SARA intact while allowing public API discovery and selection to coexist with the existing runtime model.

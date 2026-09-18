@@ -96,13 +96,37 @@ async def _ensure_browser_async() -> Any:
         STATE.browser_state = BrowserStateManager()
 
     if STATE.browser is None:
+        import socket
+        import subprocess
+        
         Path(USER_DATA_DIR).mkdir(parents=True, exist_ok=True)
-        STATE.context = await STATE.playwright.chromium.launch_persistent_context(
-            USER_DATA_DIR,
-            headless=HEADLESS,
-            args=["--no-sandbox"],
-        )
-        STATE.browser = STATE.context.browser
+        
+        chrome_exe = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+        if not os.path.exists(chrome_exe):
+            chrome_exe = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+            if not os.path.exists(chrome_exe):
+                chrome_exe = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+                
+        # Check if port 9222 is open
+        port_open = False
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', 9222)) == 0:
+                port_open = True
+                
+        if not port_open:
+            subprocess.Popen([
+                chrome_exe,
+                "--remote-debugging-port=9222",
+                f"--user-data-dir={USER_DATA_DIR}",
+                "--no-first-run",
+                "--no-default-browser-check",
+            ] + (["--headless"] if HEADLESS else []),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            import time
+            time.sleep(2)
+            
+        STATE.browser = await STATE.playwright.chromium.connect_over_cdp("http://localhost:9222")
+        STATE.context = STATE.browser.contexts[0] if STATE.browser.contexts else await STATE.browser.new_context()
         STATE.context.on("page", lambda page: STATE.browser_state.attach_page(page))
 
     if STATE.context is None:

@@ -92,6 +92,25 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
         return ParsedCommand("clipboard.copy", "copySelected", {}, 0.9, response="Copying the selected text.")
     if any(term in low for term in ("paste this", "paste clipboard", "paste selected")):
         return ParsedCommand("clipboard.paste", "pasteClipboard", {}, 0.9, response="Pasting it now.")
+    keyboard_shortcuts = {
+        "copy": ("copy", ("copy", "copy selection", "copy selected text")),
+        "paste": ("paste", ("paste", "paste clipboard")),
+        "cut": ("cut", ("cut", "cut selection")),
+        "select_all": ("select_all", ("select all", "select everything")),
+        "undo": ("undo", ("undo", "undo that")),
+        "redo": ("redo", ("redo", "redo that")),
+        "save": ("save", ("save", "save file")),
+        "find": ("find", ("find", "search in this")),
+        "new_tab": ("new_tab", ("new tab", "open a new tab")),
+        "close_tab": ("close_tab", ("close tab", "close this tab")),
+        "close_window": ("close_window", ("close window", "close this window")),
+        "alt_tab": ("alt_tab", ("switch window", "alt tab", "alt-tab")),
+        "show_desktop": ("show_desktop", ("show desktop", "go to desktop")),
+        "lock_screen": ("lock_screen", ("lock computer", "lock the screen")),
+    }
+    for shortcut_name, (shortcut, phrases) in keyboard_shortcuts.items():
+        if low in phrases:
+            return ParsedCommand("keyboard.shortcut", "keyboardShortcut", {"name": shortcut}, 0.94, response=f"Pressing {shortcut_name.replace('_', ' ')}.")
     if any(term in low for term in ("open camera", "open webcam", "open the camera", "open the webcam")):
         return ParsedCommand("camera.open", "openCamera", {"capture_only": False}, 0.93, response="Opening the camera.")
     if any(term in low for term in ("take photo", "take a photo", "capture photo", "capture a photo", "take picture", "take a picture", "selfie")):

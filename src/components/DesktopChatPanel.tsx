@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { X, MessageSquareOff, ArrowDown } from "lucide-react";
+import { X, MessageSquareOff, ArrowDown, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 import { getDesktopConversation, saveDesktopConversation, createDesktopConversation, restoreDesktopConversation, DesktopConversationRecord, DesktopChatMessage } from "../lib/desktopConversationStore";
 import { canSendMessage, shouldApplyConversationResponse } from "./desktopChatUtils";
 import "./DesktopChatPanel.css";
@@ -23,6 +23,8 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [showScrollToLatest, setShowScrollToLatest] = useState(false);
+  const [feedbackByMessage, setFeedbackByMessage] = useState<Record<number, "positive" | "negative">>({});
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<number, string>>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const initialLoadRef = useRef(true);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -49,6 +51,8 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
 
   useEffect(() => {
     activeConversationIdRef.current = conversation?.id ?? null;
+    setFeedbackByMessage({});
+    setCorrectionDrafts({});
   }, [conversation?.id]);
 
   useEffect(() => {
@@ -231,6 +235,31 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
     }
   };
 
+  const submitFeedback = async (index: number, feedback: "positive" | "negative") => {
+    const message = messages[index];
+    if (!message || message.role !== "assistant") return;
+    const correctedAnswer = correctionDrafts[index]?.trim() || undefined;
+    try {
+      const response = await fetch("/api/learning/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: conversation?.id,
+          feedback: feedback === "positive" ? "This answer was helpful." : "This answer needs correction.",
+          correctedAnswer,
+          source: "desktop",
+        }),
+      });
+      if (!response.ok) throw new Error("Feedback request failed.");
+      setFeedbackByMessage((current) => ({ ...current, [index]: feedback }));
+      if (feedback === "negative" && correctedAnswer) {
+        setCorrectionDrafts((current) => ({ ...current, [index]: "" }));
+      }
+    } catch (error) {
+      console.error("Failed to submit SARA feedback:", error);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen ? (
@@ -280,6 +309,49 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
                     >
                       <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400 mb-2">{item.role === "user" ? "You" : "SARA"}</p>
                       <p className="whitespace-pre-line text-sm leading-6 break-words">{item.text}</p>
+                      {item.role === "assistant" && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => void submitFeedback(index, "positive")}
+                            className={`rounded-lg p-1.5 transition ${feedbackByMessage[index] === "positive" ? "bg-emerald-500/20 text-emerald-300" : "text-slate-500 hover:bg-white/5 hover:text-emerald-300"}`}
+                            aria-label="Mark answer helpful"
+                            title="Mark answer helpful"
+                          >
+                            <ThumbsUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackByMessage((current) => ({ ...current, [index]: "negative" }))}
+                            className={`rounded-lg p-1.5 transition ${feedbackByMessage[index] === "negative" ? "bg-rose-500/20 text-rose-300" : "text-slate-500 hover:bg-white/5 hover:text-rose-300"}`}
+                            aria-label="Correct this answer"
+                            title="Correct this answer"
+                          >
+                            <ThumbsDown size={14} />
+                          </button>
+                          {feedbackByMessage[index] === "negative" && (
+                            <div className="flex min-w-[220px] flex-1 gap-2">
+                              <input
+                                value={correctionDrafts[index] || ""}
+                                onChange={(event) => setCorrectionDrafts((current) => ({ ...current, [index]: event.currentTarget.value }))}
+                                placeholder="Add the correct answer"
+                                aria-label="Correct answer"
+                                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950/70 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-cyan-400 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void submitFeedback(index, "negative")}
+                                disabled={!correctionDrafts[index]?.trim()}
+                                className="rounded-lg bg-cyan-400 p-2 text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label="Submit correction"
+                                title="Submit correction"
+                              >
+                                <Send size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

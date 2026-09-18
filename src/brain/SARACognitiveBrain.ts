@@ -23,6 +23,7 @@ import type { AuthoritativeTaskResult } from '../types/AuthoritativeTaskResult';
 import { MemoryService } from '../services/MemoryService';
 import { AgentRegistry, getAgentRegistry } from '../services/AgentRegistry';
 import { SkillLibrary } from '../services/SkillLibraryAndStrategyManager';
+import { ASICore } from '../asi/ASICore';
 
 export interface Intent {
   action: string;
@@ -55,6 +56,7 @@ export class SARACognitiveBrain {
   private registry: AgentRegistry;
   private skillLibrary: SkillLibrary;
   private config: BrainConfig;
+  public asiCore?: ASICore;
 
   constructor(
     memoryService: MemoryService,
@@ -109,6 +111,29 @@ export class SARACognitiveBrain {
     memoryStore: MemoryStore
   ): Promise<BrainDecision> {
     console.log(`[Brain] Making decision for intent: ${intent.action}`);
+
+    // If ASICore is available and intent is complex, route to ASI
+    if (this.asiCore && intent.parameters && (intent.parameters.depthLevel as number) >= 3) {
+      console.log(`[Brain] Routing complex intent to ASICore (depth: ${intent.parameters.depthLevel})`);
+      const asiQuery = {
+        question: (intent.parameters.query as string) || intent.action,
+        domains: (intent.parameters.domains as string[]) || ["general"],
+        depthLevel: (intent.parameters.depthLevel as 3 | 4 | 5),
+        allowWebSearch: (intent.parameters.allowWebSearch as boolean) ?? true
+      };
+      
+      const asiResponse = await this.asiCore.ask(asiQuery);
+      
+      return {
+        intent,
+        plan: null,
+        selectedAgents: [],
+        riskLevel: 'HIGH',
+        requiresConfirmation: true, // ALWAYS require confirmation for ASI actions
+        reason: `ASI Synthesized: ${asiResponse.answer}`,
+        evidence: asiResponse.novelInsights,
+      };
+    }
 
     // Retrieve relevant memories and skills
     let plan: Plan | null = null;

@@ -142,6 +142,7 @@ export interface PlanStep {
   action: string;
   tool?: string;
   args?: Record<string, unknown>;
+  expectedEffect?: string;
   expectedOutcome?: string;
   dependencies?: string[]; // IDs of other steps
   estimatedDuration?: number; // ms
@@ -248,4 +249,24 @@ export interface CognitiveContext {
   screenContext?: unknown;
   timeOfDay?: number; // epoch ms
   projectContext?: string;
+  digitalWorld?: {
+    observedAt: string;
+    activeApplication?: string;
+    activeWindow?: string;
+    activeProject?: string;
+    applications: unknown[];
+    browserTabs: unknown[];
+    unfinishedWork: string[];
+    attentionItems: unknown[];
+  };
+  relationshipContext?: {
+    person?: string;
+    relationship?: string;
+    relationships?: string[];
+    context: "PERSONAL" | "PROFESSIONAL" | "GENERAL";
+    confidence: number;
+    communicationStyle: string;
+    boundaries: string[];
+    relevantFacts: string[];
+  } | null;
 }

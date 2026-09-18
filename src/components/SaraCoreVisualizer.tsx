@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
 import { SaraAudioSession, LiveState } from "../lib/audio";
 import { Sparkles } from "lucide-react";
+import { getAnimationPlaylist } from "../lib/saraAnimationProfiles";
 
 export type SaraEmotion = 
   | "idle" 
@@ -15,10 +16,13 @@ export type SaraEmotion =
   | "embarrassed" 
   | "playful";
 
+type CharacterVideoState = "idle" | "thinking" | "talking";
+
 interface SaraCoreVisualizerProps {
   session: SaraAudioSession | null;
   state: LiveState;
   themeColor: string; // Violet, crimson, emerald, celestial, gold, rose, charcoal
+  animationProfile?: string;
   activeEmotion?: SaraEmotion;
   characterState: "idle" | "thinking" | "talking";
 }
@@ -28,7 +32,8 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
   state,
   themeColor,
   activeEmotion = "idle",
-  characterState
+  characterState,
+  animationProfile = "classic",
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -37,11 +42,32 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
   const idleVideoRef = useRef<HTMLVideoElement | null>(null);
   const thinkingVideoRef = useRef<HTMLVideoElement | null>(null);
   const talkingVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoIndices, setVideoIndices] = useState<Record<CharacterVideoState, number>>({ idle: 0, thinking: 0, talking: 0 });
   const [hasError, setHasError] = useState<boolean>(false);
 
-  const handleVideoError = (videoName: string) => {
-    console.warn(`[Sara Web Video] Failed to load video source for: ${videoName}`);
+  const getVideoSource = (stateName: CharacterVideoState): string => {
+    return getAnimationPlaylist(themeColor, animationProfile, stateName)[videoIndices[stateName]];
+  };
+
+  const handleVideoError = (videoName: CharacterVideoState) => {
+    const playlist = getAnimationPlaylist(themeColor, animationProfile, videoName);
+    const nextIndex = videoIndices[videoName] + 1;
+    if (nextIndex < playlist.length) {
+      console.warn(`[Sara Web Video] Skipping unavailable ${videoName} profile asset: ${playlist[videoIndices[videoName]]}`);
+      setVideoIndices((current) => ({ ...current, [videoName]: nextIndex }));
+      return;
+    }
+
+    console.warn(`[Sara Web Video] No usable video source for: ${videoName}`);
     setHasError(true);
+  };
+
+  const advanceVideo = (videoName: CharacterVideoState) => {
+    const playlist = getAnimationPlaylist(themeColor, animationProfile, videoName);
+    setVideoIndices((current) => ({
+      ...current,
+      [videoName]: (current[videoName] + 1) % playlist.length,
+    }));
   };
 
   // Interaction and tracking references
@@ -61,6 +87,13 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
   }>>([]);
 
   // Synchronized video playback state manager (highly polished and flicker-free)
+  useEffect(() => {
+    setVideoIndices({ idle: 0, thinking: 0, talking: 0 });
+    setHasError(false);
+  }, [themeColor, animationProfile]);
+
+  // Reset and start the selected profile's state video whenever SARA changes
+  // between idle, thinking, and talking, or when the profile changes.
   useEffect(() => {
     const playVideo = (videoEl: HTMLVideoElement | null) => {
       if (!videoEl) return;
@@ -95,7 +128,7 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
       pauseVideo(idleVideoRef.current);
       pauseVideo(thinkingVideoRef.current);
     }
-  }, [characterState]);
+  }, [characterState, themeColor, animationProfile, videoIndices]);
 
   // Cursor position tracking hook
   useEffect(() => {
@@ -311,11 +344,12 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
           {/* IDLE VIDEO */}
           <video
             ref={idleVideoRef}
-            src="/assets/idle.mp4"
+            src={getVideoSource("idle")}
             loop
             muted
             playsInline
             autoPlay
+            onEnded={() => advanceVideo("idle")}
             className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
               characterState === "idle" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
             }`}
@@ -329,10 +363,11 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
           {/* THINKING VIDEO */}
           <video
             ref={thinkingVideoRef}
-            src="/assets/thinking.mp4"
+            src={getVideoSource("thinking")}
             loop
             muted
             playsInline
+            onEnded={() => advanceVideo("thinking")}
             className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
               characterState === "thinking" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
             }`}
@@ -346,10 +381,11 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
           {/* TALKING VIDEO */}
           <video
             ref={talkingVideoRef}
-            src="/assets/talking.mp4"
+            src={getVideoSource("talking")}
             loop
             muted
             playsInline
+            onEnded={() => advanceVideo("talking")}
             className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
               characterState === "talking" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
             }`}
@@ -369,13 +405,14 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
               <Sparkles className="text-cyan-400 mb-2 animate-pulse" size={32} />
               <h3 className="text-sm font-bold tracking-widest font-mono text-white select-none">AWAITING VIDEOS CORES</h3>
               <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed font-sans">
-                Please place your character video assets inside the <code className="text-cyan-300 font-mono">/assets</code> directory of your workspace named exactly:
+                Please place the default character videos inside the <code className="text-cyan-300 font-mono">/assets</code> directory:
               </p>
               <div className="mt-3 space-y-1.5 text-left font-mono text-[10px] text-cyan-200 bg-white/5 px-4 py-2.5 rounded-xl border border-white/5">
                 <div>â€¢ idle.mp4 (State: Idle)</div>
                 <div>â€¢ thinking.mp4 (State: Thinking)</div>
                 <div>â€¢ talking.mp4 (State: Talking)</div>
               </div>
+              <p className="mt-3 text-[10px] text-slate-500">Profile: {animationProfile}. Videos use /assets/ui/{themeColor}/{animationProfile}/&lt;state&gt;-1.mp4</p>
             </div>
           )}
         </div>

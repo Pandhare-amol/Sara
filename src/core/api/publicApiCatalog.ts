@@ -48,6 +48,104 @@ export interface PublicApiCatalogEntry {
   domain_restrictions?: string[];
 }
 
+const BUILT_IN_PUBLIC_APIS: Partial<PublicApiCatalogEntry>[] = [
+  {
+    id: "open_meteo",
+    name: "Open-Meteo",
+    category: "Weather",
+    description: "Current weather and forecast data without an API key.",
+    base_url: "https://api.open-meteo.com",
+    documentation_url: "https://open-meteo.com/en/docs",
+    source_repository: "https://github.com/public-apis/public-apis",
+    authentication: "none",
+    https: true,
+    response_format: "json",
+    risk_level: "READ_ONLY",
+    privacy_classification: "PUBLIC",
+    capabilities: ["weather", "forecast", "temperature"],
+    supported_operations: ["v1/forecast"],
+    reliability_score: 0.9,
+    enabled: true,
+    user_approval_required: false,
+  },
+  {
+    id: "frankfurter",
+    name: "Frankfurter",
+    category: "Currency",
+    description: "Exchange rates and currency conversion from the European Central Bank.",
+    base_url: "https://api.frankfurter.app",
+    documentation_url: "https://www.frankfurter.app/docs",
+    source_repository: "https://github.com/public-apis/public-apis",
+    authentication: "none",
+    https: true,
+    response_format: "json",
+    risk_level: "READ_ONLY",
+    privacy_classification: "PUBLIC",
+    capabilities: ["currency", "exchange_rates", "conversion"],
+    supported_operations: ["v1/latest", "v1/currencies"],
+    reliability_score: 0.9,
+    enabled: true,
+    user_approval_required: false,
+  },
+  {
+    id: "openalex",
+    name: "OpenAlex",
+    category: "Research",
+    description: "Open catalog of scholarly works, authors, institutions, and sources.",
+    base_url: "https://api.openalex.org",
+    documentation_url: "https://docs.openalex.org",
+    source_repository: "https://github.com/public-apis/public-apis",
+    authentication: "none",
+    https: true,
+    response_format: "json",
+    risk_level: "READ_ONLY",
+    privacy_classification: "PUBLIC",
+    capabilities: ["research", "scholarly_search", "academic"],
+    supported_operations: ["works"],
+    reliability_score: 0.88,
+    enabled: true,
+    user_approval_required: false,
+  },
+  {
+    id: "wikipedia",
+    name: "Wikipedia",
+    category: "Knowledge",
+    description: "Search and retrieve encyclopedia content through the Wikimedia API.",
+    base_url: "https://en.wikipedia.org",
+    documentation_url: "https://www.mediawiki.org/wiki/API:Main_page",
+    source_repository: "https://github.com/public-apis/public-apis",
+    authentication: "none",
+    https: true,
+    response_format: "json",
+    risk_level: "READ_ONLY",
+    privacy_classification: "PUBLIC",
+    capabilities: ["knowledge", "wikipedia", "encyclopedia"],
+    supported_operations: ["w/api.php"],
+    reliability_score: 0.95,
+    enabled: true,
+    user_approval_required: false,
+  },
+  {
+    id: "open_library",
+    name: "Open Library",
+    category: "Books",
+    description: "Search books, authors, and editions from the Internet Archive's Open Library.",
+    base_url: "https://openlibrary.org",
+    documentation_url: "https://openlibrary.org/developers/api",
+    source_repository: "https://github.com/public-apis/public-apis",
+    authentication: "none",
+    https: true,
+    response_format: "json",
+    risk_level: "READ_ONLY",
+    privacy_classification: "PUBLIC",
+    capabilities: ["books", "authors", "reading"],
+    supported_operations: ["search.json"],
+    reliability_score: 0.88,
+    enabled: true,
+    user_approval_required: false,
+  },
+];
+
 type CatalogInput = Partial<PublicApiCatalogEntry> & {
   baseUrl?: string;
   documentationUrl?: string;
@@ -122,7 +220,7 @@ function safeUrl(value?: string): string | undefined {
   try {
     const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
     const parsed = new URL(candidate);
-    return parsed.origin && parsed.origin !== "null" ? parsed.origin : undefined;
+    return parsed.href && parsed.protocol === "https:" ? parsed.href.replace(/[?#].*$/, "").replace(/\/$/, "") : undefined;
   } catch {
     return undefined;
   }
@@ -136,6 +234,7 @@ export class PublicApiCatalogManager {
     this.storagePath = options.storagePath || path.join(process.cwd(), "data", "public-api-catalog.json");
     this.ensureDirectory();
     this.loadFromDisk();
+    this.importEntries(BUILT_IN_PUBLIC_APIS, { persist: true, preserveOperational: true });
   }
 
   private ensureDirectory(): void {
@@ -208,7 +307,7 @@ export class PublicApiCatalogManager {
     let imported = 0;
     for (const entry of entries) {
       try {
-        this.importEntries([entry], { persist: false });
+        this.importEntries([entry], { persist: false, preserveOperational: true });
         imported += 1;
       } catch {
         skipped += 1;
@@ -227,7 +326,7 @@ export class PublicApiCatalogManager {
 
   public importEntries(
     entries: Partial<PublicApiCatalogEntry>[],
-    options: { persist?: boolean } = { persist: true },
+    options: { persist?: boolean; preserveOperational?: boolean } = { persist: true },
   ): PublicApiCatalogEntry[] {
     if (!Array.isArray(entries)) {
       throw new Error("Catalog import requires an array of API entries.");
@@ -239,7 +338,13 @@ export class PublicApiCatalogManager {
       const key = normalizeId(sanitized.id);
       const existing = this.entries.get(key);
       if (existing) {
-        this.entries.set(key, { ...existing, ...sanitized });
+        const merged = { ...existing, ...sanitized };
+        if (options.preserveOperational) {
+          for (const field of ["last_checked", "health_status", "reliability_score", "latency_ms", "failure_rate", "last_successful_execution", "enabled", "disabled_reason"] as const) {
+            (merged as any)[field] = existing[field];
+          }
+        }
+        this.entries.set(key, merged);
       } else {
         this.entries.set(key, sanitized);
       }
@@ -256,6 +361,10 @@ export class PublicApiCatalogManager {
 
   public getById(id: string): PublicApiCatalogEntry | undefined {
     return this.entries.get(normalizeId(id));
+  }
+
+  public listEnabled(): PublicApiCatalogEntry[] {
+    return this.getAll().filter((entry) => entry.enabled && entry.health_status !== "DISABLED");
   }
 
   public validateEntry(entry: CatalogInput): PublicApiCatalogEntry {
@@ -293,6 +402,10 @@ export class PublicApiCatalogManager {
 
     const httpSecure = entry.https ?? resolvedBaseUrl.startsWith("https://");
     const capabilities = Array.isArray(entry.capabilities) ? entry.capabilities.map((cap) => String(cap).trim()).filter(Boolean) : [];
+    const reliability = Number(entry.reliability_score ?? 0.5);
+    const failureRate = Number(entry.failure_rate ?? 0);
+    if (!Number.isFinite(reliability) || reliability < 0 || reliability > 1) throw new Error(`Invalid reliability_score in '${name}'.`);
+    if (!Number.isFinite(failureRate) || failureRate < 0 || failureRate > 1) throw new Error(`Invalid failure_rate in '${name}'.`);
     const normalized: PublicApiCatalogEntry = {
       id: normalizeId(id),
       name,
@@ -314,9 +427,9 @@ export class PublicApiCatalogManager {
       privacy_classification: entry.privacy_classification || "PUBLIC",
       capabilities,
       supported_operations: entry.supported_operations || [],
-      reliability_score: Number(entry.reliability_score ?? 0.5),
+      reliability_score: reliability,
       latency_ms: typeof entry.latency_ms === "number" ? entry.latency_ms : undefined,
-      failure_rate: typeof entry.failure_rate === "number" ? entry.failure_rate : 0,
+      failure_rate: failureRate,
       last_successful_execution: entry.last_successful_execution ?? null,
       enabled: entry.enabled !== false,
       user_approval_required: Boolean(entry.user_approval_required),

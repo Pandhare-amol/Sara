@@ -74,3 +74,31 @@ The memory and data storage is highly fragmented.
 The audit confirms that SARA has strong foundational pieces (ToolRouter, Python agent, Gemini integration) but suffers from duplicate orchestration, fragmented databases, and blocking execution loops. 
 
 Following the implementation strategy, we should begin **PHASE 1**: Unifying core contracts, task models, memory ownership, and the context builder, before moving to task orchestration (Phase 2).
+
+## 9. Digital-World Context Slice (2026-09-17)
+
+### Current architecture
+
+- **Working**: durable task state, cognitive memory modules, `CognitiveOrchestrator`, `ToolRouter`, canonical tool results, EventBus, and the Python Desktop Agent boundary.
+- **Partial**: task execution and verification are present, but the live computer state is not automatically represented in the cognitive context.
+- **Broken or risky**: several existing tools still report process success without state verification; screen perception is available as tools but is not yet a continuously scheduled observer.
+- **Duplicate systems**: Node and Python orchestration remain separate; task and memory persistence are split across JSON and SQLite stores.
+- **Security/performance risks**: unrestricted observation could capture sensitive data, while high-frequency screenshots or full-window inventories could be expensive. Observation must be bounded, permission-aware, and source-labeled.
+
+### Implemented migration step
+
+`src/cognitive/digitalWorldContext.ts` is now the additive source of truth for a bounded snapshot of active application/window, project, browser tabs, unfinished work, attention items, and recent observations. It persists to `data/digital-world-context.json`, emits EventBus updates, and is exposed through:
+
+- `GET /cognitive/world-context`
+- `POST /cognitive/world-context`
+- `POST /cognitive/world-context/observations`
+
+`CognitiveOrchestrator.buildContext()` includes the latest snapshot, so existing planning receives world context without replacing memory or tool execution. The next safe step is a permission-aware observer adapter that publishes verified Desktop Agent results into this store at a modest interval and on relevant task/window events.
+
+### Migration plan
+
+1. Add the observer adapter and explicit privacy/retention policy.
+2. Bind task lifecycle events to `unfinishedWork` and attention items.
+3. Add state-diff verification after desktop/browser actions.
+4. Replace duplicate orchestration incrementally behind existing adapters.
+5. Migrate persistence stores only after runtime ownership is measured and tested.

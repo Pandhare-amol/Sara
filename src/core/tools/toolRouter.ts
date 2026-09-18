@@ -1,6 +1,9 @@
 import { ToolRegistry, type ToolExecutionAdapter, type RoutedToolResult } from "./toolRegistry";
 import { normalizeToolExecutionResult } from "./toolExecutor";
 import { ToolPolicyEngine, type PolicyContext } from "./policyEngine";
+import { PermissionManager } from "../permissions/PermissionManager";
+
+export type { RoutedToolResult } from "./toolRegistry";
 
 export interface ToolRouterOptions {
   registry?: ToolRegistry;
@@ -68,36 +71,19 @@ export class ToolRouter {
       return { ok: false, result: canonical, error: canonical.message, canonical };
     }
 
-    // Policy middleware enforcement
-    // For now we extract any confirmation token from args or context
-    const policyCtx: PolicyContext = {
-      confirmed: args.user_confirmed === true || args.policy_override === true
-    };
-    const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyCtx);
-    
-    if (policyOutcome.decision === "DENY") {
+    // Permission check via PermissionManager
+    const userId = typeof args.userId === "string" ? args.userId : undefined;
+    const permResult = await PermissionManager.instance.requestPermission(tool, { userId });
+    if (!permResult.granted) {
       const canonical = normalizeToolExecutionResult(tool, {
         status: "FAILED",
         execution_status: "FAILED",
         verification_status: "SKIPPED",
-        message: `Policy blocked execution: ${policyOutcome.reason}`,
+        message: `Permission denied: ${permResult.reason || "No reason provided"}`,
         executed: false,
-        policy_decision: "DENY"
-      }, `Policy blocked execution: ${policyOutcome.reason}`);
+        policy_decision: "DENY",
+      }, `Permission denied: ${permResult.reason || "No reason"}`);
       return { ok: false, result: canonical, error: canonical.message, canonical };
-    }
-    
-    if (policyOutcome.decision === "ASK_USER") {
-      const canonical = normalizeToolExecutionResult(tool, {
-        status: "UNCERTAIN",
-        execution_status: "SKIPPED",
-        verification_status: "NOT_REQUIRED",
-        message: `Waiting for user approval: ${policyOutcome.reason}`,
-        executed: false,
-        policy_decision: "ASK_USER"
-      });
-      // A special return shape to tell the orchestrator it needs approval
-      return { ok: false, result: canonical, error: "WAITING_FOR_APPROVAL", canonical };
     }
 
     if (!this.adapter) {
@@ -105,7 +91,16 @@ export class ToolRouter {
     }
 
     const response = await this.adapter(tool, args);
-    const canonical = normalizeToolExecutionResult(tool, response.result, response.error);
+    // If the adapter already returns a Python-computed canonical (has execution_status
+    // or verification shape), skip re-normalizing to avoid clobbering Python evidence.
+    const rawResult = response.result;
+    const isPythonCanonical =
+      rawResult &&
+      typeof rawResult === "object" &&
+      ("execution_status" in (rawResult as object) || "verification" in (rawResult as object));
+    const canonical = isPythonCanonical
+      ? normalizeToolExecutionResult(tool, rawResult) // will spread and preserve fields
+      : normalizeToolExecutionResult(tool, rawResult, response.error);
     return { ...response, route, canonical, result: canonical };
   }
 }

@@ -32,12 +32,22 @@ class WindowManager:
             process_name = psutil.Process(process_id).name()
         except Exception:
             pass
+        try:
+            maximized = bool(win32gui.IsZoomed(hwnd))
+        except AttributeError:
+            try:
+                import win32con
+                placement = win32gui.GetWindowPlacement(hwnd)
+                maximized = bool(len(placement) > 1 and placement[1] == win32con.SW_SHOWMAXIMIZED)
+            except Exception:
+                maximized = False
+
         return {
             "hwnd": int(hwnd),
             "title": title,
             "visible": bool(win32gui.IsWindowVisible(hwnd)),
             "minimized": bool(win32gui.IsIconic(hwnd)),
-            "maximized": bool(win32gui.IsZoomed(hwnd)),
+            "maximized": maximized,
             "bounds": {"x": left, "y": top, "width": right - left, "height": bottom - top},
             "process_id": process_id,
             "process_name": process_name,

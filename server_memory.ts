@@ -4,6 +4,9 @@ import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Memory, MemoryTransaction } from "./src/lib/memoryTypes";
 import { dataFile } from "./server_paths";
+import { memoryService } from "./src/services/MemoryService";
+import { getMemoryPersistenceService } from "./src/services/MemoryPersistenceService";
+import { createSemanticMemory, MemoryRecord, SemanticMemory, EpisodicMemory } from "./src/types/Memory";
 
 export type StoredMemory = Memory & {
   storageSource?: "desktop" | "mobile";
@@ -42,6 +45,8 @@ CREATE TABLE IF NOT EXISTS task_memory (id TEXT PRIMARY KEY, task_id TEXT, resul
 CREATE TABLE IF NOT EXISTS project_memory (id TEXT PRIMARY KEY, project_name TEXT, fact TEXT, importance_level TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS user_preference_memory (id TEXT PRIMARY KEY, preference TEXT, importance_level TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS relationship_memory (id TEXT PRIMARY KEY, relation_name TEXT, fact TEXT, importance_level TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS relationship_records (person_id TEXT PRIMARY KEY, name TEXT NOT NULL, record_json TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS camera_activity (id TEXT PRIMARY KEY, event_type TEXT NOT NULL, status TEXT, metadata_json TEXT, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS decisions (id TEXT PRIMARY KEY, title TEXT, decision TEXT, reason TEXT, category TEXT, confidence REAL, expected_outcome TEXT, actual_outcome TEXT, evaluation_notes TEXT, metadata TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, question TEXT, category TEXT, importance REAL, reason TEXT, source TEXT, asked INTEGER, answered INTEGER, answer TEXT, metadata TEXT, created_at TEXT);
 `;
@@ -116,96 +121,98 @@ function scoreMemory(memory: StoredMemory, query: string): number {
   return score;
 }
 
+let memoryPersistenceInitialized = false;
+
+async function ensureMemoryPersistence() {
+  if (!memoryPersistenceInitialized) {
+    memoryPersistenceInitialized = true;
+    const persistence = getMemoryPersistenceService();
+    const result = await persistence.loadMemories();
+    if (result.store) {
+      (memoryService as any).store = result.store;
+    }
+    persistence.enableAutoSave((memoryService as any).store);
+    console.log("[MemoryService] Unified memory persistence initialized");
+  }
+}
+
+function memoryRecordToStoredMemory(record: MemoryRecord, source: MemorySource = "desktop"): StoredMemory {
+  let text = "";
+  if (record.type === "semantic") text = (record as SemanticMemory).fact.statement;
+  else if (record.type === "episodic") text = (record as EpisodicMemory).event.description;
+  else text = JSON.stringify(record.metadata);
+
+  return {
+    id: record.id,
+    category: record.metadata?.category || "semantic",
+    text,
+    importance: 5,
+    storageSource: source,
+    createdAt: new Date(record.timestamp).toISOString(),
+    updatedAt: new Date(record.timestamp).toISOString(),
+    lastReferencedAt: new Date(record.timestamp).toISOString(),
+    keywords: record.tags || normalizeKeywords(text),
+  };
+}
+
 export async function loadMemories(source: MemorySource = "desktop"): Promise<StoredMemory[]> {
-  const bridge = await getMemoryDb();
-  if (bridge?.db) {
-    try {
-      const stmt = bridge.db.prepare("SELECT id,source,category,text,importance,tier,keywords,createdAt,updatedAt,lastReferencedAt FROM memories WHERE source = ? ORDER BY COALESCE(importance,0) DESC, updatedAt DESC");
-      stmt.bind([source]);
-      const out: StoredMemory[] = [];
-      while (stmt.step()) {
-        const row = stmt.getAsObject() as any;
-        out.push({
-          id: String(row.id),
-          category: row.category,
-          text: row.text,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          tier: row.tier || undefined,
-          importance: row.importance === null || row.importance === undefined ? undefined : Number(row.importance),
-          storageSource: source,
-          lastReferencedAt: row.lastReferencedAt || undefined,
-          keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
-        });
-      }
-      stmt.free();
-      return out;
-    } catch {}
-  }
-  try {
-    const filePath = memoryFileForSource(source);
-    const data = await fs.readFile(filePath, "utf-8");
-    return parseJsonWithBom<Memory[]>(data);
-  } catch (error: any) {
-    if (error.code === "ENOENT") return [];
-    return [];
-  }
+  await ensureMemoryPersistence();
+  const result = memoryService.queryMemories({ limit: 1000 });
+  return result.memories.map(m => memoryRecordToStoredMemory(m, source));
 }
 
 export async function saveMemories(memories: StoredMemory[], source: MemorySource = "desktop"): Promise<void> {
-  const normalized = memories.map((m) => ({
-    ...m,
-    storageSource: source,
-    importance: m.importance ?? 5,
-    keywords: m.keywords || normalizeKeywords(m.text),
-  }));
-  await writeJson(memoryFileForSource(source), normalized);
-  const bridge = await getMemoryDb();
-  if (bridge?.db) {
-    try {
-      bridge.db.run("DELETE FROM memories WHERE source = ?", [source]);
-      const stmt = bridge.db.prepare("INSERT OR REPLACE INTO memories (id,source,category,text,importance,tier,keywords,createdAt,updatedAt,lastReferencedAt) VALUES (?,?,?,?,?,?,?,?,?,?)");
-      for (const m of normalized) stmt.run([m.id, source, m.category, m.text, m.importance ?? null, m.tier ?? null, JSON.stringify(m.keywords ?? []), m.createdAt, m.updatedAt, m.lastReferencedAt ?? null]);
-      stmt.free();
-      bridge.persist();
-    } catch {}
+  await ensureMemoryPersistence();
+  for (const m of memories) {
+    const existing = memoryService.queryMemories({ keywords: [m.id], limit: 1 }).memories.find(mem => mem.id === m.id);
+    if (!existing) {
+      const record = createSemanticMemory(m.text, m.category, 0.9, m.keywords || normalizeKeywords(m.text));
+      record.id = m.id;
+      record.metadata = { category: m.category, source: m.storageSource };
+      memoryService.storeSemantic(record);
+    }
   }
+  const persistence = getMemoryPersistenceService();
+  persistence.markDirty();
 }
 
 export async function searchMemories(query: string, source: MemorySource = "desktop", limit = 8): Promise<StoredMemory[]> {
-  const memories = await loadMemories(source);
-  return memories
-    .map((m) => ({ m, score: scoreMemory(m, query) }))
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((x) => x.m);
+  await ensureMemoryPersistence();
+  const keywords = normalizeKeywords(query);
+  const result = memoryService.queryMemories({ keywords, limit, confidence: 0 });
+  
+  if (result.memories.length === 0) {
+    // Fallback to naive search
+    const all = memoryService.queryMemories({ limit: 1000 }).memories;
+    const scored = all.map(m => ({ m, score: scoreMemory(memoryRecordToStoredMemory(m, source), query) }));
+    return scored.filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => memoryRecordToStoredMemory(x.m, source));
+  }
+
+  return result.memories.map(m => memoryRecordToStoredMemory(m, source));
 }
 
 export async function upsertMemory(memory: StoredMemory, source: MemorySource = "desktop"): Promise<StoredMemory[]> {
-  const current = await loadMemories(source);
+  await ensureMemoryPersistence();
   const timestamp = new Date().toISOString();
-  const next: StoredMemory = {
-    ...memory,
-    id: memory.id || Math.random().toString(36).substring(2, 11),
-    storageSource: source,
-    createdAt: memory.createdAt || timestamp,
-    updatedAt: timestamp,
-    importance: memory.importance ?? 5,
-    keywords: memory.keywords || normalizeKeywords(memory.text),
-  };
-  const existingIndex = current.findIndex((m) => m.category === next.category && m.text.toLowerCase() === next.text.toLowerCase());
-  if (existingIndex >= 0) current[existingIndex] = { ...current[existingIndex], ...next };
-  else current.push(next);
-  await saveMemories(current, source);
-  return current;
+  
+  const keywords = memory.keywords || normalizeKeywords(memory.text);
+  const record = createSemanticMemory(memory.text, memory.category, 0.9, keywords);
+  record.id = memory.id || Math.random().toString(36).substring(2, 11);
+  record.metadata = { category: memory.category, source: source };
+  
+  memoryService.storeSemantic(record);
+  getMemoryPersistenceService().markDirty();
+
+  return loadMemories(source);
 }
 
 export async function forgetMemory(id: string, source: MemorySource = "desktop"): Promise<StoredMemory[]> {
-  const current = await loadMemories(source);
-  const next = current.filter((m) => m.id !== id);
-  await saveMemories(next, source);
-  return next;
+  await ensureMemoryPersistence();
+  // Use the MemoryService's deleteMemory method to remove the memory across all stores
+  const result = memoryService.deleteMemory(id);
+  // If deletion failed, you may choose to handle it; for now we just proceed
+  getMemoryPersistenceService().markDirty();
+  return loadMemories(source);
 }
 
 export function formatSystemInstructionsWithMemories(baseInstruction: string, memories: StoredMemory[]): string {
@@ -248,7 +255,7 @@ export async function processConversationSlice(apiKey: string, dialogueHistory: 
     const currentMemories = await loadMemories(source);
     const memoryContext = currentMemories.map((m) => `ID: ${m.id} | Category: ${m.category} | Fact: ${m.text}`).join("\n");
     const dialogueContext = dialogueHistory.map((line) => `${line.role === "user" ? "User" : "Sara"}: ${line.text}`).join("\n");
-    const prompt = `You are Sara's durable memory engine. Extract only durable facts, preferences, goals, projects, relationships, emotional milestones, and long-term behavior. Never store passwords, secrets, highly sensitive personal details, or content marked private.\n\nCURRENT MEMORIES:\n${memoryContext || "(none)"}\n\nRECENT DIALOGUE:\n${dialogueContext}\n\nReturn JSON with transactions array. Use action ADD, UPDATE, or REMOVE. Keep summaries short, natural, and written about Sara's user.`;
+    const prompt = `You are Sara's durable memory engine. Extract only durable facts, preferences, goals, projects, relationships, emotional milestones explicitly shared as lasting context, and long-term behavior. Never store passwords, secrets, highly sensitive personal details, or content marked private. Never store transient emotion labels, sentiment classifications, mental-health diagnoses, or guesses about how the user feels; those remain private per-turn response signals only.\n\nCURRENT MEMORIES:\n${memoryContext || "(none)"}\n\nRECENT DIALOGUE:\n${dialogueContext}\n\nReturn JSON with transactions array. Use action ADD, UPDATE, or REMOVE. Keep summaries short, natural, and written about Sara's user.`;
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
@@ -386,6 +393,91 @@ export async function upsertQuestion(question: any): Promise<any[]> {
 export async function getUnansweredQuestions(): Promise<any[]> {
   const questions = await loadQuestions();
   return questions.filter((q: any) => !q.userResponded);
+}
+
+export type PersistedRelationshipRecord = {
+  personId: string;
+  name: string;
+  [key: string]: unknown;
+};
+
+export async function loadRelationshipRecords(): Promise<PersistedRelationshipRecord[]> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return [];
+  try {
+    const stmt = bridge.db.prepare("SELECT record_json FROM relationship_records ORDER BY updated_at DESC");
+    const records: PersistedRelationshipRecord[] = [];
+    while (stmt.step()) {
+      const row = stmt.getAsObject() as { record_json?: string };
+      try {
+        const parsed = JSON.parse(String(row.record_json || "{}")) as PersistedRelationshipRecord;
+        if (parsed.personId && parsed.name) records.push(parsed);
+      } catch {}
+    }
+    stmt.free();
+    return records;
+  } catch {
+    return [];
+  }
+}
+
+export async function upsertRelationshipRecord(record: PersistedRelationshipRecord): Promise<void> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return;
+  const updatedAt = String(record.updatedAt || new Date().toISOString());
+  bridge.db.run(
+    "INSERT OR REPLACE INTO relationship_records (person_id, name, record_json, updated_at) VALUES (?, ?, ?, ?)",
+    [record.personId, record.name, JSON.stringify(record), updatedAt],
+  );
+  bridge.persist();
+}
+
+export async function deleteRelationshipRecord(personId: string): Promise<boolean> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return false;
+  try {
+    bridge.db.run("DELETE FROM relationship_records WHERE person_id = ?", [personId]);
+    bridge.persist();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function recordCameraActivity(eventType: string, status: string, metadata: Record<string, unknown> = {}): Promise<void> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return;
+  bridge.db.run(
+    "INSERT INTO camera_activity (id, event_type, status, metadata_json, created_at) VALUES (?, ?, ?, ?, ?)",
+    [`camera-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, eventType, status, JSON.stringify(metadata), new Date().toISOString()],
+  );
+  const retentionDays = Math.max(1, Math.min(365, Number(metadata.retentionDays || 7)));
+  const cutoff = new Date(Date.now() - retentionDays * 86400000).toISOString();
+  bridge.db.run("DELETE FROM camera_activity WHERE created_at < ?", [cutoff]);
+  bridge.persist();
+}
+
+export async function listCameraActivity(limit = 100): Promise<Array<Record<string, unknown>>> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return [];
+  const safeLimit = Math.max(1, Math.min(500, Math.floor(limit)));
+  const stmt = bridge.db.prepare(`SELECT id, event_type, status, metadata_json, created_at FROM camera_activity ORDER BY created_at DESC LIMIT ${safeLimit}`);
+  const rows: Array<Record<string, unknown>> = [];
+  while (stmt.step()) {
+    const row = stmt.getAsObject() as any;
+    let metadata: Record<string, unknown> = {};
+    try { metadata = JSON.parse(String(row.metadata_json || "{}")); } catch {}
+    rows.push({ id: row.id, eventType: row.event_type, status: row.status, metadata, createdAt: row.created_at });
+  }
+  stmt.free();
+  return rows;
+}
+
+export async function clearCameraActivity(): Promise<void> {
+  const bridge = await getMemoryDb();
+  if (!bridge?.db) return;
+  bridge.db.run("DELETE FROM camera_activity");
+  bridge.persist();
 }
 
 

@@ -52,6 +52,7 @@ import {
 import {
   spawnElectronWithConfig,
 } from "./electronLauncher.js";
+import { SelfImprovementManager } from "../src/self_improvement/SelfImprovementManager.js";
 
 // ============================================================
 // Paths
@@ -1477,6 +1478,10 @@ async function main(): Promise<void> {
   log(
     "SARA supervisor loop started.",
   );
+// Initialize Self‑Improvement engine
+const { SelfImprovementManager } = await import("../src/self_improvement/SelfImprovementManager.js");
+const selfImprovementManager = new SelfImprovementManager();
+selfImprovementManager.start();
 
   // ==========================================================
   // STEP 10 — Electron

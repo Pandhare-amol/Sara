@@ -169,6 +169,7 @@ export class PlanningEngine {
         index: 0,
         goal: "Take screenshot to see current state",
         action: "Observe environment",
+        expectedEffect: "The current desktop state is captured and available for verification",
         verifiable: true,
         critical: false,
       });
@@ -177,6 +178,7 @@ export class PlanningEngine {
         index: 1,
         goal: "Execute main action",
         action: "Execute action",
+        expectedEffect: `${goal} is completed and observable in the desktop state`,
         verifiable: true,
         critical: true,
       });
@@ -186,6 +188,7 @@ export class PlanningEngine {
         index: 0,
         goal: "Search for item",
         action: "Search",
+        expectedEffect: "The requested item or search results are visible",
         verifiable: true,
         critical: true,
       });
@@ -194,6 +197,7 @@ export class PlanningEngine {
         index: 1,
         goal: "Verify result",
         action: "Verify",
+        expectedEffect: "The requested result is confirmed in the current desktop state",
         verifiable: true,
         critical: false,
       });
@@ -203,6 +207,7 @@ export class PlanningEngine {
         index: 0,
         goal: goal,
         action: "Execute",
+        expectedEffect: `${goal} is completed and observable in the desktop state`,
         verifiable: true,
         critical: true,
       });
@@ -226,6 +231,7 @@ export class PlanningEngine {
       tool: step.action,
       args: step.args,
       expectedOutcome: step.expectedOutcome,
+      expectedEffect: step.expectedOutcome,
       dependencies: index > 0 ? [`step-${index - 1}`] : [],
       estimatedDuration: Math.ceil(
         skill.statistics.averageDuration /
@@ -255,6 +261,7 @@ export class PlanningEngine {
         dependencies:
           index > 0 ? [`step-${index - 1}`] : [],
         critical: false,
+        expectedEffect: action.expectedOutcome || `The ${action.tool} action has completed`,
         verifiable: false,
       })
     );

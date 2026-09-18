@@ -1,4 +1,4 @@
-﻿"""
+"""
 SARA Desktop Control Agent â€” Central tool registry.
 
 Each tool module registers handlers into a flat dict `TOOLS` mapping
@@ -137,8 +137,9 @@ DESKTOP_TOOL_NAMES = [
     "resolveUiTarget",
     "clickUiTarget",
     # real input aliases and cached perception
-    "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseScroll", "mousePosition",
-    "keyboardType", "keyPress", "keyDown", "keyUp", "emergencyStop",
+    "mouseMove", "mouseMoveRelative", "mouseClick", "mouseDoubleClick", "mouseRightClick", "mouseDrag", "mouseScroll", "mousePosition",
+    "mouseButtonDown", "mouseButtonUp", "emergencyStop",
+    "keyboardType", "keyPress", "keyboardShortcut", "keyDown", "keyUp", "emergencyStop",
     "observeScreen", "getCurrentScreenState", "refreshScreenState", "waitForScreenChange",
     # camera
     "openCamera",
@@ -330,6 +331,7 @@ _MODULE_NAMES = [
     "tools_clipboard",
     "tools_screenshot",
     "tools_targeting",
+    "tools_ui_automation",
     "tools_camera",
     "tools_browser",
     "tools_coding",
@@ -357,8 +359,6 @@ def load_all() -> None:
     for mod_name in _MODULE_NAMES:
         importlib.import_module(f".{mod_name}", package="desktop_agent")
 
-
-__all__ = ["TOOLS", "STATE", "DESKTOP_TOOL_NAMES", "ToolError", "register", "load_all"]
 
 
 

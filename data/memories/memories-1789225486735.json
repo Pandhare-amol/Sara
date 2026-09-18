@@ -1,0 +1,135 @@
+{
+  "timestamp": 1789225486735,
+  "version": "1.0.0",
+  "episodic": [],
+  "semantic": [
+    {
+      "id": "jb7i444xa",
+      "type": "semantic",
+      "timestamp": 1789225436859,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "luminous",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference",
+        "source": "desktop"
+      },
+      "fact": {
+        "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "8cmqbm8ds",
+      "type": "semantic",
+      "timestamp": 1789225414204,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "cinematic",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference"
+      },
+      "fact": {
+        "statement": "User prefers the Cinematic Sara animation persona for SARA (cinematic).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Cinematic Sara animation persona for SARA (cinematic).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    },
+    {
+      "id": "8jrp0z9p8",
+      "type": "semantic",
+      "timestamp": 1789225436859,
+      "confidence": 0.9,
+      "tags": [
+        "prefers",
+        "luminous",
+        "animation",
+        "persona"
+      ],
+      "source": "observation",
+      "provenance": {
+        "source": "observation",
+        "actor": "sara",
+        "evidence": [],
+        "verified": true
+      },
+      "metadata": {
+        "category": "preference"
+      },
+      "fact": {
+        "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+        "category": "preference",
+        "assertions": [
+          {
+            "statement": "User prefers the Luminous Sara animation persona for SARA (luminous).",
+            "confidence": 0.9,
+            "supporting": [],
+            "contradicting": []
+          }
+        ],
+        "supportingEvidence": [],
+        "contradictingEvidence": []
+      }
+    }
+  ],
+  "procedural": [],
+  "preference": [],
+  "failure": [],
+  "achievement": [],
+  "autobiographical": [],
+  "metadata": {
+    "totalMemories": 3,
+    "averageConfidence": 0.9,
+    "memoryTypes": {
+      "episodic": 0,
+      "semantic": 3,
+      "procedural": 0,
+      "preference": 0,
+      "failure": 0,
+      "achievement": 0,
+      "autobiographical": 0
+    },
+    "lastUpdateTime": 1789225486735
+  }
+}

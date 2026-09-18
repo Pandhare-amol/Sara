@@ -32,6 +32,18 @@ from .android_companion import ANDROID_COMPANION_MANAGER
 from .agents import MANAGER
 from .platform_core import HEALTH
 from .registry import DESKTOP_TOOL_NAMES, STATE, TOOLS, ToolError, load_all
+from .desktop_input_controller import DESKTOP_INPUT
+from .global_hotkey import GlobalHotkeyManager
+
+def _emergency_stop_callback():
+    log.warning("GLOBAL HOTKEY (Ctrl+Shift+Esc) triggered! Emergency stop activated.")
+    try:
+        DESKTOP_INPUT.emergency_release()
+        MANAGER.emergency_stop()
+    except Exception as e:
+        log.error("Error during emergency stop: %s", e)
+
+HOTKEY_MANAGER = GlobalHotkeyManager(_emergency_stop_callback)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,7 +61,21 @@ log.info("Loaded %d desktop tools: %s", len(TOOLS), ", ".join(sorted(TOOLS)))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("SARA Desktop Control Agent v%s starting up.", __version__)
+    input_status = DESKTOP_INPUT.readiness()
+    if input_status.get("ready"):
+        log.info("Real mouse and keyboard input ready: %sx%s.", input_status["screen_width"], input_status["screen_height"])
+    else:
+        log.warning("Real mouse and keyboard input unavailable: %s", input_status.get("error", "unknown error"))
+        
+    log.info("Starting global hotkey manager...")
+    HOTKEY_MANAGER.start()
+    
     yield
+    try:
+        DESKTOP_INPUT.emergency_release()
+        HOTKEY_MANAGER.stop()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Input cleanup failed during shutdown: %s", exc)
     # Clean shutdown of the Playwright browser if it was started.
     try:
         from .tools_browser import shutdown_browser
@@ -106,11 +132,20 @@ def _canonical_result(
     args: Dict[str, Any] | None = None,
     execution_time_ms: int | None = None,
 ) -> Dict[str, Any]:
-    """Normalize legacy handlers without changing the legacy ``result`` field."""
+    """Normalize handlers to strictly enforce the Phase 2 Result Contract."""
     payload = outcome if isinstance(outcome, dict) else {"result": outcome}
     args = args or {}
+    
+    # 1. Identity & Correlation
+    task_id = payload.get("task_id") or payload.get("taskId") or args.get("task_id") or args.get("taskId") or ""
+    action_id = payload.get("action_id") or payload.get("actionId") or args.get("action_id") or args.get("actionId") or f"{tool}-{uuid.uuid4().hex[:12]}"
+    
+    # 2. Execution Status
     explicit_ok = payload.get("ok") if isinstance(payload.get("ok"), bool) else None
     failed = bool(error) or explicit_ok is False or str(payload.get("status", "")).upper() in {"FAILED", "ERROR"}
+    execution_status = "FAILED" if failed else "EXECUTED"
+    
+    # 3. Verification Status
     observation = payload.get("observation") if isinstance(payload.get("observation"), dict) else {}
     has_screenshot_evidence = bool(
         payload.get("screenshot_id")
@@ -118,45 +153,43 @@ def _canonical_result(
         and int(payload.get("height") or observation.get("height") or 0) > 0
     )
     verified = payload.get("verified") is True or str(payload.get("verification", "")).upper() in {"VERIFIED", "SUCCESS"} or has_screenshot_evidence
-    status = "FAILED" if failed else "SUCCESS" if verified else "UNCERTAIN"
-    operation_id = str(payload.get("operation_id") or payload.get("operationId") or args.get("operation_id") or f"{tool}-{uuid.uuid4().hex[:12]}")
-    request_id = payload.get("request_id") or payload.get("requestId") or args.get("request_id") or args.get("requestId")
-    task_id = payload.get("task_id") or payload.get("taskId") or args.get("task_id") or args.get("taskId")
-    correlation_id = payload.get("correlation_id") or payload.get("correlationId") or args.get("correlation_id") or args.get("correlationId")
+    
+    verification_status = "VERIFIED" if verified else ("FAILED" if failed else "UNCERTAIN")
+    
+    # 4. Error Details
     error_details = None
     if failed:
         error_details = {
             "code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else "TOOL_FAILED"),
             "message": str(payload.get("message") or payload.get("result") or error or "Tool execution failed."),
-            "retryable": bool(payload.get("retryable", False)),
         }
+
     return {
-        "ok": not failed and status == "SUCCESS",
-        "status": status,
-        "verified": verified,
-        "operation_id": operation_id,
-        "request_id": request_id,
-        "task_id": task_id,
-        "correlation_id": correlation_id,
-        "timestamp": int(time.time() * 1000),
-        "duration_ms": execution_time_ms,
-        "data": payload.get("data", payload),
-        "error": error_details,
-        "verification": {
-            "verified": verified,
-            "method": payload.get("verification_method") or payload.get("verification") if isinstance(payload.get("verification"), str) else payload.get("verification", {}).get("method") if isinstance(payload.get("verification"), dict) else None,
-        },
+        "schemaVersion": "1.0",
+        "taskId": task_id,
+        "actionId": action_id,
         "tool": tool,
-        # Legacy compatibility fields below (to be removed in future phases)
-        "execution_time_ms": execution_time_ms,
-        "error_code": payload.get("error_code") or ("TOOL_EXECUTION_FAILED" if error else None),
-        "message": str(payload.get("message") or payload.get("result") or error or "Tool execution completed."),
-        "retryable": bool(payload.get("retryable", False)),
+        "execution": {
+            "status": execution_status,
+            "durationMs": execution_time_ms
+        },
+        "verification": {
+            "status": verification_status,
+            "method": payload.get("verification_method") or payload.get("verification") if isinstance(payload.get("verification"), str) else payload.get("verification", {}).get("method") if isinstance(payload.get("verification"), dict) else "NONE",
+        },
+        "result": payload.get("data", payload),
+        "error": error_details,
+        "recoverable": bool(payload.get("retryable", False)),
+        # Legacy fields for backward compatibility during transition
+        "ok": not failed,
+        "status": "SUCCESS" if (execution_status == "EXECUTED" and verification_status == "VERIFIED") else ("UNCERTAIN" if execution_status == "EXECUTED" else "FAILED"),
+        "verified": verified
     }
 
 
 @app.get("/health")
 def health() -> Dict[str, Any]:
+    input_status = DESKTOP_INPUT.readiness()
     return {
         "status": "ok",
         "service": "sara-desktop-agent",
@@ -165,6 +198,7 @@ def health() -> Dict[str, Any]:
         "version": __version__,
         "tools": sorted(TOOLS.keys()),
         "tool_count": len(TOOLS),
+        "input_control": input_status,
     }
 
 
@@ -175,6 +209,7 @@ def health_diagnostics() -> Dict[str, Any]:
 
 @app.get("/capabilities")
 def capabilities() -> Dict[str, Any]:
+    input_status = DESKTOP_INPUT.readiness()
     capability_payload = {
         "status": "PROCESS_HEALTHY",
         "service": "sara-desktop-agent",
@@ -186,6 +221,9 @@ def capabilities() -> Dict[str, Any]:
             "browser": True,
             "screen": True,
             "power": True,
+            "real_input": input_status.get("ready", False),
+            "keyboard": input_status.get("ready", False),
+            "mouse": input_status.get("ready", False),
             "tools": sorted(TOOLS.keys()),
         },
     }
@@ -309,12 +347,15 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
             tool=tool,
         )
 
+    from .resource_lock_manager import RESOURCE_LOCKS
+
     handler = TOOLS[tool]
     started_at = time.perf_counter()
     try:
-        out = handler(args)
-        if inspect.isawaitable(out):
-            out = await out
+        with RESOURCE_LOCKS.acquire_for_tool(tool):
+            out = handler(args)
+            if inspect.isawaitable(out):
+                out = await out
     except ToolError as e:
         log.warning("ToolError in %s: %s", tool, e.message)
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=e.message, tool=tool)

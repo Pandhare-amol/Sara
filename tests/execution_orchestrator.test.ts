@@ -6,6 +6,8 @@ import { VerificationRegistry } from "../src/core/tools/verification/verificatio
 import { FilesystemVerifier } from "../src/core/tools/verification/filesystemVerifier";
 import { VerificationEngine } from "../src/core/verification/verificationEngine";
 import { TaskExecutionStatus, TaskPriority, TaskVerificationStatus } from "../src/core/tasks/taskContract";
+import { IsolationRuntime } from "../src/core/isolation/isolationRuntime";
+import { RecoveryPolicyEngine } from "../src/core/tools/recoveryPolicy";
 
 test("ExecutionOrchestrator executes and verifies filesystem operations", async () => {
   const router = new ToolRouter({ isKnownTool: () => true });
@@ -120,6 +122,120 @@ test("ExecutionOrchestrator skips verification when disabled", async () => {
   assert.equal(result.executionStatus, "success");
   assert.equal(result.verificationStatus, "not_required");
   assert.equal(result.success, true); // Success because verification not required
+});
+
+test("ExecutionOrchestrator retries transient failures before succeeding", async () => {
+  const router = new ToolRouter({ isKnownTool: () => true });
+  const registry = new VerificationRegistry();
+  let attempts = 0;
+
+  router.registry.register({
+    name: "flakyTool",
+    owner: "node",
+    metadata: {
+      riskLevel: "READ_ONLY",
+      requiresConfirmation: false,
+      supportsCancellation: true,
+      supportsRetry: true,
+      retryPolicy: { supportsRetry: true, maxAttempts: 3, retryableErrors: ["TIMEOUT", "NETWORK"] },
+      timeoutMs: 25000,
+      version: "1.0",
+      idempotent: true,
+    },
+  });
+
+  router.setAdapter(async () => {
+    attempts += 1;
+    if (attempts < 3) {
+      return { ok: false, result: { status: "FAILED", execution_status: "FAILED", verification_status: "SKIPPED", message: "NETWORK timeout" }, error: "NETWORK timeout" };
+    }
+    return { ok: true, result: { status: "SUCCESS", execution_status: "SUCCESS", verification_status: "VERIFIED", executed: true } };
+  });
+
+  const orchestrator = new ExecutionOrchestrator(router, registry);
+  const result = await orchestrator.executeWithVerification("flakyTool", {});
+
+  assert.equal(result.executionStatus, "success");
+  assert.equal(attempts, 3);
+  assert.equal(result.success, true);
+});
+
+test("ExecutionOrchestrator falls back to an alternate tool when the primary fails", async () => {
+  const router = new ToolRouter({ isKnownTool: (name) => name === "primaryTool" || name === "fallbackTool" });
+  const registry = new VerificationRegistry();
+
+  router.registry.register({
+    name: "primaryTool",
+    owner: "node",
+    metadata: {
+      riskLevel: "READ_ONLY",
+      requiresConfirmation: false,
+      supportsCancellation: true,
+      supportsRetry: true,
+      retryPolicy: { supportsRetry: true, maxAttempts: 1, retryableErrors: ["TIMEOUT", "NETWORK"] },
+      timeoutMs: 25000,
+      version: "1.0",
+      idempotent: true,
+    },
+  });
+  router.registry.register({
+    name: "fallbackTool",
+    owner: "node",
+    metadata: {
+      riskLevel: "READ_ONLY",
+      requiresConfirmation: false,
+      supportsCancellation: true,
+      supportsRetry: true,
+      retryPolicy: { supportsRetry: false, maxAttempts: 1, retryableErrors: [] },
+      timeoutMs: 25000,
+      version: "1.0",
+      idempotent: true,
+    },
+  });
+
+  router.setAdapter(async (tool) => {
+    if (tool === "primaryTool") {
+      return { ok: false, result: { status: "FAILED", execution_status: "FAILED", verification_status: "SKIPPED", message: "NETWORK timeout" }, error: "NETWORK timeout" };
+    }
+    return { ok: true, result: { status: "SUCCESS", execution_status: "SUCCESS", verification_status: "VERIFIED", executed: true } };
+  });
+
+  const orchestrator = new ExecutionOrchestrator(router, registry);
+  const result = await orchestrator.executeWithVerification("primaryTool", {
+    fallbackTools: ["fallbackTool"],
+  });
+
+  assert.equal(result.executionStatus, "success");
+  assert.equal(result.success, true);
+  assert.match(String(result.message || ""), /fallback/i);
+});
+
+test("RecoveryPolicyEngine selects fallback or ask-user actions for dominant failure modes", () => {
+  const engine = new RecoveryPolicyEngine();
+  const fallback = engine.selectRecoveryPlan("openWebsite", { code: "TOOL_TIMEOUT", message: "Network timeout", retryable: true }, { confirmed: false });
+  const askUser = engine.selectRecoveryPlan("runPythonScript", { code: "POLICY_DENIED", message: "Sandbox required", retryable: false }, { confirmed: false });
+
+  assert.equal(fallback?.action, "FALLBACK_TOOL");
+  assert.ok((fallback?.fallbackTools || []).length > 0);
+  assert.equal(askUser?.action, "ASK_USER");
+});
+
+test("ExecutionOrchestrator blocks direct interpreter execution without isolation confirmation", async () => {
+  const router = new ToolRouter({ isKnownTool: (name) => name === "runPythonScript" });
+  const registry = new VerificationRegistry();
+  const runtime = new IsolationRuntime(router);
+
+  router.setAdapter(async () => ({
+    ok: true,
+    result: { status: "SUCCESS", execution_status: "SUCCESS", verification_status: "VERIFIED", executed: true },
+  }));
+
+  const orchestrator = new ExecutionOrchestrator(router, registry, runtime);
+  const result = await orchestrator.executeWithVerification("runPythonScript", { code: "print(1)" });
+
+  assert.equal(result.executionStatus, "failed");
+  assert.equal(result.success, false);
+  assert.match(result.message || "", /sandbox|confirmation/i);
 });
 
 test("VerificationEngine marks a task as verifying without treating it as skipped", async () => {

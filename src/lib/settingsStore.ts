@@ -32,11 +32,32 @@ export interface SaraSettings {
   humor: boolean;
   playfulMode: boolean;
   prankMode: boolean;
+  allowAutonomousUse: boolean; // default off, enables autonomous computer actions
   emotionAwareness: boolean;
   aiPerspective: boolean;
   conversationMemory: boolean;
   quietMode: boolean;
   conversationCooldown: number;
+  /** Current approved SARA visual profile. */
+  themeColor: string;
+  /** Layout density for repeated controls and panels. */
+  uiDensity: "compact" | "balanced" | "spacious";
+  /** Strength of the frosted-glass surfaces, from 0 to 100. */
+  glassIntensity: number;
+  /** Allow SARA to suggest a bounded visual profile after a conversation. */
+  adaptiveAppearance: boolean;
+  /** Selected character animation persona. */
+  animationProfile: string;
+  /** Start camera monitoring only after the user has explicitly opted in. */
+  cameraMonitoringConsent: boolean;
+  /** Start screen capture only after the user has explicitly opted in. */
+  screenMonitoringConsent: boolean;
+  /** Persist camera observation metadata, never raw frames by default. */
+  activityMetadataPersistence: boolean;
+  /** Number of days to retain camera activity metadata. */
+  activityMetadataRetentionDays: number;
+  /** Current active model profile id. */
+  activeModelId: string;
 }
 
 export const DEFAULT_SETTINGS: SaraSettings = {
@@ -46,6 +67,7 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   micDeviceId: "",
   sensitivity: 60,
   language: "en",
+  allowAutonomousUse: false,
   autoEnableGesture: false,
   animations: true,
   proactiveConversation: false,
@@ -58,6 +80,16 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   conversationMemory: true,
   quietMode: false,
   conversationCooldown: 1800,
+  themeColor: "charcoal",
+  uiDensity: "balanced",
+  glassIntensity: 72,
+  adaptiveAppearance: true,
+  animationProfile: "classic",
+  cameraMonitoringConsent: false,
+  screenMonitoringConsent: false,
+  activityMetadataPersistence: true,
+  activityMetadataRetentionDays: 7,
+  activeModelId: "astra", // default active model
 };
 
 const STORAGE_KEY = "sara.settings.v2";

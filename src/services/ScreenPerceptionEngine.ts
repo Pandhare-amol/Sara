@@ -7,6 +7,7 @@ import type { WorldState, Screen, Window, ScreenCapture, CursorState, UIElement,
 import { createObservation } from '../types/WorldState';
 import * as fs from 'fs';
 import * as path from 'path';
+import { callDesktopAgent } from '../../desktop_agent_bridge';
 
 export interface ScreenshotOptions {
   savePath?: string;
@@ -60,23 +61,31 @@ export class ScreenPerceptionEngine {
    */
   async captureScreenshot(options?: ScreenshotOptions): Promise<{ success: boolean; capture?: ScreenCapture; error?: string }> {
     try {
-      // In production, this would use a real screenshot library
-      // For now, we return a placeholder that would be implemented with:
-      // - sharp, jimp, or similar for image capture
-      // - pyautogui.screenshot() via Python bridge
-      // - Windows GDI / DirectX APIs
-
       const timestamp = Date.now();
-      const filename = options?.savePath
-        ? path.basename(options.savePath)
-        : `screenshot-${timestamp}.png`;
+      const result = await callDesktopAgent('takeScreenshot', {
+        monitor: options?.monitor ?? 0,
+        include_image: true,
+      });
+      if (!result.ok) {
+        return { success: false, error: result.error || 'Desktop screenshot failed' };
+      }
+
+      const payload = (result.result && typeof result.result === 'object')
+        ? result.result as Record<string, unknown>
+        : {};
+      const width = Number(payload.width);
+      const height = Number(payload.height);
+      if (!Number.isFinite(width) || !Number.isFinite(height)) {
+        return { success: false, error: 'Desktop screenshot returned invalid dimensions' };
+      }
 
       const capture: ScreenCapture = {
-        id: `cap-${timestamp}`,
+        id: String(payload.screenshot_id || `cap-${timestamp}`),
         timestamp,
-        path: options?.savePath || `./screenshots/${filename}`,
-        width: 1366, // placeholder
-        height: 768, // placeholder
+        base64: typeof payload.image_base64 === 'string' ? payload.image_base64 : undefined,
+        path: options?.savePath,
+        width,
+        height,
         confidence: 0.95,
       };
 

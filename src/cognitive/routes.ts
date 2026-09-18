@@ -15,10 +15,49 @@ import {
 } from "./index";
 import type { TaskExecutionContext } from "./integrationBridge";
 import { callDesktopAgent } from "../../desktop_agent_bridge";
+import { runAdvancedReasoningIfNeeded } from "../asi/AdvancedReasoningCoordinator";
+import { getDigitalWorldContext } from "./digitalWorldContext";
 
 const router = Router();
 const bridge = getCognitiveIntegrationBridge();
 const orchestrator = getCognitiveOrchestrator();
+
+router.get("/cognitive/world-context", (_req: Request, res: Response) => {
+  res.json({ ok: true, snapshot: getDigitalWorldContext().getSnapshot() });
+});
+
+router.post("/cognitive/world-context", (req: Request, res: Response) => {
+  const update = req.body?.update;
+  if (!update || typeof update !== "object" || Array.isArray(update)) {
+    return res.status(400).json({ error: "An object-valued 'update' is required." });
+  }
+  const snapshot = getDigitalWorldContext().update(update, req.body?.observation);
+  return res.json({ ok: true, snapshot });
+});
+
+router.post("/cognitive/world-context/observations", (req: Request, res: Response) => {
+  const { source, kind, summary, details } = req.body || {};
+  if (!source || !kind || !summary) {
+    return res.status(400).json({ error: "source, kind, and summary are required." });
+  }
+  const observation = getDigitalWorldContext().recordObservation({ source, kind, summary, details });
+  return res.status(201).json({ ok: true, observation, snapshot: getDigitalWorldContext().getSnapshot() });
+});
+router.post("/cognitive/advanced-reasoning", async (req: Request, res: Response) => {
+  try {
+    const question = String(req.body?.question || "").trim();
+    if (!question) return res.status(400).json({ error: "A reasoning question is required." });
+    const domains = Array.isArray(req.body?.domains)
+      ? req.body.domains.map((domain: unknown) => String(domain).trim()).filter(Boolean).slice(0, 5)
+      : ["general"];
+    const depthLevel = Math.max(1, Math.min(5, Number(req.body?.depthLevel || 3))) as 1 | 2 | 3 | 4 | 5;
+    const result = await runAdvancedReasoningIfNeeded(question, 12_000);
+    if (!result) return res.status(503).json({ error: "ASI_REASONING_UNAVAILABLE: the question was not eligible or the reasoning provider is unavailable." });
+    res.json({ ok: true, requiresConfirmation: true, result });
+  } catch (error: any) {
+    res.status(503).json({ error: error?.message || "Advanced reasoning is unavailable." });
+  }
+});
 
 /**
  * POST /cognitive/plan

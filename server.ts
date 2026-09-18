@@ -44,6 +44,7 @@ import {
   updateTask,
   appendToolCall,
 } from "./server_state";
+import { SaraCore } from "./src/core/engine/SaraCore";
 import cognitiveRoutes from "./src/cognitive/routes";
 import { ToolRouter } from "./src/core/tools/toolRouter";
 import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
@@ -412,20 +413,28 @@ async function callDesktopAgentTransport(
       };
     }
 
+    // Prefer the Python-computed canonical (body.canonical) as it already has
+    // verified, execution_status, screenshot evidence etc. pre-computed.
+    // Fall back to body.result (raw tool output) for legacy tools.
+    const pythonCanonical = body?.canonical && typeof body.canonical === "object" ? body.canonical : null;
+    const resolvedResult = pythonCanonical ?? structuredResult;
+
     const canonicalStatus = String(
-      structuredResult?.status ||
+      resolvedResult?.status ||
       body?.status ||
-      body?.result?.status ||
-      (body?.success === true || body?.ok === true || body?.result?.success === true ? "SUCCESS" : "UNCERTAIN"),
+      (body?.ok === true ? "SUCCESS" : "UNCERTAIN"),
     ).toUpperCase();
-    const verifiedValue = structuredResult?.verified === true || body?.verified === true || body?.result?.verified === true;
+    const verifiedValue =
+      resolvedResult?.verified === true ||
+      (pythonCanonical?.verification as any)?.verified === true ||
+      body?.verified === true;
 
     return {
-      ok: true,
-      result: structuredResult,
+      ok: body?.ok === true,
+      result: resolvedResult,
       status: canonicalStatus,
       verified: verifiedValue,
-      error: structuredResult?.error || body?.error || undefined,
+      error: resolvedResult?.error?.message || body?.error || undefined,
     };
   } catch (err: any) {
     desktopAgentVerified = false; // mark stale so next call retries the spawn
@@ -583,6 +592,55 @@ async function startServer() {
       protocol_version: "1"
     });
   });
+
+  // ── Task Management REST API (Phase 2: Unified Task State) ──────────────────
+  // Exposes the durable SQLite task store over HTTP for UI and mobile clients.
+
+  app.get("/api/tasks/pending", async (_req, res) => {
+    try {
+      const { loadUnfinishedTasks } = await import("./server_state");
+      const tasks = await loadUnfinishedTasks();
+      res.json({ ok: true, tasks, count: tasks.length });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/tasks/:taskId", async (req, res) => {
+    try {
+      const { loadTasks } = await import("./server_state");
+      const all = await loadTasks();
+      const task = all.find((t) => t.taskId === req.params.taskId);
+      if (!task) return res.status(404).json({ ok: false, error: "Task not found" });
+      res.json({ ok: true, task });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.patch("/api/tasks/:taskId/checkpoint", async (req, res) => {
+    try {
+      const { saveTaskCheckpoint } = await import("./server_state");
+      await saveTaskCheckpoint(req.params.taskId, req.body);
+      res.json({ ok: true, taskId: req.params.taskId });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.patch("/api/tasks/:taskId/status", async (req, res) => {
+    try {
+      const { updateTask } = await import("./server_state");
+      const { status, result, error } = req.body;
+      const updated = await updateTask(req.params.taskId, { status, result, error });
+      if (!updated) return res.status(404).json({ ok: false, error: "Task not found" });
+      res.json({ ok: true, task: updated });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   app.get("/api/desktop-agent/diagnostics", async (_req, res) => {
     try {
@@ -742,7 +800,17 @@ async function startServer() {
       };
       await appendConversationMessage(userMessage);
 
-      const reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source);
+      // Route through IntentEngine/SaraCore first
+      const core = new SaraCore();
+      const coreResponse = await core.processRequest(conversationId, text, conversation.activeContext || {});
+      
+      let reply: string;
+      if (coreResponse.type === 'task_queued' || coreResponse.type === 'system_response') {
+        reply = coreResponse.message;
+      } else {
+        reply = await generateSaraChatResponse(apiKey, normalizedHistory, text, source);
+      }
+
       const assistantMessage: ConversationMessage = {
         id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         conversationId,

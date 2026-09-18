@@ -1181,7 +1181,7 @@ export async function startService(
         port,
         healthy: true,
         retries: 0,
-        adopted: isAlreadyTracked,
+        adopted: true,
         opts,
         consecutiveFailures: 0,
         state: "READY",

@@ -24,7 +24,8 @@ import {
   Square,
   RefreshCw,
   Settings as SettingsIcon,
-  ShieldCheck
+  ShieldCheck,
+  Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Memory, MemoryCategory } from "./lib/memoryTypes";
@@ -35,8 +36,12 @@ import { CameraPanel } from "./components/CameraPanel";
 import { GestureMappingEditor } from "./components/GestureMappingEditor";
 import { ConfirmationPanel } from "./components/ConfirmationPanel";
 import { AdminSecurityDashboard } from "./components/AdminSecurityDashboard";
+import { ASIDashboard } from "./components/ASIDashboard";
+import { LLMStatusPanel } from "./components/LLMStatusPanel";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./lib/settingsStore";
 import { SaraWakeWordDetector } from "./lib/wakeWord";
+import { getAnimationProfile } from "./lib/saraAnimationProfiles";
+import { SaraCursorOverlay } from "./components/SaraCursorOverlay";
 
 export default function App() {
   const [state, setState] = useState<LiveState>("disconnected");
@@ -166,9 +171,34 @@ export default function App() {
     }
   };
 
+  const startDesktopCaptureLoop = async (): Promise<boolean> => {
+    const captured = await captureDesktopFrameAndSend();
+    if (!captured) {
+      return false;
+    }
+
+    screenCaptureModeRef.current = "desktop";
+    setIsScreenSharing(true);
+    setIsScreenSharingPaused(false);
+    if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
+    screenIntervalRef.current = setInterval(() => {
+      void captureDesktopFrameAndSend();
+    }, 2000);
+    return true;
+  };
+
   const startScreenSharing = async () => {
     setErrorText(null);
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        const fallbackWorked = await startDesktopCaptureLoop();
+        if (fallbackWorked) {
+          showToast("Desktop screen capture is active.");
+          return;
+        }
+        throw new Error("Desktop screen capture is not available in this environment.");
+      }
+
       // First try the standard browser API
       let stream: MediaStream | null = null;
       try {
@@ -181,13 +211,11 @@ export default function App() {
           audio: false
         });
       } catch (sdErr) {
-        // If running inside Electron, attempt the desktopCapturer-based fallback
         try {
           const sara = (window as any).sara;
           if (sara && sara.isDesktop && typeof sara.getPrimaryScreenSourceId === 'function') {
             const sourceId = await sara.getPrimaryScreenSourceId();
             if (sourceId) {
-              // Use legacy chromeMediaSourceId approach as a fallback
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
               stream = await (navigator.mediaDevices as any).getUserMedia({
@@ -207,22 +235,15 @@ export default function App() {
         } catch (e) {
           console.warn('[Screen Capture] Electron fallback failed:', e);
         }
-        // The VS Code embedded browser has no display-media API or Electron
-        // bridge. Use the local desktop agent in that environment instead.
-        if (!stream && sdErr?.name === "NotSupportedError") {
-          const captured = await captureDesktopFrameAndSend();
-          if (captured) {
-            screenCaptureModeRef.current = "desktop";
-            setIsScreenSharing(true);
-            setIsScreenSharingPaused(false);
-            if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
-            screenIntervalRef.current = setInterval(() => {
-              void captureDesktopFrameAndSend();
-            }, 2000);
+
+        if (!stream) {
+          const fallbackWorked = await startDesktopCaptureLoop();
+          if (fallbackWorked) {
+            showToast("Screen sharing is using the desktop capture fallback.");
             return;
           }
+          throw sdErr;
         }
-        if (!stream) throw sdErr;
       }
 
       screenStreamRef.current = stream as MediaStream;
@@ -239,12 +260,10 @@ export default function App() {
       setIsScreenSharing(true);
       setIsScreenSharingPaused(false);
 
-      // Stop handling when native stop sharing bar button ends
       stream.getVideoTracks()[0].onended = () => {
         stopScreenSharing();
       };
 
-      // Set up frame capture interval (one frame every 2 seconds is highly robust, preventing overload)
       if (screenIntervalRef.current) {
         clearInterval(screenIntervalRef.current);
       }
@@ -252,7 +271,6 @@ export default function App() {
         captureFrameAndSend();
       }, 2000);
 
-      // Promptly capture first frame immediately
       setTimeout(() => {
         captureFrameAndSend();
       }, 500);
@@ -284,7 +302,6 @@ export default function App() {
                   }
                 });
                 if (sStream) {
-                  // Use this stream
                   screenStreamRef.current = sStream as MediaStream;
                   const video = document.createElement('video');
                   video.srcObject = sStream as MediaStream;
@@ -316,7 +333,6 @@ export default function App() {
         fallbackError = fbEx;
       }
 
-      // If still not sharing, report full payload to server and copy to clipboard
       if (!screenStreamRef.current) {
         const payload: any = {
           errorName: e?.name || null,
@@ -336,14 +352,14 @@ export default function App() {
             body: JSON.stringify(payload)
           });
         } catch (postErr) { console.warn('Failed to POST client error payload', postErr); }
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-            alert('Screen capture error details copied to clipboard. Paste them into the chat.');
-          }
-        } catch (clipErr) { console.warn('Failed to copy error payload to clipboard', clipErr); }
 
-        if (e.name !== 'NotAllowedError') setErrorText(`Could not capture screen: ${e.message || e}`);
+        if (e?.name !== 'NotAllowedError' && e?.name !== 'NotSupportedError') {
+          setErrorText(`Could not capture screen: ${e.message || e}`);
+        } else {
+          setErrorText('Screen capture is not available in this browser. Use the desktop app or enable screen permissions.');
+        }
+
+        showToast('Screen sharing could not start.');
       }
     }
   };
@@ -398,12 +414,16 @@ export default function App() {
   };
 
   const [activeEmotion, setActiveEmotion] = useState<SaraEmotion>("idle");
-  const [themeColor, setThemeColor] = useState<string>("charcoal");
+  const [themeColor, setThemeColor] = useState<string>(() => loadSettings().themeColor || "charcoal");
   const [userCaption, setUserCaption] = useState<string>("");
   const [characterState, setCharacterState] = useState<"idle" | "thinking" | "talking">("idle");
 
   const detectEmotionFromText = (text: string): SaraEmotion => {
     const lower = text.toLowerCase();
+    if (/(emergency|dangerous|unsafe|self[- ]harm|suicide|threat|abuse|hurt myself|can't breathe|panic attack|urgent)/i.test(lower)) return "confused";
+    if (/(frustrated|angry|annoyed|furious|stuck|broken|failed|failure|not working|hate this|useless)/i.test(lower)) return "confused";
+    if (/(anxious|worried|overwhelmed|scared|afraid|nervous|stressed|panic|don't know what to do)/i.test(lower)) return "sad";
+    if (/(sad|crying|lonely|grief|hurt|heartbroken|upset|depressed|miss)/i.test(lower)) return "sad";
     if (lower.includes("haha") || lower.includes("lol") || lower.includes("funny") || lower.includes("joke") || lower.includes("hehe") || lower.includes("wink")) return "playful";
     if (lower.includes("happy") || lower.includes("harmony") || lower.includes("glad") || lower.includes("joy") || lower.includes("wonderful") || lower.includes("love") || lower.includes("smile")) return "happy";
     if (lower.includes("wow") || lower.includes("awesome") || lower.includes("excited") || lower.includes("amazing") || lower.includes("yay") || lower.includes("incredible") || lower.includes("hype")) return "excited";
@@ -451,6 +471,7 @@ export default function App() {
   const [showMappingEditor, setShowMappingEditor] = useState<boolean>(false);
   const [showConfirmPanel, setShowConfirmPanel] = useState<boolean>(false);
   const [showAdminSecurity, setShowAdminSecurity] = useState<boolean>(false);
+  const [showASIDashboard, setShowASIDashboard] = useState<boolean>(false);
   const showSettingsRef = useRef<boolean>(false);
   useEffect(() => { showSettingsRef.current = showSettings; }, [showSettings]);
 
@@ -479,6 +500,23 @@ export default function App() {
     } catch (e) { /* ignore */ }
   }, [settings.autoEnableGesture]);
 
+  // Privacy boundary: automatic sensing is opt-in and still requires the
+  // browser/Electron permission prompt. Camera access is always visible in
+  // the existing Camera panel; raw frames are not persisted by this flow.
+  useEffect(() => {
+    if (!settings.cameraMonitoringConsent || state !== "disconnected") return;
+    setShowCameraPanel(true);
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("sara-camera-action", { detail: { action: "startCamera" } }));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [settings.cameraMonitoringConsent, state]);
+
+  useEffect(() => {
+    if (!settings.screenMonitoringConsent || state !== "disconnected" || isScreenSharing) return;
+    void startScreenSharing();
+  }, [settings.screenMonitoringConsent, state, isScreenSharing]);
+
   // Start / stop wake word detection when the setting changes.
   useEffect(() => {
     const det = wakeDetectorRef.current;
@@ -502,6 +540,26 @@ export default function App() {
   const handleSettingsChange = (patch: Partial<SaraSettings>) => {
     const next = saveSettings(patch);
     setSettings(next);
+    if (patch.themeColor) setThemeColor(patch.themeColor);
+  };
+
+  const handleThemeChange = (nextTheme: string) => {
+    setThemeColor(nextTheme);
+    handleSettingsChange({ themeColor: nextTheme });
+  };
+
+  const handleAnimationProfileChange = (profileId: string) => {
+    const profile = getAnimationProfile(profileId);
+    handleSettingsChange({ animationProfile: profile.id });
+    void fetch("/api/memories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "preference",
+        text: `User prefers the ${profile.label} animation persona for SARA (${profile.id}).`,
+      }),
+    }).catch(() => {});
+    setModelCaption(`I will remember the ${profile.label} animation persona.`);
   };
 
   const sessionRef = useRef<SaraAudioSession | null>(null);
@@ -687,7 +745,7 @@ export default function App() {
           const validColors = ["violet", "crimson", "emerald", "celestial", "gold", "rose", "charcoal"];
           
           if (colorName && validColors.includes(colorName)) {
-            setThemeColor(colorName);
+            handleThemeChange(colorName);
             callback({ result: `Successfully shifted aesthetic atmosphere to ${colorName}.` });
           } else {
             callback({ error: `Unsupported color '${colorName}'. Supported themes are: ${validColors.join(", ")}` });
@@ -915,6 +973,7 @@ export default function App() {
       id="sara-holographic-desktop"
       className={`relative w-full h-screen overflow-hidden bg-[#020205] text-white ${getAmbientStyles()} theme-transition flex flex-col justify-between p-6 sm:p-10 select-none`}
     >
+    <SaraCursorOverlay active />
       {/* Ambient Background Gradients matching Frosted Glass theme */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/15 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-cyan-900/15 rounded-full blur-[150px] pointer-events-none" />
@@ -929,6 +988,7 @@ export default function App() {
           session={sessionRef.current}
           state={state}
           themeColor={themeColor}
+          animationProfile={settings.animationProfile}
           activeEmotion={activeEmotion}
           characterState={characterState}
         />
@@ -957,7 +1017,7 @@ export default function App() {
             <Compass size={14} />
             <span className="hidden sm:inline">TOPICS</span>
           </button>
-          
+
           <button 
             onClick={() => setShowMemoryDashboard(!showMemoryDashboard)}
             className="flex items-center gap-1 opacity-25 hover:opacity-100 text-white transition text-xs font-mono tracking-widest cursor-pointer"
@@ -1006,6 +1066,21 @@ export default function App() {
             <ShieldCheck size={14} className={showAdminSecurity ? "text-cyan-300 animate-pulse" : ""} />
             <span className="hidden sm:inline">SECURITY</span>
           </button>
+
+          <button
+            onClick={() => setShowASIDashboard(!showASIDashboard)}
+            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showASIDashboard
+                ? "text-purple-400 opacity-100 font-semibold"
+                : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="ASI Intelligence Center"
+          >
+            <Zap size={14} className={showASIDashboard ? "text-purple-300 animate-pulse" : ""} />
+            <span className="hidden sm:inline">ASI CORE</span>
+          </button>
+          {/* LLM Status Panel */}
+          <LLMStatusPanel />
 
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -1503,6 +1578,14 @@ export default function App() {
         onChange={handleSettingsChange}
         locked={state !== "disconnected"}
         themeColor={themeColor}
+        onThemeChange={handleThemeChange}
+        onSaraCurate={() => {
+          const profiles = ["celestial", "emerald", "violet", "rose", "gold", "charcoal"];
+          const nextTheme = profiles[(profiles.indexOf(themeColor) + 1) % profiles.length];
+          handleThemeChange(nextTheme);
+          setModelCaption(`I tuned my atmosphere to ${nextTheme}.`);
+        }}
+        onAnimationProfileChange={handleAnimationProfileChange}
       />
 
       {/* SARA Owner / Admin Security Dashboard */}
@@ -1510,6 +1593,28 @@ export default function App() {
         isOpen={showAdminSecurity}
         onClose={() => setShowAdminSecurity(false)}
       />
+
+      {/* ASI Dashboard Overlay */}
+      <AnimatePresence>
+        {showASIDashboard && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md overflow-y-auto"
+          >
+            <div className="absolute top-4 right-4 z-50">
+              <button 
+                onClick={() => setShowASIDashboard(false)}
+                className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 text-white border border-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <ASIDashboard />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

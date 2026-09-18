@@ -32,9 +32,28 @@ const REWARD_SCALE = {
   CANCELLED: 0,
 };
 
+const criticMetrics = {
+  critic_catches: 0,
+  critic_false_positives: 0,
+};
+
+export function getCriticMetrics(): Readonly<typeof criticMetrics> {
+  return { ...criticMetrics };
+}
+
 export class TaskEvaluator {
   private cognitive = getCognitiveOrchestrator();
   private strategyManager = getStrategyManager();
+
+  recordCriticOutcome(rejected: boolean, rejectionJustified: boolean): Readonly<typeof criticMetrics> {
+    if (rejected) {
+      criticMetrics.critic_catches += 1;
+      if (!rejectionJustified) {
+        criticMetrics.critic_false_positives += 1;
+      }
+    }
+    return getCriticMetrics();
+  }
 
   /**
    * Evaluate a completed task execution.
@@ -51,6 +70,8 @@ export class TaskEvaluator {
     corrections: any[];
     executionTime: number;
     estimatedTime?: number;
+    criticRejected?: boolean;
+    criticRejectionJustified?: boolean;
   }): Promise<TaskEvaluation> {
     const startTime = Date.now();
 
@@ -114,6 +135,10 @@ export class TaskEvaluator {
       confidence
     );
 
+    if (options.criticRejected) {
+      this.recordCriticOutcome(true, Boolean(options.criticRejectionJustified));
+    }
+
     const evaluation: TaskEvaluation = {
       id: this.generateId(),
       taskId: options.taskId,
@@ -126,6 +151,8 @@ export class TaskEvaluator {
       confidence,
       metadata: {
         evaluationTime: Date.now() - startTime,
+        critic_catches: criticMetrics.critic_catches,
+        critic_false_positives: criticMetrics.critic_false_positives,
       },
     };
 

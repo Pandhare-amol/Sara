@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Volume2,
   Sparkles,
+  Palette,
+  WandSparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -18,6 +20,7 @@ import {
   loadSettings,
   saveSettings,
 } from "../lib/settingsStore";
+import { SARA_ANIMATION_PROFILES } from "../lib/saraAnimationProfiles";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -27,6 +30,9 @@ interface SettingsPanelProps {
   /** Persist a settings patch (also notifies App of changes). */
   onChange: (patch: Partial<SaraSettings>) => void;
   themeColor: string;
+  onThemeChange: (theme: string) => void;
+  onSaraCurate: () => void;
+  onAnimationProfileChange: (profileId: string) => void;
   /** When true, disables inputs because Sara is actively running */
   locked?: boolean;
 }
@@ -137,7 +143,7 @@ function ToggleRow({
   );
 }
 
-export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor, locked }: SettingsPanelProps) {
+export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor, onThemeChange, onSaraCurate, onAnimationProfileChange, locked }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [voiceProfile, setVoiceProfile] = useState<StoredSpeakerProfile | null>(() => loadStoredSpeakerProfile());
@@ -389,6 +395,146 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                   <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
                     Startup &amp; Appearance
                   </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-display text-white">
+                          <Palette size={15} className="text-cyan-300" />
+                          Visual atmosphere
+                        </div>
+                        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                          Choose the mood of SARA's stage. Changes are saved locally and restored on launch.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onSaraCurate}
+                        disabled={locked || !settings.adaptiveAppearance}
+                        title="Let SARA choose an approved visual profile"
+                        className="flex shrink-0 items-center gap-1.5 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-2 text-[9px] font-mono uppercase tracking-wider text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <WandSparkles size={13} />
+                        SARA CURATE
+                      </button>
+                    </div>
+                    <div className="mt-4 grid grid-cols-4 gap-2">
+                      {[
+                        ["charcoal", "#64748b"], ["celestial", "#38bdf8"], ["violet", "#a855f7"], ["emerald", "#10b981"],
+                        ["crimson", "#f43f5e"], ["rose", "#fb7185"], ["gold", "#f59e0b"],
+                      ].map(([name, color]) => (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => onThemeChange(name)}
+                          disabled={locked}
+                          title={`Use ${name} atmosphere`}
+                          className={`group flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border text-[9px] font-mono uppercase tracking-wide transition ${themeColor === name ? "border-white/70 bg-white/10 text-white" : "border-white/8 bg-black/10 text-slate-400 hover:border-white/25 hover:bg-white/5"} disabled:opacity-40`}
+                        >
+                          <span className="h-4 w-4 rounded-full shadow-[0_0_14px_currentColor]" style={{ backgroundColor: color, color }} />
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <label className="space-y-1.5 text-[9px] font-mono uppercase tracking-wider text-slate-400">
+                        Density
+                        <select
+                          value={settings.uiDensity}
+                          onChange={(e) => onChange({ uiDensity: e.target.value as SaraSettings["uiDensity"] })}
+                          disabled={locked}
+                          className="w-full rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-cyan-400/50"
+                        >
+                          <option value="compact">Compact</option>
+                          <option value="balanced">Balanced</option>
+                          <option value="spacious">Spacious</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1.5 text-[9px] font-mono uppercase tracking-wider text-slate-400">
+                        Glass
+                        <input
+                          type="range"
+                          min="20"
+                          max="100"
+                          value={settings.glassIntensity}
+                          onChange={(e) => onChange({ glassIntensity: Number(e.target.value) })}
+                          disabled={locked}
+                          className="mt-2 w-full accent-cyan-400"
+                        />
+                        <span className="block text-right text-[9px] text-cyan-300">{settings.glassIntensity}%</span>
+                      </label>
+                      <label className="space-y-1.5 text-[9px] font-mono uppercase tracking-wider text-slate-400">
+                        Character
+                        <select
+                          value={settings.animationProfile}
+                          onChange={(e) => onAnimationProfileChange(e.target.value)}
+                          disabled={locked}
+                          className="w-full rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-cyan-400/50"
+                        >
+                          {SARA_ANIMATION_PROFILES.map((profile) => (
+                            <option key={profile.id} value={profile.id}>{profile.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="col-span-2 text-[9px] leading-relaxed text-slate-500">
+                        Each character profile can contain multiple idle, thinking, and talking videos. SARA rotates them automatically.
+                      </p>
+                    </div>
+                  </div>
+
+                  <ToggleRow
+                    label="ADAPTIVE APPEARANCE"
+                    description="Let SARA suggest approved visual profiles"
+                    checked={settings.adaptiveAppearance}
+                    onChange={(v) => onChange({ adaptiveAppearance: v })}
+                    disabled={locked}
+                  />
+
+                  <div className="pt-4 border-t border-amber-500/15 text-[10px] font-mono uppercase tracking-widest text-amber-300/80">
+                    Privacy &amp; sensing
+                  </div>
+                  <ToggleRow
+                    label="CAMERA MONITORING CONSENT"
+                    description="Allow SARA to request camera access at startup; the browser still asks permission"
+                    checked={settings.cameraMonitoringConsent}
+                    onChange={(v) => onChange({ cameraMonitoringConsent: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="SCREEN MONITORING CONSENT"
+                    description="Allow SARA to request live screen capture; Windows/browser permission remains required"
+                    checked={settings.screenMonitoringConsent}
+                    onChange={(v) => onChange({ screenMonitoringConsent: v })}
+                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="ACTIVITY METADATA ONLY"
+                    description="Store timestamps and analysis metadata, never raw camera or screen frames"
+                    checked={settings.activityMetadataPersistence}
+                    onChange={(v) => onChange({ activityMetadataPersistence: v })}
+                    disabled={locked}
+                  />
+                  <label className="block space-y-1.5 pt-2 text-[9px] font-mono uppercase tracking-wider text-slate-400">
+                    Activity metadata retention
+                    <select
+                      value={settings.activityMetadataRetentionDays}
+                      onChange={(e) => onChange({ activityMetadataRetentionDays: Number(e.target.value) })}
+                      disabled={locked || !settings.activityMetadataPersistence}
+                      className="w-full rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 text-xs normal-case tracking-normal text-white outline-none focus:border-cyan-400/50 disabled:opacity-40"
+                    >
+                      <option value={1}>1 day</option>
+                      <option value={7}>7 days</option>
+                      <option value={30}>30 days</option>
+                      <option value={90}>90 days</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void fetch("/api/camera/activity", { method: "DELETE" }).catch(() => {})}
+                    className="w-full rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/10"
+                  >
+                    Clear stored activity metadata
+                  </button>
 
                   <ToggleRow
                     label="LAUNCH AT STARTUP"

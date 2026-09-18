@@ -14,6 +14,14 @@
               box-shadow 0.8s ease;
 }
 
+#sara-holographic-desktop {
+  --sara-glass-alpha: 0.12;
+  --sara-stage-accent: 99, 102, 241;
+  background-image:
+    radial-gradient(circle at 50% 38%, rgba(var(--sara-stage-accent), 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, var(--sara-glass-alpha)), transparent 42%);
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }

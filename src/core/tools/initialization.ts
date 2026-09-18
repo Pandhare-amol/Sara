@@ -9,6 +9,7 @@ import { VerificationRegistry } from "./verification/verificationRegistry";
 import { FilesystemVerifier } from "./verification/filesystemVerifier";
 import { WindowVerifier } from "./verification/windowVerifier";
 import { ScreenVerifier } from "./verification/screenVerifier";
+import { IsolationRuntime } from "../isolation/isolationRuntime";
 
 let orchestrator: ExecutionOrchestrator | null = null;
 
@@ -63,8 +64,10 @@ export function initializeToolExecution(
     verificationRegistry.mapToolToVerifier("youtube_pause", ["screen"]);
   verificationRegistry.mapToolToVerifier("openWebsite", ["screen"]);
 
-  // Create execution orchestrator
-  orchestrator = new ExecutionOrchestrator(toolRouter, verificationRegistry);
+  // Create execution orchestrator with the bounded isolation gate wrapped around
+  // the existing ToolRouter dispatch path.
+  const isolationRuntime = new IsolationRuntime(toolRouter);
+  orchestrator = new ExecutionOrchestrator(toolRouter, verificationRegistry, isolationRuntime);
 
   console.log("[Phase 3] Tool execution system initialized with verification");
 

@@ -409,6 +409,31 @@ export class MemoryService {
   }
 
   /**
+   * Delete a memory by ID across all stores.
+   */
+  deleteMemory(id: string): MemoryOperationResult {
+    try {
+      let deleted = false;
+      if (this.store.episodic.delete(id)) deleted = true;
+      if (this.store.semantic.delete(id)) deleted = true;
+      if (this.store.procedural.delete(id)) deleted = true;
+      if (this.store.preference.delete(id)) deleted = true;
+      if (this.store.failure.delete(id)) deleted = true;
+      if (this.store.achievement.delete(id)) deleted = true;
+      if (this.store.autobiographical.delete(id)) deleted = true;
+      if (!deleted) {
+        return { success: false, error: 'Memory not found' };
+      }
+      this.invalidateCache();
+      return { success: true, memoryId: id };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
+  /**
+
+  /**
    * Decay old memories (run periodically)
    */
   decayOldMemories(): { decayed: number; removed: number } {

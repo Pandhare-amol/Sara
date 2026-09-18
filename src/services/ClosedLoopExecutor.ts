@@ -22,6 +22,10 @@ import { createEmptyWorldState, createObservation } from '../types/WorldState';
 import { screenPerception } from './ScreenPerceptionEngine';
 import type { LearningWorkflowCoordinator } from './LearningWorkflowCoordinator';
 import type { MemoryStore } from '../types/Memory';
+import { callDesktopAgent } from '../../desktop_agent_bridge';
+import { getMultiAgentCoordinator } from '../cognitive/multiAgentCoordinator';
+import type { PlanStep } from '../cognitive/types';
+import { getTaskEvaluator } from '../cognitive/evaluator';
 
 export interface ExecutionOptions {
   maxRetries?: number;
@@ -131,6 +135,26 @@ export class ClosedLoopExecutor {
           planId: task.plan.id,
           subgoals: task.plan.subgoals.length,
         });
+      }
+
+      const criticApproved = await this.reviewPlanBeforeExecution(task);
+      if (!criticApproved) {
+        getTaskEvaluator().recordCriticOutcome(true, false);
+        await this.transitionState(task, 'FAILED');
+        task.endTime = Date.now();
+        return {
+          taskId,
+          finalState: task.currentState,
+          success: false,
+          duration: task.endTime - startTime,
+          totalActions: 0,
+          totalObservations: 0,
+          totalRecoveries: task.totalRecoveries,
+          totalReplans: task.totalReplans,
+          evidence: [],
+          error: String(task.metadata.criticFailure || 'Critic rejected the plan after two re-plan attempts'),
+          executionLog: this.executionLogs.get(task.id) || [],
+        };
       }
 
       // Execute subgoals
@@ -385,27 +409,144 @@ export class ClosedLoopExecutor {
     error?: string;
   }> {
     try {
-      // In production, route to desktop_agent_bridge
-      // This is a placeholder for the actual integration
-      switch (action.type) {
-        case 'mouse_move':
-          return { success: true, result: 'Mouse moved' };
-        case 'mouse_click':
-          return { success: true, result: 'Mouse clicked' };
-        case 'keyboard_type':
-          return { success: true, result: 'Text typed' };
-        // ... more action types
-        default:
-          return {
-            success: false,
-            error: `Action type not supported: ${action.type}`,
-          };
+      const toolByAction: Partial<Record<Action['type'], string>> = {
+        mouse_move: 'mouseMove',
+        mouse_click: 'mouseClick',
+        mouse_double_click: 'mouseDoubleClick',
+        mouse_right_click: 'mouseRightClick',
+        mouse_drag: 'hardwareMouseDrag',
+        mouse_scroll: 'mouseScroll',
+        keyboard_type: 'keyboardType',
+        keyboard_press: 'keyPress',
+        keyboard_hotkey: 'keyPress',
+        keyboard_hold: 'keyDown',
+        keyboard_release: 'keyUp',
+        focus_window: 'focusWindow',
+        open_application: 'openApplication',
+        close_application: 'closeApplication',
+        switch_application: 'switchApplication',
+        select_text: 'copySelected',
+        copy: 'copySelected',
+        paste: 'pasteClipboard',
+        screenshot: 'takeScreenshot',
+      };
+      const tool = toolByAction[action.type];
+      if (!tool) {
+        return { success: false, error: `Action type not supported: ${action.type}` };
       }
+
+      const result = await callDesktopAgent(tool, action.parameters || {});
+      return {
+        success: result.ok,
+        result: result.result,
+        error: result.error,
+      };
     } catch (error) {
       return {
         success: false,
         error: String(error),
       };
+    }
+  }
+
+  private async reviewPlanBeforeExecution(task: ClosedLoopTask): Promise<boolean> {
+    const critic = getMultiAgentCoordinator();
+    const maxCriticReplans = 2;
+
+    for (let attempt = 0; attempt <= maxCriticReplans; attempt++) {
+      const review = critic.reviewPlan(this.toCriticPlan(task));
+      if (review.approved) {
+        return true;
+      }
+
+      const rejection = [review.reason, ...(review.requiredChanges || [])].filter(Boolean).join(' ');
+      task.metadata.criticRejectionCount = (task.metadata.criticRejectionCount || 0) + 1;
+      task.metadata.criticFailure = rejection;
+      this.log(task.id, 'CRITIC_REJECTED', {
+        reason: review.reason,
+        requiredChanges: review.requiredChanges || [],
+        attempt,
+      });
+
+      if (attempt === maxCriticReplans) {
+        return false;
+      }
+
+      task.metadata.criticRejectionContext = rejection;
+      const replanned = await this.attemptCriticReplan(task, rejection);
+      if (!replanned) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  private toCriticPlan(task: ClosedLoopTask): PlanStep[] {
+    const steps: PlanStep[] = [];
+    for (const subgoal of task.plan?.subgoals || []) {
+      for (const skill of subgoal.skills) {
+        for (const action of skill.actions) {
+          steps.push({
+            id: action.id,
+            index: steps.length,
+            goal: skill.description,
+            action: action.type,
+            tool: action.type,
+            args: action.parameters,
+            expectedEffect: action.expectedEffect || skill.expectedEffect || subgoal.expectedEffect,
+            critical: true,
+            verifiable: Boolean(action.expectedEffect || skill.expectedEffect || subgoal.expectedEffect),
+          });
+        }
+      }
+      if (subgoal.skills.length === 0) {
+        steps.push({
+          id: subgoal.id,
+          index: steps.length,
+          goal: subgoal.description,
+          action: 'subgoal',
+          expectedEffect: subgoal.expectedEffect,
+          critical: true,
+          verifiable: subgoal.expectedEffectObservable,
+        });
+      }
+    }
+
+    const metadata = task.plan as typeof task.plan & {
+      reasoning?: { risks?: string[]; fallbacks?: string[] };
+    };
+    const criticPlan = steps as PlanStep[] & {
+      confidence?: number;
+      reasoning?: { risks?: string[]; fallbacks?: string[] };
+    };
+    criticPlan.confidence = task.plan?.confidence;
+    criticPlan.reasoning = metadata?.reasoning || task.metadata.planReasoning || { risks: [], fallbacks: [] };
+    return criticPlan;
+  }
+
+  private async attemptCriticReplan(task: ClosedLoopTask, rejectionReason: string): Promise<boolean> {
+    await this.transitionState(task, 'REPLANNING');
+    try {
+      this.log(task.id, 'REPLAN_STARTED', {
+        planVersion: task.currentPlanVersion + 1,
+        context: rejectionReason,
+        trigger: 'critic_rejection',
+      });
+      const newPlan = await this.planTask(task, {
+        version: task.currentPlanVersion + 1,
+        context: rejectionReason,
+      });
+      task.plan = newPlan;
+      task.currentPlanVersion++;
+      this.log(task.id, 'REPLAN_COMPLETED', {
+        newPlanId: newPlan.id,
+        trigger: 'critic_rejection',
+      });
+      return true;
+    } catch (error) {
+      this.log(task.id, 'ACTION_FAILED', { error: String(error), context: 'critic-replan' });
+      return false;
     }
   }
 
@@ -453,7 +594,12 @@ export class ClosedLoopExecutor {
   private async verifyTaskCompletion(task: ClosedLoopTask): Promise<boolean> {
     // In production, verify the complete goal was achieved
     const worldState = task.currentWorldState || (await this.observeWorld(task));
-    return worldState.observations.length > 0;
+    const verified = worldState.observations.length > 0;
+    if (task.metadata.criticRejectionCount > 0) {
+      task.metadata.criticRejectionJustified = verified;
+      getTaskEvaluator().recordCriticOutcome(true, verified);
+    }
+    return verified;
   }
 
   /**
@@ -556,7 +702,7 @@ export class ClosedLoopExecutor {
   /**
    * Generate a plan for a task
    */
-  private async planTask(task: ClosedLoopTask, options?: { version?: number }): Promise<Plan> {
+  private async planTask(task: ClosedLoopTask, options?: { version?: number; context?: string }): Promise<Plan> {
     // In production, use an LLM or planning algorithm to break down goal into subgoals and skills
     const plan: Plan = {
       id: `plan-${Date.now()}`,
@@ -569,6 +715,10 @@ export class ClosedLoopExecutor {
       confidence: 0.8,
       status: 'active',
     };
+
+    if (options?.context) {
+      task.metadata.lastReplanContext = options.context;
+    }
 
     return plan;
   }

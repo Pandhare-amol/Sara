@@ -24,20 +24,35 @@ SW_HIDE = 0
 @register("listWindows")
 def list_windows(args: Dict[str, Any]) -> Dict[str, Any]:
     windows = WINDOW_MANAGER.list_windows(bool(args.get("include_untitled", False)))
-    return {"result": f"Enumerated {len(windows)} visible window(s).", "windows": windows, "verified": True}
+    return {
+        "actionId": args.get("actionId", ""),
+        "type": "window.list",
+        "execution": {"success": True},
+        "verification": {"success": True, "details": {"windows": windows}},
+    }
 
 
 @register("getActiveWindow")
 def get_active_window(args: Dict[str, Any]) -> Dict[str, Any]:
     window = WINDOW_MANAGER.active_window()
-    return {"result": "Retrieved the active Windows window.", "window": window, "verified": True}
+    return {
+        "actionId": args.get("actionId", ""),
+        "type": "window.getActive",
+        "execution": {"success": True},
+        "verification": {"success": True, "details": {"window": window}},
+    }
 
 
 @register("focusWindow")
 def focus_window(args: Dict[str, Any]) -> Dict[str, Any]:
     query = args.get("title") or args.get("application")
     focused = WINDOW_MANAGER.focus(str(query or ""))
-    return {"result": "Window focus requested and checked.", **focused}
+    return {
+        "actionId": args.get("actionId", ""),
+        "type": "window.focus",
+        "execution": {"success": bool(focused)},
+        "verification": {"success": bool(focused), "details": focused},
+    }
 
 
 def _get_foreground_window():

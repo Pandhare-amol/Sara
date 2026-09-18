@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CameraManager, FrameRateController, VisionSession } from "../vision";
+import { loadSettings } from "../lib/settingsStore";
 
 export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -31,6 +32,17 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       stopCamera();
     };
   }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden" && status === "active") {
+        stopCamera();
+        setErrorText("Camera paused because SARA is not visible.");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [status]);
 
   // Listen for voice-driven camera actions dispatched from App
   useEffect(() => {
@@ -241,6 +253,19 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const [visionState, setVisionState] = useState<any>(null);
   const visionIntervalRef = useRef<number | null>(null);
 
+  const recordActivity = (eventType: string, activityStatus: string, metadata: Record<string, unknown> = {}) => {
+    const settings = loadSettings();
+    if (!settings.activityMetadataPersistence) return;
+    void fetch("/api/camera/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventType, status: activityStatus, metadata: { ...metadata, retentionDays: settings.activityMetadataRetentionDays } }),
+    }).catch(() => {});
+  };
+  recordActivity("camera_started", "active", { deviceId: selectedDeviceId || "default" });
+  recordActivity("camera_stopped", "inactive");
+  recordActivity("camera_analysis", "completed", { storedRawFrame: false });
+
   const fetchAndShowGallery = async () => {
     const g = await listGallery();
     setGallery(g);
@@ -349,6 +374,9 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
 
       <div className="mb-2 text-xs font-semibold text-cyan-200">
         CAMERA: {status === "active" ? "ON" : "OFF"} · VISION: {isAnalyzing || analysisText ? "ACTIVE" : "INACTIVE"}
+      </div>
+      <div className="mb-2 rounded-md border border-emerald-500/20 bg-emerald-950/20 p-2 text-[10px] text-emerald-200">
+        {status === "active" ? "Camera is visible and active by user consent." : "Camera is off."} Metadata is saved for activity auditing; raw frames are not saved automatically.
       </div>
       {analysisText && <div className="mb-2 rounded bg-cyan-950/50 p-2 text-xs text-cyan-100">{analysisText}</div>}
 

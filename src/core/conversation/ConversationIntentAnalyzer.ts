@@ -7,8 +7,39 @@ export interface ConversationSignal {
   cues: string[];
 }
 
+export type EmotionalSignal = "calm" | "positive" | "sad" | "frustrated" | "anxious" | "serious" | "uncertain";
+
+export interface EmotionalResponsePolicy {
+  signal: EmotionalSignal;
+  confidence: number;
+  intensity: "low" | "moderate" | "high";
+  responseMode: "warm_supportive" | "calm_direct" | "analytical" | "neutral";
+  humorAllowed: boolean;
+  playfulAllowed: boolean;
+  reason: string;
+}
+
 /** Deterministic, non-diagnostic social signal extraction before model reasoning. */
 export class ConversationIntentAnalyzer {
+  analyzeEmotion(text: string): EmotionalResponsePolicy {
+    const value = text.trim().toLowerCase();
+    if (!value) return { signal: "uncertain", confidence: 1, intensity: "low", responseMode: "neutral", humorAllowed: false, playfulAllowed: false, reason: "empty_input" };
+
+    const highRisk = /\b(emergency|dangerous|unsafe|self[- ]harm|suicide|threat|abuse|hurt myself|can't breathe|panic attack)\b/i.test(value);
+    const frustrated = /\b(frustrated|angry|annoyed|furious|stuck|broken|failed|failure|not working|hate this|useless)\b/i.test(value);
+    const anxious = /\b(anxious|worried|overwhelmed|scared|afraid|nervous|stress(?:ed)?|panic|uncertain|don't know what to do)\b/i.test(value);
+    const sad = /\b(sad|cry(?:ing)?|lonely|grief|hurt|heartbroken|upset|depressed|miss(?:ing)?)\b/i.test(value);
+    const positive = /\b(happy|excited|amazing|awesome|wonderful|great news|proud|celebrat(?:e|ing)|thank(?:s| you))\b/i.test(value);
+
+    if (highRisk) return { signal: "serious", confidence: 0.92, intensity: "high", responseMode: "calm_direct", humorAllowed: false, playfulAllowed: false, reason: "safety_or_emergency_language" };
+    if (frustrated) return { signal: "frustrated", confidence: 0.86, intensity: "high", responseMode: "calm_direct", humorAllowed: false, playfulAllowed: false, reason: "frustration_or_failure_language" };
+    if (anxious) return { signal: "anxious", confidence: 0.84, intensity: "moderate", responseMode: "warm_supportive", humorAllowed: false, playfulAllowed: false, reason: "worry_or_overwhelm_language" };
+    if (sad) return { signal: "sad", confidence: 0.82, intensity: "moderate", responseMode: "warm_supportive", humorAllowed: false, playfulAllowed: false, reason: "sadness_or_loss_language" };
+    if (positive) return { signal: "positive", confidence: 0.8, intensity: "moderate", responseMode: "warm_supportive", humorAllowed: true, playfulAllowed: true, reason: "positive_language" };
+
+    return { signal: "calm", confidence: 0.55, intensity: "low", responseMode: "neutral", humorAllowed: true, playfulAllowed: false, reason: "no_strong_emotional_cue" };
+  }
+
   analyze(text: string): ConversationSignal {
     const value = text.trim();
     const lower = value.toLowerCase();
