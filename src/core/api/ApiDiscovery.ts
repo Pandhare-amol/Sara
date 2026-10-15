@@ -36,6 +36,11 @@ export class ApiDiscovery {
             baseUrl: validated.base_url,
             authentication: rawApiData.authentication || { required: false, type: "none" },
             capabilities: validated.capabilities,
+            pricing: rawApiData.pricing,
+            rateLimit: rawApiData.rateLimit,
+            timeoutMs: rawApiData.timeoutMs,
+            retryPolicy: rawApiData.retryPolicy,
+            reliability: rawApiData.reliability ?? 50,
             enabled: false,
             status: "unknown",
             verified: false
@@ -47,7 +52,8 @@ export class ApiDiscovery {
     }
 
     /**
-     * Validates an API to ensure it meets requirements before becoming ACTIVE
+     * Validates provider configuration and marks it selectable. This is not a
+     * network health check; `verified` remains false until a real request succeeds.
      */
     public async validateApi(id: string): Promise<boolean> {
         const provider = apiRegistry.getProvider(id);
@@ -62,7 +68,7 @@ export class ApiDiscovery {
         );
 
         if (isValid) {
-            provider.verified = true;
+            provider.verified = false;
             provider.status = "active";
             provider.enabled = true;
             apiRegistry.registerProvider(provider); // Update

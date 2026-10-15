@@ -1,4 +1,4 @@
-﻿"""
+"""
 Windows auto-start management for SARA (V2).
 
 Manages a single registry entry under
@@ -48,12 +48,8 @@ def _ensure_launcher_exists() -> str:
     if os.path.isfile(path):
         return path
     # Best-effort creation of a silent launcher that starts both backends.
-    py_candidates = [
-        r"C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-        "python",
-        "python3",
-    ]
-    py = next((p for p in py_candidates if _which(p)), "python")
+    py_candidates = [os.environ.get("SARA_PYTHON"), sys.executable, "py", "python3", "python"]
+    py = next((p for p in py_candidates if p and (os.path.isfile(p) or _which(p))), "python")
     body = "\n".join(
         [
             "@echo off",

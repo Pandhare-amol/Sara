@@ -67,9 +67,9 @@ export abstract class ApiToolAdapter {
             );
         }
 
+        let credentials: string | null = null;
         try {
             // Get credentials if required
-            let credentials = null;
             if (provider.authentication.required) {
                 credentials = apiCredentialManager.getCredential(provider.id);
                 if (!credentials) {
@@ -110,12 +110,14 @@ export abstract class ApiToolAdapter {
 
         } catch (error: any) {
             apiHealthMonitor.recordFailure(provider.id);
+            const rawMessage = String(error?.message || "Unknown API Error");
+            const safeMessage = credentials ? rawMessage.split(credentials).join("[REDACTED]") : rawMessage;
             return apiResponseNormalizer.normalize(
                 provider.id,
                 this.capability,
                 null,
                 false,
-                { code: error?.message?.toLowerCase().includes('timed out') ? 'TIMEOUT' : 'API_ERROR', message: error.message || 'Unknown API Error' }
+                { code: safeMessage.toLowerCase().includes('timed out') ? 'TIMEOUT' : 'API_ERROR', message: safeMessage }
             );
         }
     }

@@ -71,7 +71,8 @@ export function determineFinalStatus(
   if (executionStatus === "failed") return "failed";
   if (verificationStatus === "failed") return "failed";
   if (executionStatus === "success" && verificationStatus === "verified") return "success";
-  if (executionStatus === "success" && verificationStatus === "not_required") return "success";
+  // A missing verifier is not evidence that an action completed correctly.
+  if (executionStatus === "success" && verificationStatus === "not_required") return "uncertain";
   if (executionStatus === "success" && verificationStatus === "skipped") return "uncertain";
   if (executionStatus === "success" && verificationStatus === "uncertain") return "uncertain";
   return "uncertain";

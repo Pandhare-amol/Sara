@@ -18,7 +18,7 @@ import type {
 } from '../types/ClosedLoopTask';
 import { isTerminalState, canTransitionTo, createClosedLoopTask } from '../types/ClosedLoopTask';
 import type { WorldState, Observation } from '../types/WorldState';
-import { createEmptyWorldState, createObservation } from '../types/WorldState';
+import { createEmptyWorldState } from '../types/WorldState';
 import { screenPerception } from './ScreenPerceptionEngine';
 import type { LearningWorkflowCoordinator } from './LearningWorkflowCoordinator';
 import type { MemoryStore } from '../types/Memory';
@@ -379,34 +379,17 @@ export class ClosedLoopExecutor {
   /**
    * Execute action via desktop agent bridge
    */
-  private async executeActionViaDesktopAgent(action: Action): Promise<{
+  private async executeActionViaDesktopAgent(_action: Action): Promise<{
     success: boolean;
     result?: any;
     error?: string;
   }> {
-    try {
-      // In production, route to desktop_agent_bridge
-      // This is a placeholder for the actual integration
-      switch (action.type) {
-        case 'mouse_move':
-          return { success: true, result: 'Mouse moved' };
-        case 'mouse_click':
-          return { success: true, result: 'Mouse clicked' };
-        case 'keyboard_type':
-          return { success: true, result: 'Text typed' };
-        // ... more action types
-        default:
-          return {
-            success: false,
-            error: `Action type not supported: ${action.type}`,
-          };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: String(error),
-      };
-    }
+    // This executor currently has no authenticated desktop-agent adapter.
+    // Never return success for an action that was not actually dispatched.
+    return {
+      success: false,
+      error: 'Closed-loop desktop-agent execution is not connected; no action was dispatched.',
+    };
   }
 
   /**
@@ -441,19 +424,18 @@ export class ClosedLoopExecutor {
   /**
    * Verify expected effect occurred
    */
-  private async verifyExpectedEffect(expectedEffect: string, worldState: WorldState): Promise<boolean> {
-    // In production, parse expectedEffect and check worldState
-    // This is a placeholder
-    return worldState.observations.length > 0;
+  private async verifyExpectedEffect(_expectedEffect: string, _worldState: WorldState): Promise<boolean> {
+    // No semantic verifier is wired in yet. An observation alone is not proof
+    // that the requested effect occurred.
+    return false;
   }
 
   /**
    * Verify task completion
    */
-  private async verifyTaskCompletion(task: ClosedLoopTask): Promise<boolean> {
-    // In production, verify the complete goal was achieved
-    const worldState = task.currentWorldState || (await this.observeWorld(task));
-    return worldState.observations.length > 0;
+  private async verifyTaskCompletion(_task: ClosedLoopTask): Promise<boolean> {
+    // Fail closed until a goal-specific verifier can establish the terminal state.
+    return false;
   }
 
   /**
@@ -488,8 +470,29 @@ export class ClosedLoopExecutor {
         }
       }
 
+      const expectedEffect = String(strategy.expectedEffect || subgoal.expectedEffect || "").trim();
+      if (!expectedEffect) {
+        this.log(task.id, 'RECOVERY_FAILED', {
+          strategyId: strategy.id,
+          error: "Recovery has no verifiable expected effect.",
+        });
+        return false;
+      }
+
+      const recoveredWorldState = await this.observeWorld(task);
+      const recoveryVerified = await this.verifyExpectedEffect(expectedEffect, recoveredWorldState);
+      if (!recoveryVerified) {
+        this.log(task.id, 'RECOVERY_FAILED', {
+          strategyId: strategy.id,
+          error: "Recovery actions ran, but the expected effect was not verified.",
+        });
+        return false;
+      }
+
       this.log(task.id, 'RECOVERY_COMPLETED', {
         strategyId: strategy.id,
+        verified: true,
+        expectedEffect,
       });
 
       return true;
@@ -547,30 +550,19 @@ export class ClosedLoopExecutor {
    */
   private async attemptFinalRecovery(
     task: ClosedLoopTask,
-    options: ExecutionOptions
+    _options: ExecutionOptions
   ): Promise<boolean> {
-    // Try to salvage the task with a recovery plan
-    return true; // placeholder
+    this.log(task.id, 'RECOVERY_FAILED', {
+      error: 'No final-recovery planner is connected; task completion remains unverified.',
+    });
+    return false;
   }
 
   /**
    * Generate a plan for a task
    */
-  private async planTask(task: ClosedLoopTask, options?: { version?: number }): Promise<Plan> {
-    // In production, use an LLM or planning algorithm to break down goal into subgoals and skills
-    const plan: Plan = {
-      id: `plan-${Date.now()}`,
-      taskId: task.id,
-      goalId: task.goal.id,
-      version: options?.version || 1,
-      createdAt: Date.now(),
-      subgoals: [],
-      estimatedDuration: 0,
-      confidence: 0.8,
-      status: 'active',
-    };
-
-    return plan;
+  private async planTask(_task: ClosedLoopTask, _options?: { version?: number }): Promise<Plan> {
+    throw new Error('Closed-loop planning is not implemented; execution was refused before any desktop action.');
   }
 
   /**
@@ -595,24 +587,27 @@ export class ClosedLoopExecutor {
     task: ClosedLoopTask,
     newState: TaskExecutionState
   ): Promise<boolean> {
-    if (!canTransitionTo(task.currentState, newState)) {
+    const previousState = task.currentState;
+    if (!canTransitionTo(previousState, newState)) {
       return false;
     }
 
     task.currentState = newState;
-    
-    // Map state transitions to proper event types
-    const eventType: ExecutionEventType = 
+    this.log(task.id, 'TASK_STATE_CHANGED', {
+      from: previousState,
+      to: newState,
+    });
+
+    const lifecycleEvent: ExecutionEventType | undefined =
       newState === 'COMPLETED' ? 'TASK_COMPLETED' :
       newState === 'FAILED' ? 'TASK_FAILED' :
       newState === 'PAUSED' ? 'TASK_PAUSED' :
-      newState === 'EXECUTING' ? 'ACTION_STARTED' :
-      'ACTION_COMPLETED';
-    
-    this.log(task.id, eventType, {
-      from: task.currentState,
-      to: newState,
-    });
+      newState === 'CANCELLED' ? 'TASK_CANCELLED' :
+      previousState === 'PAUSED' && newState === 'EXECUTING' ? 'TASK_RESUMED' :
+      undefined;
+    if (lifecycleEvent) {
+      this.log(task.id, lifecycleEvent, { from: previousState, to: newState });
+    }
 
     return true;
   }

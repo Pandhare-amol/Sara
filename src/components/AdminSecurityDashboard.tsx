@@ -9,8 +9,6 @@ import {
   RefreshCw,
   Power,
   X,
-  CheckCircle2,
-  AlertTriangle,
   Send,
   Lock,
   Clock,
@@ -20,6 +18,7 @@ import {
   Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 
 interface Props {
   isOpen: boolean;
@@ -28,15 +27,40 @@ interface Props {
 
 type TabType = "overview" | "integrity" | "audit" | "notifications" | "system";
 
+function loadSessionAdminToken(): string {
+  try {
+    const sessionToken = sessionStorage.getItem("sara.adminToken") || "";
+    if (sessionToken) return sessionToken;
+    const legacyToken = localStorage.getItem("sara.adminToken") || "";
+    if (legacyToken) {
+      sessionStorage.setItem("sara.adminToken", legacyToken);
+      localStorage.removeItem("sara.adminToken");
+    }
+    return legacyToken;
+  } catch {
+    return "";
+  }
+}
+
 export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [timeFilter, setTimeFilter] = useState<"today" | "7d" | "30d" | "all">("all");
-  const [adminToken, setAdminToken] = useState<string>(() => localStorage.getItem("sara.adminToken") || "");
+  const [adminToken, setAdminToken] = useState<string>(() => loadSessionAdminToken());
+  const [passkeySession, setPasskeySession] = useState<string | null>(() => {
+    try { return sessionStorage.getItem("sara.adminPasskeySession"); } catch { return null; }
+  });
+  const [passkeyStatus, setPasskeyStatus] = useState<string>("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [baselineMsg, setBaselineMsg] = useState<string | null>(null);
+
+  const buildAdminHeaders = (base: Record<string, string> = {}): Record<string, string> => {
+    const headers = { ...base };
+    if (adminToken) headers["x-admin-token"] = adminToken;
+    if (passkeySession) headers["x-sara-admin-session"] = passkeySession;
+    return headers;
+  };
 
   // SMTP test state
   const [testEmailResult, setTestEmailResult] = useState<string | null>(null);
@@ -46,8 +70,7 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
     setLoading(true);
     setAuthError(null);
     try {
-      const headers: Record<string, string> = {};
-      if (adminToken) headers["x-admin-token"] = adminToken;
+      const headers = buildAdminHeaders();
       const res = await fetch("/api/admin/stats", { headers });
       if (res.status === 401) {
         setAuthError("Admin authorization token required or invalid.");
@@ -67,8 +90,7 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
 
   const fetchAuditEvents = async () => {
     try {
-      const headers: Record<string, string> = {};
-      if (adminToken) headers["x-admin-token"] = adminToken;
+      const headers = buildAdminHeaders();
       const res = await fetch("/api/admin/audit/recent", { headers });
       if (res.ok) {
         const data = await res.json();
@@ -85,37 +107,93 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
     if (!isOpen) return;
     void fetchStats();
     void fetchAuditEvents();
-  }, [isOpen, adminToken]);
+  }, [isOpen, adminToken, passkeySession]);
 
   const handleSaveToken = (val: string) => {
     setAdminToken(val);
-    localStorage.setItem("sara.adminToken", val);
+    try {
+      if (val) sessionStorage.setItem("sara.adminToken", val);
+      else sessionStorage.removeItem("sara.adminToken");
+      window.dispatchEvent(new Event("sara.adminAuthChanged"));
+    } catch { /* session storage may be disabled */ }
   };
 
-  const handleApproveBaseline = async () => {
-    if (!window.confirm("Are you sure you want to approve the current code revision as the new trusted security baseline?")) return;
-    setBaselineMsg(null);
+  const handleEnrollPasskey = async () => {
+    if (!adminToken && !passkeySession) {
+      setPasskeyStatus("Verify with the existing admin token or an enrolled passkey before adding another device.");
+      return;
+    }
+    setPasskeyStatus("Starting device passkey enrollment…");
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (adminToken) headers["x-admin-token"] = adminToken;
-      const res = await fetch("/api/admin/security/approveBaseline", { method: "POST", headers });
-      const data = await res.json();
-      if (data.ok) {
-        setBaselineMsg("New trusted baseline approved successfully.");
-        await fetchStats();
-      } else {
-        setBaselineMsg(`Approval failed: ${data.error || "Unknown error"}`);
-      }
-    } catch (e: any) {
-      setBaselineMsg(`Approval failed: ${e.message}`);
+      const optionsResponse = await fetch("/api/admin/passkeys/register/options", {
+        method: "POST",
+        headers: buildAdminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ userName: "SARA local admin", displayName: "SARA local admin" }),
+      });
+      const optionsPayload = await optionsResponse.json();
+      if (!optionsResponse.ok || !optionsPayload.ok) throw new Error(optionsPayload.error || "Could not start passkey enrollment.");
+      const credential = await startRegistration({ optionsJSON: optionsPayload.options });
+      const verifyResponse = await fetch("/api/admin/passkeys/register/verify", {
+        method: "POST",
+        headers: buildAdminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ ceremonyId: optionsPayload.ceremonyId, response: credential, name: "This device" }),
+      });
+      const verifyPayload = await verifyResponse.json();
+      if (!verifyResponse.ok || !verifyPayload.ok) throw new Error(verifyPayload.error || "Passkey verification failed.");
+      setPasskeyStatus("Passkey registered. This device can now verify SARA admin access.");
+    } catch (error: any) {
+      setPasskeyStatus(error?.message || "Passkey enrollment failed.");
     }
   };
+
+  const handlePasskeySignIn = async () => {
+    setPasskeyStatus("Waiting for device verification…");
+    try {
+      const optionsResponse = await fetch("/api/admin/passkeys/auth/options", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const optionsPayload = await optionsResponse.json();
+      if (!optionsResponse.ok || !optionsPayload.ok) throw new Error(optionsPayload.error || "Could not start passkey sign-in.");
+      const assertion = await startAuthentication({ optionsJSON: optionsPayload.options });
+      const verifyResponse = await fetch("/api/admin/passkeys/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ceremonyId: optionsPayload.ceremonyId, response: assertion }),
+      });
+      const verifyPayload = await verifyResponse.json();
+      if (!verifyResponse.ok || !verifyPayload.ok || typeof verifyPayload.sessionToken !== "string") throw new Error(verifyPayload.error || "Passkey verification failed.");
+      setPasskeySession(verifyPayload.sessionToken);
+      try {
+        sessionStorage.setItem("sara.adminPasskeySession", verifyPayload.sessionToken);
+        window.dispatchEvent(new Event("sara.adminAuthChanged"));
+      } catch { /* session storage may be unavailable */ }
+      setPasskeyStatus(`Admin verified on this device until ${new Date(verifyPayload.expiresAt).toLocaleTimeString()}.`);
+    } catch (error: any) {
+      setPasskeySession(null);
+      try {
+        sessionStorage.removeItem("sara.adminPasskeySession");
+        window.dispatchEvent(new Event("sara.adminAuthChanged"));
+      } catch { /* session storage may be unavailable */ }
+      setPasskeyStatus(error?.message || "Passkey sign-in failed.");
+    }
+  };
+
+  const handlePasskeySignOut = async () => {
+    const token = passkeySession;
+    if (token) {
+      try { await fetch("/api/admin/passkeys/logout", { method: "POST", headers: { "x-sara-admin-session": token } }); } catch {}
+    }
+    setPasskeySession(null);
+    try {
+      sessionStorage.removeItem("sara.adminPasskeySession");
+      window.dispatchEvent(new Event("sara.adminAuthChanged"));
+    } catch { /* session storage may be unavailable */ }
+    setPasskeyStatus("Passkey admin session ended.");
+  };
+
 
   const handleTestSmtp = async () => {
     setTestEmailResult("Sending test email...");
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (adminToken) headers["x-admin-token"] = adminToken;
+      const headers = buildAdminHeaders({ "Content-Type": "application/json" });
       const res = await fetch("/api/admin/notifications/smtp/test", { method: "POST", headers });
       const data = await res.json();
       if (data.ok) {
@@ -131,8 +209,7 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
   const handleTestWebhook = async () => {
     setTestWebhookResult("Sending test webhook...");
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (adminToken) headers["x-admin-token"] = adminToken;
+      const headers = buildAdminHeaders({ "Content-Type": "application/json" });
       const res = await fetch("/api/admin/notifications/test", { method: "POST", headers });
       const data = await res.json();
       if (data.ok) {
@@ -148,7 +225,12 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
   const handleShutdownSara = async () => {
     if (!window.confirm("Are you sure you want to stop the SARA background service?")) return;
     try {
-      await fetch("/api/system/shutdown", { method: "POST" });
+      const response = await fetch("/api/system/shutdown", {
+        method: "POST",
+        headers: buildAdminHeaders(),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Admin authorization failed.");
       alert("SARA background service is shutting down.");
       onClose();
     } catch (e) {
@@ -166,7 +248,13 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
     return true;
   });
 
-  const isTrusted = stats?.securityStatus?.status === "TRUSTED";
+  const integrityEnabled = stats?.securityStatus?.enabled === true;
+  const isTrusted = integrityEnabled && stats?.securityStatus?.status === "TRUSTED";
+  const trustBadgeClass = !integrityEnabled
+    ? "border-slate-500/30 bg-slate-500/10 text-slate-300"
+    : isTrusted
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+      : "border-rose-500/30 bg-rose-500/10 text-rose-300";
 
   return (
     <AnimatePresence>
@@ -190,18 +278,18 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
             {/* Header */}
             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-950/80">
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl border ${isTrusted ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : "border-rose-500/30 text-rose-400 bg-rose-500/10"}`}>
-                  {isTrusted ? <ShieldCheck size={24} /> : <ShieldAlert size={24} className="animate-pulse" />}
+                <div className={`p-2.5 rounded-xl border ${trustBadgeClass}`}>
+                  {isTrusted ? <ShieldCheck size={24} /> : <ShieldAlert size={24} className={integrityEnabled ? "animate-pulse" : ""} />}
                 </div>
                 <div>
                   <h3 className="font-display font-medium text-lg tracking-tight text-white flex items-center gap-2">
                     SARA Owner &amp; Security Panel
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${isTrusted ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-rose-500/30 bg-rose-500/10 text-rose-300"}`}>
-                      {isTrusted ? "TRUSTED" : "WARNING"}
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${trustBadgeClass}`}>
+                      {!integrityEnabled ? "INTEGRITY DISABLED" : isTrusted ? "TRUSTED" : "WARNING"}
                     </span>
                   </h3>
                   <p className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mt-0.5">
-                    Ownership, Provenance, Audit &amp; Tamper Detection
+                    Ownership, Provenance &amp; Audit Events
                   </p>
                 </div>
               </div>
@@ -216,16 +304,25 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
               </div>
             </div>
 
-            {/* Auth Token Bar if required */}
-            <div className="px-6 py-2 border-b border-white/5 bg-slate-900/60 flex items-center gap-3">
+            {/* Admin token / platform passkey controls */}
+            <div className="px-6 py-2 border-b border-white/5 bg-slate-900/60 flex flex-wrap items-center gap-2">
               <Key size={14} className="text-amber-400 shrink-0" />
               <input
                 type="password"
                 value={adminToken}
                 onChange={(e) => handleSaveToken(e.target.value)}
-                placeholder="Admin Token (Optional / env SARA_ADMIN_TOKEN)"
-                className="w-full bg-transparent text-xs font-mono text-slate-200 placeholder:text-slate-500 focus:outline-none"
+                placeholder="Admin token (needed to enroll first passkey)"
+                className="min-w-[180px] flex-1 bg-transparent text-xs font-mono text-slate-200 placeholder:text-slate-500 focus:outline-none"
+                autoComplete="current-password"
               />
+              <button type="button" onClick={() => void handlePasskeySignIn()} className="px-3 py-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-[10px] font-mono hover:bg-cyan-400/20">
+                Verify with device
+              </button>
+              <button type="button" onClick={() => void handleEnrollPasskey()} className="px-3 py-1.5 rounded-lg border border-violet-400/30 bg-violet-400/10 text-violet-200 text-[10px] font-mono hover:bg-violet-400/20">
+                Enroll this device
+              </button>
+              {passkeySession && <button type="button" onClick={() => void handlePasskeySignOut()} className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-slate-300 text-[10px] font-mono hover:bg-white/10">Sign out</button>}
+              {passkeyStatus && <div className="basis-full text-[9px] font-mono text-slate-300">{passkeyStatus}</div>}
             </div>
 
             {authError && (
@@ -328,40 +425,12 @@ export function AdminSecurityDashboard({ isOpen, onClose }: Props) {
               {/* TAB 2: PROVENANCE & INTEGRITY */}
               {activeTab === "integrity" && (
                 <div className="space-y-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-mono uppercase tracking-widest text-cyan-300 font-bold">File Integrity Monitor</h4>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">SHA-256 verification of core code, agents, and configuration.</p>
-                    </div>
-                    <button onClick={handleApproveBaseline} className="px-3 py-1.5 rounded-xl border border-cyan-400/40 bg-cyan-400/10 text-cyan-300 hover:bg-cyan-400/20 text-xs font-mono tracking-wider font-semibold transition">
-                      Approve New Baseline
-                    </button>
+                  <div>
+                    <h4 className="text-xs font-mono uppercase tracking-widest text-cyan-300 font-bold">Integrity Monitor</h4>
+                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">Signed-baseline verification is disabled in this backend.</p>
                   </div>
-
-                  {baselineMsg && (
-                    <div className="p-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-mono">
-                      {baselineMsg}
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {stats?.securityStatus?.results?.length === 0 ? (
-                      <div className="p-6 rounded-2xl border border-dashed border-white/10 bg-white/5 text-center text-xs font-mono text-slate-400">
-                        No integrity results captured yet. Click refresh to run verification.
-                      </div>
-                    ) : (
-                      stats?.securityStatus?.results?.map((res: any, idx: number) => (
-                        <div key={idx} className="p-3 rounded-xl border border-white/5 bg-slate-950/80 flex items-center justify-between text-xs font-mono">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            {res.ok ? <CheckCircle2 size={14} className="text-emerald-400 shrink-0" /> : <AlertTriangle size={14} className="text-rose-400 shrink-0" />}
-                            <span className="text-slate-200 truncate">{res.file}</span>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${res.ok ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-300 border border-rose-500/20"}`}>
-                            {res.classification || (res.ok ? "EXPECTED_UPDATE" : "POSSIBLE_TAMPERING")}
-                          </span>
-                        </div>
-                      ))
-                    )}
+                  <div className="p-5 rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 text-xs font-mono text-amber-100">
+                    No trusted integrity status is being asserted. Verification and baseline approval are unavailable until this feature is implemented and validated.
                   </div>
                 </div>
               )}

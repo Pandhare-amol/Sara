@@ -50,9 +50,10 @@ Write-Success "Compile OK"
 # ── 4. Build Python agent ────────────────────────────────────
 Write-Step "Building Python desktop agent..."
 npm run build:agent
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[SARA] Note: Python agent build skipped or failed — continuing." -ForegroundColor Yellow
-}
+if ($LASTEXITCODE -ne 0) { Write-Fail "Python desktop-agent build failed."; exit 1 }
+$agentExe = Join-Path $root "agent_dist\sara-agent\sara-agent.exe"
+if (-not (Test-Path $agentExe -PathType Leaf)) { Write-Fail "Expected agent executable is missing: $agentExe"; exit 1 }
+Write-Success "Desktop agent executable verified"
 
 # ── 5. Generate BUILD_ID and build manifest ───────────────────
 Write-Step "Generating build identity..."
@@ -77,7 +78,7 @@ Write-Success "Build identity: SARA v$VERSION ($($BUILD_ID.Substring(0,8)))"
 
 # ── 6. Generate & sign integrity manifest ────────────────────
 Write-Step "Generating integrity manifest..."
-node scripts/generate_integrity_manifest.js
+node scripts/generate_integrity_manifest.cjs
 if ($LASTEXITCODE -ne 0) { Write-Fail "Integrity manifest generation failed."; exit 1 }
 Write-Success "Integrity manifest generated and signed"
 
@@ -85,7 +86,9 @@ Write-Success "Integrity manifest generated and signed"
 Write-Step "Packaging with electron-builder..."
 npx electron-builder --win nsis portable
 if ($LASTEXITCODE -ne 0) { Write-Fail "Packaging failed."; exit 1 }
-Write-Success "Package created in ./release"
+powershell -ExecutionPolicy Bypass -File scripts/test-agent-package.ps1
+if ($LASTEXITCODE -ne 0) { Write-Fail "Packaged desktop-agent smoke test failed."; exit 1 }
+Write-Success "Package created and bundled agent smoke-tested in ./release"
 
 # ── 8. Summary ────────────────────────────────────────────────
 Write-Host ""

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SARA â€” path & secret resolution.
  *
  * Separates read-only *code/asset* locations (shipped with the app) from the
@@ -13,6 +13,7 @@
  * the frontend).
  */
 
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 
@@ -56,6 +57,19 @@ function readSecrets(): Secrets {
   return {};
 }
 
+function writeSecrets(secrets: Secrets): void {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const temporary = `${SECRETS_FILE}.${process.pid}.${crypto.randomBytes(8).toString("hex")}.tmp`;
+  try {
+    fs.writeFileSync(temporary, JSON.stringify(secrets, null, 2), { encoding: "utf-8", mode: 0o600 });
+    try { fs.chmodSync(temporary, 0o600); } catch { /* best-effort where ACLs differ */ }
+    fs.renameSync(temporary, SECRETS_FILE);
+    try { fs.chmodSync(SECRETS_FILE, 0o600); } catch { /* best-effort where ACLs differ */ }
+  } finally {
+    try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best-effort cleanup */ }
+  }
+}
+
 /**
  * Resolve the active Gemini API key.
  * Priority: user-entered key (secrets.json) â†’ environment (.env, dev only).
@@ -75,15 +89,12 @@ export function hasGeminiApiKey(): boolean {
 /** Persist a user-supplied key to the per-user secrets file. */
 export function setGeminiApiKey(key: string): void {
   const trimmed = (key || "").trim();
-  if (!trimmed) throw new Error("API key must not be empty.");
+  if (!trimmed || trimmed.length > 512 || /[\r\n\u0000]/.test(trimmed)) {
+    throw new Error("API key format is invalid.");
+  }
   const current = readSecrets();
   current.geminiApiKey = trimmed;
-  fs.writeFileSync(SECRETS_FILE, JSON.stringify(current, null, 2), "utf-8");
-  try {
-    fs.chmodSync(SECRETS_FILE, 0o600); // owner-only where supported
-  } catch {
-    /* Windows ACLs differ; best-effort */
-  }
+  writeSecrets(current);
 }
 
 /** Remove the stored key (used by "reset"/sign-out flows). */
@@ -91,7 +102,7 @@ export function clearGeminiApiKey(): void {
   const current = readSecrets();
   delete current.geminiApiKey;
   try {
-    fs.writeFileSync(SECRETS_FILE, JSON.stringify(current, null, 2), "utf-8");
+    writeSecrets(current);
   } catch {
     /* best-effort */
   }

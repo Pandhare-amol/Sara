@@ -154,12 +154,32 @@ export class TaskManager extends EventEmitter {
     const task = this.repository.get(taskId);
     if (!task) return undefined;
 
+    const checks = Array.isArray(verificationResult?.checks) ? verificationResult.checks : [];
+    const checksPassed = checks.every((check: any) => check && check.passed === true);
+    const explicitlyVerified = Boolean(
+      verificationResult && verificationResult.attempted !== false && checksPassed &&
+      (verificationResult.verified === true || verificationResult.passed === true || String(verificationResult.status || "").toUpperCase() === "VERIFIED"),
+    );
+    if (!explicitlyVerified) {
+      const paused: TaskExecution = {
+        ...task,
+        status: TaskExecutionStatus.PAUSED,
+        verificationStatus: TaskVerificationStatus.UNCERTAIN,
+        verificationResult: verificationResult || task.verificationResult,
+        error: { code: "VERIFICATION_REQUIRED", message: "Task outcome is not independently verified. Review possible side effects before retrying." },
+        userVisibleStatus: "Paused for review",
+      };
+      this.repository.upsert(paused);
+      this.emit("task.paused", paused);
+      return { ...paused };
+    }
+
     const completed: TaskExecution = {
       ...task,
       status: TaskExecutionStatus.COMPLETED,
       completedAt: new Date().toISOString(),
-      verificationStatus: verificationResult ? TaskVerificationStatus.VERIFIED : TaskVerificationStatus.NOT_REQUIRED,
-      verificationResult: verificationResult || task.verificationResult,
+      verificationStatus: TaskVerificationStatus.VERIFIED,
+      verificationResult,
       userVisibleStatus: buildUserVisibleTaskStatus(TaskExecutionStatus.COMPLETED),
     };
     this.repository.upsert(completed);

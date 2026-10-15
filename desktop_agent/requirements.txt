@@ -1,27 +1,20 @@
-﻿# SARA Desktop Control Agent â€” Python dependencies
-# Install with the Python 3.11 interpreter, e.g.:
-#   "C:\Users\MSI\AppData\Local\Programs\Python\Python311\python.exe" -m pip install -r requirements.txt
-# Then install the Playwright browser once:
-#   "C:\...\Python311\python.exe" -m playwright install chromium
-#
-# NOTE: pytesseract also requires the Tesseract OCR engine to be installed
-#       on Windows (https://github.com/UB-Mannheim/tesseract/wiki). OCR tools
-#       will gracefully report "unavailable" if it is missing; all other
-#       capabilities work without it.
+# Python dependencies for the SARA desktop agent.
+# Install from the project root with: python -m pip install -r desktop_agent/requirements.txt
+# Install the OS-level Tesseract OCR engine separately if screen OCR is needed.
 
 fastapi==0.115.6
+cryptography>=44.0.0,<47.0.0
 uvicorn[standard]==0.34.0
 pyautogui==0.9.54
 playwright==1.49.1
 psutil==6.1.1
-pywin32==308
+pywin32==308; sys_platform == "win32"
 pyperclip==1.9.0
 pytesseract==0.3.13
 Pillow==11.0.0
-pycaw==20230407
-pygetwindow==0.0.9
+pycaw==20230407; sys_platform == "win32"
+pygetwindow==0.0.9; sys_platform == "win32"
 Send2Trash==1.8.3
 python-multipart==0.0.20
 # Best-effort NVIDIA GPU stats; optional import (graceful fallback if absent)
 nvidia-ml-py3==7.352.0
-

@@ -1,14 +1,19 @@
 const NON_RETRYABLE_TOOLS = new Set([
   "deleteFile",
+  "deleteFilePermanent",
   "requestPowerAction",
   "executePowerAction",
   "closeAllApplications",
   "whatsapp_send",
+  "whatsappSend",
   "whatsapp_reply",
+  "whatsappReply",
   "whatsapp_group_send",
   "whatsapp_send_media",
   "email_send",
+  "emailSend",
   "youtube_upload",
+  "youtubeUpload",
 ]);
 
 export interface RetryDecision {

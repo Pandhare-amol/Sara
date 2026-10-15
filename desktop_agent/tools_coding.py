@@ -7,8 +7,8 @@ Coding assistance: create code files, run Python scripts, scaffold projects.
   runPythonScript    -> execute a .py file with the known-good interpreter,
                         capturing stdout/stderr and exit code.
 
-The Python interpreter used for running scripts is auto-detected so it works
-even when the bare `python` shim is broken (common on this machine).
+The Python interpreter used for running scripts is selected from SARA_PYTHON,
+the active agent environment, or the host's PATH so the tool adapts across systems.
 """
 
 from __future__ import annotations
@@ -61,25 +61,18 @@ LANG_EXT: Dict[str, str] = {
 
 
 def _detect_python() -> str:
-    """Return a working Python interpreter path.
-
-    Prefers sys.executable (the interpreter running this agent), which is the
-    most reliable choice. Falls back to a known Windows location.
-    """
-    exe = sys.executable
-    if exe and Path(exe).exists():
-        return exe
+    """Return a usable interpreter configured for this installation."""
     candidates = [
-        r"C:\Users\MSI\AppData\Local\Programs\Python\Python311\python.exe",
-        r"C:\Python311\python.exe",
-        "python",
-        "python3",
+        os.environ.get("SARA_PYTHON"),
+        sys.executable,
+        shutil.which("python3"),
+        shutil.which("python"),
+        shutil.which("py"),
     ]
-    for c in candidates:
-        if shutil.which(c):
-            return c
-    raise ToolError("No usable Python interpreter found on this system.")
-
+    for candidate in candidates:
+        if candidate and (Path(candidate).is_file() or shutil.which(candidate)):
+            return candidate
+    raise ToolError("No usable Python interpreter found on this system. Set SARA_PYTHON or activate a Python environment.")
 
 @register("createPythonFile")
 def create_python_file(args: Dict[str, Any]) -> Dict[str, Any]:

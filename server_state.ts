@@ -447,14 +447,14 @@ export async function appendConversationMessage(message: ConversationMessage): P
 export async function getRecentConversationMessages(conversationId: string, limit = 20): Promise<ConversationMessage[]> { const conversation = await getConversation(conversationId); if (!conversation) return []; return conversation.messages.slice(-limit); }
 export async function loadTasks(): Promise<TaskRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((r: any[]) => { const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r; let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined; try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {} try { md = metadata ? JSON.parse(metadata) : undefined; } catch {} return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord; }); } catch {} } return await readJson<TaskRecord[]>(TASKS_FILE, []); }
 export async function saveTasks(tasks: TaskRecord[]): Promise<void> { await writeJson(TASKS_FILE, tasks); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const t of tasks) { const stmt = db.prepare("INSERT OR REPLACE INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"); stmt.run([t.taskId, t.conversationId, t.description, t.status, t.priority, t.assignedAgent || null, t.createdAt, t.updatedAt, t.startedAt || null, t.completedAt || null, t.checkpoint ? JSON.stringify(t.checkpoint) : null, t.result || null, t.error || null, t.retryCount || 0, t.metadata ? JSON.stringify(t.metadata) : null]); } db.run("COMMIT"); bridge.persist(); } catch {} }
-export async function createTask(data: { taskId?: string; conversationId: string; description: string; priority?: number; assignedAgent?: string; metadata?: Record<string, unknown>; }): Promise<TaskRecord> {
+export async function createTask(data: { taskId?: string; conversationId: string; description: string; priority?: number; assignedAgent?: string; status?: TaskStatus; metadata?: Record<string, unknown>; }): Promise<TaskRecord> {
   const tasks = await loadTasks();
   const timestamp = new Date().toISOString();
   const task: TaskRecord = {
     taskId: data.taskId || createId("task-"),
     conversationId: data.conversationId,
     description: data.description,
-    status: "queued",
+    status: data.status ?? "queued",
     priority: data.priority ?? 5,
     assignedAgent: data.assignedAgent,
     createdAt: timestamp,
@@ -487,14 +487,6 @@ export async function loadUnfinishedTasks(): Promise<TaskRecord[]> {
   return tasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
 }
 
-export async function setTaskRecovering(taskId: string): Promise<void> {
-  const tasks = await loadTasks();
-  const t = tasks.find(x => x.taskId === taskId);
-  if (!t) return;
-  t.status = 'RECOVERING' as TaskStatus;
-  t.updatedAt = new Date().toISOString();
-  await saveTasks(tasks);
-}
 export async function updateTask(taskId: string, patch: Partial<TaskRecord>): Promise<TaskRecord | null> {
   const tasks = await loadTasks();
   const task = tasks.find((item) => item.taskId === taskId);
@@ -813,14 +805,26 @@ export async function getIdempotencyEntry(id: string): Promise<IdempotencyRecord
   const bridge = await initSqlBridge();
   try {
     if (bridge?.db) {
-      const res = bridge.db.exec(`SELECT id,toolName,args,result,status,created_at FROM idempotency WHERE id='${id}' LIMIT 1;`);
-      if (!res?.[0] || !res[0].values.length) return null;
-      const [rid, toolName, args, result, status, created_at] = res[0].values[0];
-      let a: Record<string, unknown> | null = null;
-      let r: any = null;
-      try { a = args ? JSON.parse(args) : null; } catch {}
-      try { r = result ? JSON.parse(result) : result; } catch { r = result; }
-      return { id: rid, toolName: toolName || null, args: a, result: r, status: status || null, created_at: created_at || null } as IdempotencyRecord;
+      const statement = bridge.db.prepare("SELECT id,toolName,args,result,status,created_at FROM idempotency WHERE id = ? LIMIT 1;");
+      try {
+        statement.bind([id]);
+        if (!statement.step()) return null;
+        const row = statement.getAsObject() as Record<string, any>;
+        let args: Record<string, unknown> | null = null;
+        let result: any = null;
+        try { args = row.args ? JSON.parse(String(row.args)) : null; } catch {}
+        try { result = row.result ? JSON.parse(String(row.result)) : row.result; } catch { result = row.result; }
+        return {
+          id: String(row.id),
+          toolName: row.toolName || null,
+          args,
+          result,
+          status: row.status || null,
+          created_at: row.created_at || null,
+        };
+      } finally {
+        statement.free();
+      }
     }
   } catch {}
   // fallback: file based idempotency store

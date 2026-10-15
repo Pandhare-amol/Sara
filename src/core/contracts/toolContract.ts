@@ -69,12 +69,10 @@ export function finalStatusForToolResult(
   if (executionStatus === "TIMEOUT") {
     return "UNCERTAIN";
   }
-  if (
-    executionStatus === "SUCCESS" &&
-    (verificationStatus === "VERIFIED" || verificationStatus === "NOT_REQUIRED")
-  ) {
+  if (executionStatus === "SUCCESS" && verificationStatus === "VERIFIED") {
     return "SUCCESS";
   }
+  // NOT_REQUIRED means no independent postcondition check exists; do not imply completion.
   return "UNCERTAIN";
 }
 

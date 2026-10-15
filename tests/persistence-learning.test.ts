@@ -19,28 +19,41 @@ import {
 } from '../src/types/Memory';
 import { createClosedLoopTask } from '../src/types/ClosedLoopTask';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
-const testDataDir = path.join(process.cwd(), 'test_data');
-
-// Setup
-if (!fs.existsSync(testDataDir)) {
-  fs.mkdirSync(testDataDir, { recursive: true });
-}
+// Every persistence service in this suite must stay inside an isolated temp root.
+const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sara-persistence-learning-'));
 
 const memoryService = new MemoryService();
 const skillLibrary = new SkillLibrary();
 const strategyManager = new StrategyManager();
 const persistenceService = new MemoryPersistenceService({
-  dataDir: path.join(testDataDir, 'memories'),
+  dataDir: path.join(testDataDir, 'memory-persistence'),
   autoSaveInterval: 10000,
 });
 const learningService = new AdvancedLearningService(memoryService, skillLibrary);
 const workflowCoordinator = new LearningWorkflowCoordinator(memoryService, skillLibrary, {
   persistenceEnabled: true,
   learningEnabled: true,
+}, {
+  dataDir: path.join(testDataDir, 'workflow-persistence'),
+  autoSaveInterval: 10000,
 });
 const executor = new ClosedLoopExecutor();
+
+function assertWithinTestDataDir(target: string): void {
+  const resolvedRoot = path.resolve(testDataDir) + path.sep;
+  const resolvedTarget = path.resolve(target);
+  assert.ok(resolvedTarget.startsWith(resolvedRoot), `Persistence path escaped the isolated test directory: ${resolvedTarget}`);
+  assert.ok(!resolvedTarget.startsWith(path.resolve(process.cwd(), 'data') + path.sep), 'Persistence tests must never write under repository data/.');
+}
+
+test('Persistence fixtures are isolated from repository runtime data', () => {
+  assertWithinTestDataDir(path.join(testDataDir, 'memory-persistence'));
+  assertWithinTestDataDir(path.join(testDataDir, 'workflow-persistence'));
+  assertWithinTestDataDir(path.join(testDataDir, 'recovery-memories'));
+});
 
 // Cleanup function
 function cleanup() {
@@ -412,5 +425,6 @@ test('Integration: should handle persistence across task executions', async () =
 
 // Cleanup after all tests
 test.after(async () => {
+  await workflowCoordinator.shutdown(createMemoryStore());
   cleanup();
 });

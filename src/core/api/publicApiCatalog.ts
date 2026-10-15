@@ -133,7 +133,8 @@ export class PublicApiCatalogManager {
   private readonly storagePath: string;
 
   constructor(options: { storagePath?: string } = {}) {
-    this.storagePath = options.storagePath || path.join(process.cwd(), "data", "public-api-catalog.json");
+    const dataDirectory = process.env.SARA_DATA_DIR?.trim() || path.join(process.cwd(), "data");
+    this.storagePath = options.storagePath || path.join(dataDirectory, "public-api-catalog.json");
     this.ensureDirectory();
     this.loadFromDisk();
   }

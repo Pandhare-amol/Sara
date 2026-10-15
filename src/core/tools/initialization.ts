@@ -30,12 +30,9 @@ export function initializeToolExecution(
   // Register filesystem verifier
   const fsVerifier = new FilesystemVerifier();
   verificationRegistry.registerVerifier("filesystem", fsVerifier);
-  verificationRegistry.mapToolToVerifier("copyFile", ["filesystem"]);
-  verificationRegistry.mapToolToVerifier("moveFile", ["filesystem"]);
-  verificationRegistry.mapToolToVerifier("deleteFile", ["filesystem"]);
-  verificationRegistry.mapToolToVerifier("createFolder", ["filesystem"]);
-  verificationRegistry.mapToolToVerifier("renameFile", ["filesystem"]);
-  verificationRegistry.mapToolToVerifier("writeFile", ["filesystem"]);
+  for (const tool of ["copyFile", "duplicateFile", "moveFile", "deleteFile", "createFile", "createFolder", "renameFile", "writeFile"]) {
+    verificationRegistry.mapToolToVerifier(tool, ["filesystem"]);
+  }
 
   // Register window verifier
   const windowVerifier = new WindowVerifier(desktopAgentUrl);
@@ -56,12 +53,9 @@ export function initializeToolExecution(
   verificationRegistry.mapToolToVerifier("screenCapture", ["screen"]);
   verificationRegistry.mapToolToVerifier("desktopBrowserOpen", ["screen"]);
   verificationRegistry.mapToolToVerifier("desktopBrowserSearch", ["screen"]);
-  verificationRegistry.mapToolToVerifier("searchYouTube", ["screen"]);
-  verificationRegistry.mapToolToVerifier("youtube_search", ["screen"]);
-    verificationRegistry.mapToolToVerifier("youtube_play", ["screen"]);
-    verificationRegistry.mapToolToVerifier("youtube_resume", ["screen"]);
-    verificationRegistry.mapToolToVerifier("youtube_pause", ["screen"]);
-  verificationRegistry.mapToolToVerifier("openWebsite", ["screen"]);
+  verificationRegistry.mapToolToVerifier("youtube_play", ["screen"]);
+  verificationRegistry.mapToolToVerifier("youtube_resume", ["screen"]);
+  verificationRegistry.mapToolToVerifier("youtube_pause", ["screen"]);
 
   // Create execution orchestrator
   orchestrator = new ExecutionOrchestrator(toolRouter, verificationRegistry);

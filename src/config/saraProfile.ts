@@ -3,14 +3,16 @@ import * as path from "path";
 
 // A single central place for SARA's personality and voice configuration.
 export const SARA_VOICE_PROFILE = {
+  identity: "AI assistant",
+  persona_style: "warm_feminine_companion",
   gender_style: "female",
-  age_style: "young_adult",
+  age_style: "adult_voice_style",
   tone: "soft",
   warmth: "high",
   pitch: "stable",
   speaking_rate: "natural",
   expressiveness: "high",
-  voiceName: "Despina" // The consistent underlying TTS voice identity to use across all modes.
+  voiceName: "Despina" // Consistent underlying TTS voice for the selected persona style.
 };
 
 export type SaraMode = "NORMAL" | "PROFESSIONAL" | "FRIENDLY" | "COMPANION";

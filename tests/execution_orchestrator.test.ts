@@ -102,7 +102,7 @@ test("ExecutionOrchestrator sets status to failed when verification fails", asyn
   assert.equal(result.success, false);
 });
 
-test("ExecutionOrchestrator skips verification when disabled", async () => {
+test("ExecutionOrchestrator does not claim success when verification is disabled", async () => {
   const router = new ToolRouter({ isKnownTool: () => true });
   const registry = new VerificationRegistry();
 
@@ -119,7 +119,8 @@ test("ExecutionOrchestrator skips verification when disabled", async () => {
 
   assert.equal(result.executionStatus, "success");
   assert.equal(result.verificationStatus, "not_required");
-  assert.equal(result.success, true); // Success because verification not required
+  assert.equal(result.status, "uncertain");
+  assert.equal(result.success, false); // No verification means no success claim
 });
 
 test("VerificationEngine marks a task as verifying without treating it as skipped", async () => {

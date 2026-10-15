@@ -1,4 +1,4 @@
-﻿/* ===========================================================================
+/* ===========================================================================
  * SARA â€” Electron main process (Phase 1)
  * ---------------------------------------------------------------------------
  * Responsibilities in this phase:
@@ -185,6 +185,9 @@ function startBackend() {
   const agentExe = app.isPackaged
     ? path.join(process.resourcesPath, 'agent', 'sara-agent.exe')
     : path.join(APP_ROOT, 'agent_dist', 'sara-agent', 'sara-agent.exe');
+  if (app.isPackaged && !fs.existsSync(agentExe)) {
+    throw new Error(`Bundled desktop agent is missing at ${agentExe}. Rebuild the agent before packaging SARA.`);
+  }
 
   const env = {
     ...process.env,

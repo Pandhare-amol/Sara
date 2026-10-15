@@ -43,25 +43,22 @@ function normalizeVector(values: number[]): number[] {
   return values.map((v) => clamp01(Math.abs(v) / maxAbs));
 }
 
-export function buildVoiceFingerprint(sample: number[] | string): number[] {
+/**
+ * Normalize an already-extracted numeric feature vector for experimental
+ * similarity only. This module is not a speaker-biometric engine and must not
+ * be used to authenticate admins or approve sensitive actions. Text is
+ * deliberately rejected; transcript characters are not voice features.
+ */
+export function buildVoiceFingerprint(sample: number[] | Float32Array): number[] {
   const vectorLength = 8;
-  if (Array.isArray(sample)) {
-    const normalized = normalizeVector(sample);
-    const padded = Array.from({ length: vectorLength }, (_, index) => normalized[index] ?? normalized[normalized.length - 1] ?? 0);
-    return padded;
+  if ((!Array.isArray(sample) && !(sample instanceof Float32Array)) || sample.length === 0) {
+    throw new Error("Voice similarity requires a non-empty numeric audio-feature vector.");
   }
-
-  const text = sample.toLowerCase().trim();
-  if (!text) return Array.from({ length: vectorLength }, () => 0);
-
-  const chars = Array.from(text);
-  const values = chars.map((character) => character.charCodeAt(0) / 255);
-  const padded = Array.from({ length: vectorLength }, (_, index) => {
-    const value = values[index] ?? values[values.length - 1] ?? 0;
-    return clamp01(Number(value.toFixed(4)));
-  });
-
-  return padded;
+  if (Array.from(sample).some((value) => !Number.isFinite(value))) {
+    throw new Error("Voice feature vectors must contain only finite numbers.");
+  }
+  const normalized = normalizeVector(Array.from(sample));
+  return Array.from({ length: vectorLength }, (_, index) => normalized[index] ?? normalized[normalized.length - 1] ?? 0);
 }
 
 export function compareFingerprints(left: number[], right: number[]): { confidence: number; distance: number } {
@@ -93,14 +90,22 @@ export class VoiceProfileRepository {
   }
 
   save(profiles: VoiceProfile[]): void {
-    fs.writeFileSync(this.storePath, JSON.stringify(profiles, null, 2), "utf-8");
+    const temporary = `${this.storePath}.${process.pid}.tmp`;
+    try {
+      fs.writeFileSync(temporary, JSON.stringify(profiles, null, 2), { encoding: "utf-8", mode: 0o600 });
+      try { fs.chmodSync(temporary, 0o600); } catch { /* best-effort where ACLs differ */ }
+      fs.renameSync(temporary, this.storePath);
+      try { fs.chmodSync(this.storePath, 0o600); } catch { /* best-effort where ACLs differ */ }
+    } finally {
+      try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best-effort cleanup */ }
+    }
   }
 }
 
 export class VoiceEnrollmentService {
   constructor(private readonly repository: VoiceProfileRepository = new VoiceProfileRepository()) {}
 
-  enroll(input: { userId: string; displayName: string; fingerprint: number[] | string; sampleCount?: number; confidence?: number }): VoiceProfile {
+  enroll(input: { userId: string; displayName: string; fingerprint: number[] | Float32Array; sampleCount?: number; confidence?: number }): VoiceProfile {
     const profiles = this.repository.load();
     const timestamp = new Date().toISOString();
     const existing = profiles.find((profile) => profile.userId === input.userId);
@@ -147,7 +152,7 @@ export class SpeakerIdentificationService {
     return this.repository.load();
   }
 
-  identify(sample: number[] | string): SpeakerIdentificationResult | null {
+  identify(sample: number[] | Float32Array): SpeakerIdentificationResult | null {
     const fingerprint = buildVoiceFingerprint(sample);
     const profiles = this.repository.load().filter((profile) => profile.sampleCount >= this.policy.minSamples);
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   X, 
   ExternalLink, 
@@ -86,6 +86,33 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadStartRef = useRef<number>(0);
+  const bridgeRequestsRef = useRef(new Map<string, {
+    resolve: (value: any) => void;
+    reject: (error: Error) => void;
+    timer: number;
+  }>());
+
+  const sendFrameCommand = (command: string, payload: Record<string, unknown> = {}): Promise<any> => {
+    const frameWindow = iframeRef.current?.contentWindow;
+    if (!frameWindow) return Promise.reject(new Error("Browser frame is unavailable."));
+    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        bridgeRequestsRef.current.delete(requestId);
+        reject(new Error("The embedded page did not respond to the browser command."));
+      }, 3000);
+      bridgeRequestsRef.current.set(requestId, { resolve, reject, timer });
+      frameWindow.postMessage({ type: "SARA_COMMAND", requestId, command, payload }, "*");
+    });
+  };
+
+  useEffect(() => () => {
+    for (const pending of bridgeRequestsRef.current.values()) {
+      window.clearTimeout(pending.timer);
+      pending.reject(new Error("Browser closed before the command completed."));
+    }
+    bridgeRequestsRef.current.clear();
+  }, []);
 
   // Checks if a website cannot be embedded inside iframe containers due to security policies
   const checkIsRestricted = (urlStr: string): { restricted: boolean; reason: string } => {
@@ -226,7 +253,7 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
     let isMounted = true;
     const fetchStatus = async () => {
       try {
-        const res = await fetch("http://localhost:3001/api/status", { mode: "cors" });
+        const res = await fetch("/api/browser-automation/status");
         if (res.ok && isMounted) {
           const data = await res.json();
           setIsLocalConnected(true);
@@ -249,33 +276,38 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
     };
   }, []);
 
-  // Set hook error context on iframe document
+  // Opaque sandbox messages are accepted only from the current iframe window.
+  // Remote page scripts can request navigation, but can never invoke parent APIs.
   useEffect(() => {
-    const iframe = iframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      try {
-        iframe.contentWindow.onerror = (message, source, lineno, colno, error) => {
-          const errMsg = `${message} (Line ${lineno}:${colno}) at ${source}`;
-          setJsErrors(prev => [...prev.slice(-15), errMsg]);
-          return false;
-        };
-      } catch (err) {
-        // Cross origin issues (or sandbox restrictions) might block accessing contentWindow properties
-      }
-    }
-  }, [activeTab?.url]);
+    const handleFrameMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow || event.origin !== "null") return;
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
 
-  // Handle click interceptions from children iframe inside proxy
-  useEffect(() => {
-    const handleNavigationMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "NAVIGATE" && event.data.url) {
-        console.log("[Sara Browser] Same-origin child iframe navigated to:", event.data.url);
-        navigateToUrl(event.data.url);
+      if (data.type === "NAVIGATE" && typeof data.url === "string") {
+        try {
+          const target = new URL(data.url, activeTab?.url || window.location.href);
+          if ((target.protocol === "http:" || target.protocol === "https:") && !target.username && !target.password) {
+            navigateToUrl(target.toString());
+          }
+        } catch {
+          // Ignore malformed requests from embedded content.
+        }
+        return;
+      }
+
+      if (data.type === "SARA_RESULT" && typeof data.requestId === "string") {
+        const pending = bridgeRequestsRef.current.get(data.requestId);
+        if (!pending) return;
+        window.clearTimeout(pending.timer);
+        bridgeRequestsRef.current.delete(data.requestId);
+        if (data.ok === true) pending.resolve(data.result);
+        else pending.reject(new Error(String(data.error || "Embedded browser command failed.")));
       }
     };
-    window.addEventListener("message", handleNavigationMessage);
-    return () => window.removeEventListener("message", handleNavigationMessage);
-  }, [activeTabId]);
+    window.addEventListener("message", handleFrameMessage);
+    return () => window.removeEventListener("message", handleFrameMessage);
+  }, [activeTab?.url, activeTabId]);
 
   // Voice command trigger execution (Direct same-origin DOM browser automation)
   useEffect(() => {
@@ -337,89 +369,49 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
             break;
           }
           case "browserScroll": {
-            const direction = args.direction || "down";
-            const amount = args.amount || 350;
-            const iframe = iframeRef.current;
-            if (iframe && iframe.contentWindow) {
-              iframe.contentWindow.scrollBy({ top: direction === "down" ? amount : -amount, behavior: "smooth" });
-              callback({ result: `Working on it. Scrolled the browser view ${direction}.` });
-            } else {
-              callback({ error: "Cannot automate scrolling on empty home tab." });
-            }
+            const direction = args.direction === "up" ? "up" : "down";
+            const requested = Number(args.amount || 350);
+            const amount = Math.max(50, Math.min(Number.isFinite(requested) ? requested : 350, 1500));
+            const result = await sendFrameCommand("scroll", { direction, amount });
+            callback({ result: result?.message || `Scrolled the browser view ${direction}.` });
             break;
           }
           case "browserType": {
-            const text = args.text;
-            const iframe = iframeRef.current;
-            if (iframe && iframe.contentWindow) {
-              const doc = iframe.contentWindow.document;
-              const inputEl = doc.querySelector('input[type="text"], input[type="search"], textarea, [contenteditable="true"]') as HTMLElement;
-              if (inputEl) {
-                inputEl.focus();
-                if (inputEl instanceof HTMLInputElement || inputEl instanceof HTMLTextAreaElement) {
-                  inputEl.value = text;
-                  inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                  inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                } else {
-                  inputEl.innerText = text;
-                }
-                callback({ result: `Typing in "${text}" for you.` });
-              } else {
-                callback({ error: "Could not find a secure input block to target typing." });
-              }
-            } else {
-              callback({ error: "No website active to command typing." });
-            }
+            const text = String(args.text || "").slice(0, 2000);
+            if (!text) throw new Error("Text to type is required.");
+            const result = await sendFrameCommand("type", { text });
+            callback({ result: result?.message || "Typed the requested text in the embedded page." });
             break;
           }
           case "browserClick": {
-            const selector = args.selector;
-            const iframe = iframeRef.current;
-            if (iframe && iframe.contentWindow) {
-              const doc = iframe.contentWindow.document;
-              let element = doc.querySelector(selector) as HTMLElement;
-              if (!element) {
-                // High tolerance text searching
-                const elements = Array.from(doc.querySelectorAll('a, button, [role="button"], span, h3')) as HTMLElement[];
-                element = elements.find(el => el.textContent?.toLowerCase().includes(selector.toLowerCase())) as HTMLElement;
-              }
-              if (element) {
-                element.click();
-                callback({ result: `Success. Clicked the selected item.` });
-              } else {
-                callback({ error: `Could not identify any element resembling "${selector}".` });
-              }
-            } else {
-              callback({ error: "Browser viewport frame empty." });
-            }
+            const selector = String(args.selector || "").slice(0, 250);
+            if (!selector) throw new Error("A button label or selector is required.");
+            const result = await sendFrameCommand("click", { selector });
+            callback({ result: result?.message || "Clicked the requested page element." });
             break;
           }
           case "browserMediaControl": {
-            const action = args.action;
-            const value = args.value;
-            const iframe = iframeRef.current;
-            if (iframe && iframe.contentWindow) {
-              const doc = iframe.contentWindow.document;
-              const video = doc.querySelector('video') as HTMLVideoElement;
-              if (video) {
-                if (action === "play") video.play();
-                else if (action === "pause") video.pause();
-                else if (action === "volume") video.volume = value !== undefined ? value / 100 : 0.75;
-                else if (action === "mute") video.muted = true;
-                else if (action === "unmute") video.muted = false;
-                else if (action === "skip") video.currentTime += 30;
-                callback({ result: `Done. Executed player action: ${action}.` });
-              } else {
-                // Post command directly to embed API if running YouTube iframe
-                iframe.contentWindow.postMessage(JSON.stringify({
-                  event: "command",
-                  func: action === "play" ? "playVideo" : action === "pause" ? "pauseVideo" : action === "volume" && value ? "setVolume" : "",
-                  args: action === "volume" ? [value] : []
-                }), "*");
-                callback({ result: `Done. Sent playing command to YouTube.` });
-              }
+            const action = String(args.action || "");
+            const requestedVolume = Number(args.value ?? 75);
+            const value = Math.max(0, Math.min(Number.isFinite(requestedVolume) ? requestedVolume : 75, 100));
+            const frameWindow = iframeRef.current?.contentWindow;
+            if (!frameWindow) throw new Error("The browser frame is unavailable.");
+
+            const isYouTubeEmbed = Boolean(activeTab?.url && /(?:youtube\.com|youtu\.be)/i.test(activeTab.url));
+            if (isYouTubeEmbed) {
+              const func = action === "play" ? "playVideo"
+                : action === "pause" ? "pauseVideo"
+                  : action === "volume" ? "setVolume"
+                    : action === "mute" ? "mute"
+                      : action === "unmute" ? "unMute"
+                        : action === "skip" ? "seekTo" : "";
+              if (!func) throw new Error("Unsupported media action.");
+              const args = action === "volume" ? [value] : action === "skip" ? [30, true] : [];
+              frameWindow.postMessage(JSON.stringify({ event: "command", func, args }), "https://www.youtube.com");
+              callback({ result: `Sent the ${action} command to the YouTube player.` });
             } else {
-              callback({ error: "Active streaming panel is empty." });
+              const result = await sendFrameCommand("media", { action, value });
+              callback({ result: result?.message || `Executed media action: ${action}.` });
             }
             break;
           }
@@ -622,20 +614,8 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
         title: getCleanTitleFromUrl(t.url)
       } : t));
 
-      // Attempt to inspect same-origin document body for server errors
-      try {
-        const iframe = iframeRef.current;
-        if (iframe && iframe.contentDocument) {
-          const bodyTxt = iframe.contentDocument.body?.innerText || "";
-          if (bodyTxt.includes("Sara Web Proxy Error") || bodyTxt.includes("Failed loading remote website")) {
-            setDiagnosticStatus("error");
-            setDiagnosticReason(bodyTxt);
-            setNetworkErrors(prev => [...prev, "Proxy server failed to resolve target host."]);
-          }
-        }
-      } catch (err) {
-        // Safe to ignore cross-origin security rules
-      }
+      // Proxied content is intentionally opaque-origin; never inspect its DOM.
+      // Network failures are reported by the browser's iframe load state only.
     }
   };
 
@@ -644,6 +624,12 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
     setCopiedSection(identifier);
     setTimeout(() => setCopiedSection(null), 2000);
   };
+
+  const iframeUrl = getRenderUrl(activeTab?.url || "about:blank");
+  const isYouTubePlayer = /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}(?:\?|$)/.test(iframeUrl);
+  const iframeSandbox = isYouTubePlayer
+    ? "allow-scripts allow-same-origin allow-presentation"
+    : "allow-scripts allow-forms allow-presentation";
 
   return (
     <div
@@ -1048,7 +1034,8 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
               <div className="flex-1 w-full h-full relative overflow-hidden">
                 <iframe
                   ref={iframeRef}
-                  src={getRenderUrl(activeTab?.url || "about:blank")}
+                  src={iframeUrl}
+                  sandbox={iframeSandbox}
                   onLoad={handleIframeLoadComplete}
                   className="w-full h-full border-0 absolute inset-0 bg-[#07070a]"
                   allow="autoplay; encrypted-media; fullscreen"

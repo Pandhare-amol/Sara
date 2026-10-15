@@ -12,6 +12,12 @@ test("retry policy blocks dangerous retries without confirmation", () => {
   assert.equal(decision.reason?.includes("Explicit confirmation"), true);
 });
 
+test("retry policy blocks camelCase WhatsApp and email send tools too", () => {
+  for (const tool of ["whatsappSend", "whatsapp_send", "emailSend", "email_send", "youtubeUpload"]) {
+    assert.equal(evaluateRetryPolicy(tool).allowed, false, `${tool} must require explicit confirmation`);
+  }
+});
+
 test("retry policy permits explicitly confirmed dangerous retries", () => {
   assert.deepEqual(evaluateRetryPolicy("deleteFile", true), { allowed: true });
 });

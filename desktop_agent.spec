@@ -1,4 +1,4 @@
-﻿# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec for the SARA Desktop Control Agent.
 
@@ -15,6 +15,8 @@ Notes:
   gracefully. Every other capability works without it.
 - console=False â†’ the agent runs with no console window (silent background).
 """
+
+import os
 
 from PyInstaller.utils.hooks import collect_submodules
 
@@ -38,11 +40,13 @@ hiddenimports += [
     "desktop_agent.tools_coding",
     "desktop_agent.tools_system",
     "desktop_agent.tools_startup",
+    "desktop_agent.android_companion",
+    "desktop_agent.android_tools",
 ]
 
 # Web stack â€” uvicorn pulls its loop/protocol/lifespan submodules dynamically.
 hiddenimports += collect_submodules("uvicorn")
-hiddenimports += ["anyio", "click", "h11", "fastapi", "starlette", "pydantic"]
+hiddenimports += ["anyio", "click", "h11", "fastapi", "starlette", "pydantic", "cryptography.fernet"]
 
 # Windows automation / audio / screen libraries with dynamic submodules.
 hiddenimports += collect_submodules("pycaw")
@@ -71,14 +75,16 @@ for opt in ("pytesseract", "send2trash", "nvidia_ml_py3", "pynvml"):
     except Exception:
         pass
 
+agent_datas = []
+for source_dir, target_dir in (("data/porcupine", "data/porcupine"), ("desktop_agent/models", "desktop_agent/models")):
+    if os.path.isdir(source_dir):
+        agent_datas.append((source_dir, target_dir))
+
 a = Analysis(
     ["run_agent.py"],
     pathex=[],
     binaries=[],
-    datas=[
-        ("data/porcupine", "data/porcupine"),
-        ("desktop_agent/models", "desktop_agent/models"),
-    ],
+    datas=agent_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

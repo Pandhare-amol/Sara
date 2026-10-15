@@ -11,8 +11,9 @@ from .registry import register
 @register("saraAndroidPair")
 def sara_android_pair(args: Dict[str, Any]) -> Dict[str, Any]:
     name = str(args.get("name") or "Android Device")
-    token = str(args.get("token") or "sara-token")
-    device = ANDROID_COMPANION_MANAGER.register_device(name, token)
+    device_id = str(args.get("device_id") or "") or None
+    token = str(args.get("token") or "")
+    device = ANDROID_COMPANION_MANAGER.register_device(name, token, device_id=device_id)
     return {"result": device}
 
 
