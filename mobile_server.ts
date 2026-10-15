@@ -1,17 +1,67 @@
 import express from "express";
+import http from "http";
+import https from "https";
 import dotenv from "dotenv";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 import { loadMemories, saveMemories, formatSystemInstructionsWithMemories, searchMemories, processConversationSlice } from "./server_memory";
 import { dataFile, getGeminiApiKey, hasGeminiApiKey, setGeminiApiKey } from "./server_paths";
 import { Memory } from "./src/lib/memoryTypes";
+import {
+  constantTimeStringEqual,
+  isHostAllowed,
+  isLoopbackAddress,
+  isLoopbackHost,
+  isOriginAllowed,
+  parseCsvSet,
+} from "./src/security/requestGuards";
 
 dotenv.config();
 
 const PORT = Number(process.env.MOBILE_SERVER_PORT || 3001);
+const BIND_HOST = String(process.env.SARA_MOBILE_SERVER_HOST || "127.0.0.1").trim();
+const REMOTE_ACCESS_TOKEN = String(process.env.SARA_REMOTE_ACCESS_TOKEN || "").trim();
+const TLS_CERT_FILE = String(process.env.SARA_TLS_CERT_FILE || "").trim();
+const TLS_KEY_FILE = String(process.env.SARA_TLS_KEY_FILE || "").trim();
+if (!Number.isFinite(PORT) || PORT < 1 || PORT > 65535) throw new Error("Invalid MOBILE_SERVER_PORT.");
+if (!isLoopbackHost(BIND_HOST)) {
+  if (REMOTE_ACCESS_TOKEN.length < 32) throw new Error("Non-loopback mobile-server binding requires a 32-character SARA_REMOTE_ACCESS_TOKEN.");
+  if (!TLS_CERT_FILE || !TLS_KEY_FILE) throw new Error("Non-loopback mobile-server binding requires SARA_TLS_CERT_FILE and SARA_TLS_KEY_FILE.");
+}
+
+const allowedHosts = new Set(["localhost", "127.0.0.1", "::1", ...parseCsvSet(process.env.SARA_ALLOWED_HOSTS)]);
+const allowedOrigins = parseCsvSet(process.env.SARA_ALLOWED_ORIGINS);
 const app = express();
 app.disable("x-powered-by");
-app.use(express.json());
+app.use((req, res, next) => {
+  const hostHeader = String(req.headers.host || "");
+  if (!isHostAllowed(hostHeader, allowedHosts)) return res.status(403).json({ error: "Unrecognized Host header." });
+
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && !isOriginAllowed(origin, hostHeader, allowedOrigins, String(PORT))) {
+    return res.status(403).json({ error: "Cross-origin mobile API requests are not allowed." });
+  }
+  if (typeof origin === "string") {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,X-SARA-Access-Token");
+    return res.status(204).end();
+  }
+
+  if (!isLoopbackAddress(req.socket.remoteAddress)) {
+    const authorization = String(req.headers.authorization || "");
+    const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+    const provided = bearer || String(req.headers["x-sara-access-token"] || "");
+    if (!REMOTE_ACCESS_TOKEN || !constantTimeStringEqual(REMOTE_ACCESS_TOKEN, provided)) {
+      return res.status(401).json({ error: "Remote mobile API access requires a valid SARA access token." });
+    }
+  }
+  next();
+});
+app.use(express.json({ limit: "1mb" }));
 
 function parseJsonWithBom<T>(value: string): T {
   const normalized = value.replace(/(^\uFEFF|\u200B)/g, "").trim();
@@ -110,26 +160,25 @@ app.get("/api/config", (_req, res) => {
 });
 
 app.post("/api/config/apikey", async (req, res) => {
+  const key = String(req.body?.apiKey ?? "").trim();
+  if (!key) return res.status(400).json({ ok: false, error: "API key is required." });
+  if (key.length > 512 || /[\r\n\u0000]/.test(key)) {
+    return res.status(400).json({ ok: false, error: "API key format is invalid." });
+  }
+
   try {
-    const key = String(req.body?.apiKey ?? "").trim();
-    if (!key) {
-      return res.status(400).json({ error: "API key is required." });
-    }
-    try {
-      const test = new GoogleGenAI({ apiKey: key });
-      const pager = await test.models.list();
-      await pager[Symbol.asyncIterator]().next();
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      const isAuthError = /API[_ ]?KEY|PERMISSION_DENIED|UNAUTHENTICATED|invalid|401|403/i.test(msg);
-      if (isAuthError) {
-        return res.status(400).json({ error: "That key was rejected by Google. Check it and try again." });
-      }
-    }
+    const test = new GoogleGenAI({ apiKey: key });
+    const pager = await test.models.list();
+    await pager[Symbol.asyncIterator]().next();
     setGeminiApiKey(key);
-    res.json({ ok: true, hasApiKey: true });
+    return res.json({ ok: true, hasApiKey: true });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to save API key." });
+    const message = String(error?.message || error);
+    const isRejectedKey = /API[_ ]?KEY|PERMISSION_DENIED|UNAUTHENTICATED|invalid|\b401\b|\b403\b/i.test(message);
+    if (isRejectedKey) {
+      return res.status(400).json({ ok: false, error: "Google rejected that API key. Check it and try again." });
+    }
+    return res.status(502).json({ ok: false, error: "Could not verify the API key with Google. Check the network and try again." });
   }
 });
 
@@ -160,6 +209,11 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Mobile SARA server listening at http://0.0.0.0:${PORT}`);
+const remoteBind = !isLoopbackHost(BIND_HOST);
+const server = remoteBind
+  ? https.createServer({ cert: fs.readFileSync(TLS_CERT_FILE), key: fs.readFileSync(TLS_KEY_FILE) }, app)
+  : http.createServer(app);
+const scheme = remoteBind ? "https" : "http";
+server.listen(PORT, BIND_HOST, () => {
+  console.log(`Mobile SARA server listening at ${scheme}://${BIND_HOST}:${PORT}`);
 });

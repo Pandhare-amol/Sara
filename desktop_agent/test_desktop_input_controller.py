@@ -23,6 +23,15 @@ class FakePyAutoGui:
     def mouseUp(self, button):
         self.calls.append(("mouseUp", button))
 
+    def click(self, *args, **kwargs):
+        self.calls.append(("click", *args, tuple(sorted(kwargs.items()))))
+
+    def press(self, key):
+        self.calls.append(("press", key))
+
+    def scroll(self, amount):
+        self.calls.append(("scroll", amount))
+
     def dragTo(self, x, y, duration, button):
         self.calls.append(("dragTo", x, y, duration, button))
         self.current_position = (x, y)
@@ -58,6 +67,40 @@ class DesktopInputControllerTest(unittest.TestCase):
         self.assertEqual(self.backend.calls[0], ("dragTo", 100, 200, 0.2, "left"))
         self.assertTrue(result["action_sent"])
         self.assertFalse(result["verified"])
+
+    def test_key_press_reports_delivery_without_claiming_physical_verification(self):
+        with patch.object(self.controller, "_backend", return_value=self.backend):
+            result = self.controller.press(["ctrl", "c"])
+
+        self.assertTrue(result["action_sent"])
+        self.assertFalse(result["verified"])
+        self.assertIn(("hotkey", "ctrl", "c"), self.backend.calls)
+
+    def test_click_requires_both_coordinates_and_scroll_is_bounded(self):
+        with patch.object(self.controller, "_backend", return_value=self.backend):
+            with self.assertRaisesRegex(Exception, "both x and y"):
+                self.controller.click({"x": 10})
+            result = self.controller.scroll(10_000)
+
+        self.assertEqual(result["amount"], 200)
+        self.assertIn(("scroll", 200), self.backend.calls)
+
+    def test_emergency_release_reports_backend_failures(self):
+        class FailingReleaseBackend(FakePyAutoGui):
+            def keyUp(self, key):
+                self.calls.append(("keyUpFailed", key))
+                raise RuntimeError("release failed")
+
+        backend = FailingReleaseBackend()
+        self.controller._held_keys.add("ctrl")
+        self.controller._held_buttons.add("left")
+        with patch.object(self.controller, "_backend", return_value=backend):
+            result = self.controller.emergency_release()
+
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["failed_keys"], ["ctrl"])
+        self.assertEqual(result["released_buttons"], ["left"])
+        self.assertIn("ctrl", self.controller._held_keys)
 
     def test_unicode_typing_restores_clipboard(self):
         clipboard = ["user clipboard"]

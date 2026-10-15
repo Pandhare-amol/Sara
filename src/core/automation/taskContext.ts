@@ -5,6 +5,7 @@ export type AutomationTaskState =
   | "WAITING"
   | "WAITING_FOR_USER"
   | "RECOVERING"
+  | "PAUSED"
   | "RETRYING"
   | "VERIFYING"
   | "COMPLETED"

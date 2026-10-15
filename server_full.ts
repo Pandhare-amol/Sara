@@ -1,8 +1,20 @@
 import express from "express";
 import crypto from "crypto";
 import http from "http";
+import https from "https";
 import path from "path";
-import { spawn, execSync } from "child_process";
+import { isIP } from "node:net";
+import { fetchPublicUrl } from "./src/security/safeRemoteFetch";
+import {
+  constantTimeStringEqual,
+  hostFromHeader,
+  isHostAllowed,
+  isLoopbackAddress,
+  isLoopbackHost,
+  isOriginAllowed,
+  parseCsvSet,
+} from "./src/security/requestGuards";
+import { spawn, execFileSync } from "child_process";
 import { WebSocketServer } from "ws";
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from "@google/genai";
 import dotenv from "dotenv";
@@ -20,34 +32,31 @@ import {
 } from "./server_memory";
 import { gatherBuildIdentity, loadBuildManifest } from "./src/security/buildIdentity";
 import { AuditLogger } from "./src/security/auditLogger";
+import { decodeMobileImage, storeMobileImage } from "./src/security/mobileImageStorage";
+import { verifyCompanionToken } from "./src/security/companionTokens";
 import cognitiveRoutes from "./src/cognitive/routes";
 import { ToolRouter } from "./src/core/tools/toolRouter";
+import { getDesktopAgentPythonCandidates } from "./src/core/pythonRuntime";
 import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
 import { AutomationOrchestrator, isAsyncAutomationTool } from "./src/core/automation/automationOrchestrator";
 import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
 import { evaluateRetryPolicy } from "./src/core/tools/retryPolicy";
-import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
+import { getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
+import { resolveVoicePreferences } from "./src/config/voicePreferences";
+import { AdminPasskeyManager } from "./src/security/adminPasskeys";
+import { AdminAuthAbuseTracker } from "./src/security/adminAuthAbuse";
+import { sanitizeGestureConfig } from "./src/security/gestureConfig";
 
-const SARA_SYSTEM_PROMPT_BASE = `You are Sara, a young Indian female AI personal assistant aged 20 to 25.
-Speak with a naturally feminine, soft, warm, and intelligent voice.
-Keep your tone calm, clear, confident, and emotionally aware.
-Sound like a real young Indian woman having a natural conversation.
-Use natural Indian English pronunciation that is internationally understandable.
-Avoid sounding robotic, overly dramatic, childlike, or like a generic virtual assistant.
+const SARA_SYSTEM_PROMPT_BASE = `You are SARA, an AI assistant with a warm, feminine, friendly conversational style. The user may prefer a companion-like tone; be kind, attentive, respectful, and lightly playful without implying that you are human, a romantic partner, or a particular age.
+Use natural, clear English and a gentle, expressive voice. Avoid robotic phrasing, excessive pet names, or pretending to have feelings, memories, or experiences you do not have.
 
-Always remain consistent in voice, personality, and warmth across the conversation.
-You are intelligent, helpful, respectful, slightly playful, and proactive.
-When speaking, be gentle, pleasant, smooth, and slightly expressive.
-Never over-pronounce punctuation or read text mechanically.
+Be transparent when asked about your identity or capabilities: you are an AI assistant, not a human, AGI, or ASI. Do not claim independent consciousness, unlimited autonomy, universal operating-system control, or continuous availability.
 
-For simple commands, reply with a short, direct spoken acknowledgement.
-For more complex tasks, acknowledge quickly and provide progress updates only when useful.
-If a task succeeds, say it clearly and briefly.
-If an error happens, be gentle, honest, and reassuring.
+You may plan and complete bounded tasks using tools that are actually available and supported on this installation. Verify results, describe limitations honestly, and ask for explicit approval before destructive, sensitive, or externally visible actions. Never treat a suggestion as permission to send a message.
 
-Use natural pacing and phrasing with appropriate pauses between thoughts.
-Do not sound like a call-center operator, GPS voice, news reader, or generic assistant.
-Keep your responses warm, modern, and believable as SARA, the young Indian AI assistant.
+Conversation and task continuity depend on what this installation has actually saved. Reconnection is best-effort and bounded; interrupted tasks may require review. Do not claim that unsaved information will persist.
+
+For simple requests, respond briefly. For complex work, acknowledge the task and share useful progress updates. If an operation fails or a capability is unavailable, explain that plainly and offer a safe next step.
 `;
 /*
   Additional human-safety and response guidance omitted here.
@@ -80,6 +89,7 @@ import {
   loadUnfinishedTasks,
   getLastSession,
   getRecentConversationMessages,
+  loadToolCalls,
   upsertSession,
   createTask,
   updateTask,
@@ -94,6 +104,9 @@ import { financeApiTool } from './src/core/api/tools/FinanceApiAdapter';
 import { searchApiTool } from './src/core/api/tools/SearchApiAdapter';
 import { weatherApiTool } from './src/core/api/tools/WeatherApiAdapter';
 import { publicApiCatalogManager } from './src/core/api/publicApiCatalog';
+import { apiRegistry } from "./src/core/api/ApiRegistry";
+import { apiCredentialManager } from "./src/core/api/ApiCredentialManager";
+import { apiHealthMonitor } from "./src/core/api/ApiHealthMonitor";
 import { contextManager } from './src/core/context/ContextManager';
 import { userIdentityManager } from './src/core/identity/UserIdentityManager';
 import { conversationIntentAnalyzer } from './src/core/conversation/ConversationIntentAnalyzer';
@@ -102,8 +115,15 @@ import { autonomousMusicCreator } from './src/services/music_studio/autonomous_c
 import { MusicProjectManager } from './src/services/music_studio/project_manager';
 import { musicProviderRegistry } from './src/services/music_studio/provider_registry';
 import { musicContentPreparation } from './src/services/music_studio/content_preparation';
+import { LocalCalendarService } from "./src/services/LocalCalendarService";
+import { SystemResourceMonitor, type SystemResourceAlert, type SystemResourceSnapshot } from "./src/services/SystemResourceMonitor";
+import { SecurityAlertStore, handleSecurityAlertsRequest } from "./src/security/securityAlertStore";
+import { LocalProjectManager } from "./src/services/LocalProjectManager";
 
 dotenv.config();
+
+const localCalendarService = new LocalCalendarService(dataFile("calendar-events.json"));
+const generalProjectManager = new LocalProjectManager(dataFile("general-projects.json"));
 
 // ---------------------------------------------------------------------------
 // SARA V2 â€” Logging (Feature 7).
@@ -124,6 +144,57 @@ function appendLog(fileName: string, message: string): void {
 const logCommand = (m: string) => appendLog("commands.log", m);
 const logStartup = (m: string) => appendLog("startup.log", m);
 const logError = (m: string) => appendLog("errors.log", m);
+
+function loadCompanionRecords(): any[] {
+  const companionsFile = dataFile("companions.json");
+  try {
+    const parsed = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : [];
+    if (Array.isArray(parsed)) return parsed.filter((entry) => entry && typeof entry === "object");
+    if (parsed && typeof parsed === "object") return Object.values(parsed).filter((entry: any) => entry && typeof entry === "object");
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+function saveCompanionRecords(records: any[]): void {
+  const file = dataFile("companions.json");
+  const temporary = `${file}.${crypto.randomBytes(8).toString("hex")}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(temporary, JSON.stringify(records, null, 2), { encoding: "utf-8", mode: 0o600 });
+    fs.renameSync(temporary, file);
+    try { fs.chmodSync(file, 0o600); } catch {}
+  } finally {
+    try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch {}
+  }
+}
+
+function authenticateCompanion(deviceId: string, token: string): any | null {
+  if (!deviceId || !token) return null;
+  const list = loadCompanionRecords();
+  const record = list.find((entry) => entry.id === deviceId && !entry.revoked);
+  if (!record || !verifyCompanionToken(record, token)) return null;
+
+  // Migrate legacy plaintext or old Python-format records immediately after a
+  // successful check; neither service writes reusable plaintext credentials.
+  if (typeof record.token === "string" || record.token_hash || record.token_salt) {
+    const salt = crypto.randomBytes(16).toString("hex");
+    record.hash = crypto.scryptSync(token, salt, 64).toString("hex");
+    record.salt = salt;
+    delete record.token;
+    delete record.token_hash;
+    delete record.token_salt;
+    try { saveCompanionRecords(list); } catch {}
+  }
+  return record;
+}
+
+function authenticateCompanionRequest(req: any): any | null {
+  const deviceId = String(req.body?.device_id ?? req.body?.id ?? req.headers?.["x-companion-id"] ?? "");
+  const token = String(req.body?.token ?? req.headers?.["x-companion-token"] ?? "");
+  return authenticateCompanion(deviceId, token);
+}
 
 // Security subsystems initialized at startup
 
@@ -192,6 +263,8 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   // Screen monitoring / live capture
   "saraScreenMonitorStart", "saraScreenMonitorStop", "saraScreenMonitorStatus",
   "saraScreenMonitorSample", "saraScreenLiveStart", "saraScreenLiveStop", "saraScreenLiveStatus",
+  // Server-side WhatsApp bridge tools (approval is enforced at the transport layer)
+  "whatsapp_send", "whatsappSend", "whatsappIncoming", "whatsappsuggest",
   // Android companion suite
   "saraAndroidPair", "saraAndroidPlan", "saraAndroidExecute",
   // Multi-agent & system orchestration tools
@@ -199,7 +272,11 @@ const DESKTOP_TOOLS: ReadonlySet<string> = new Set([
   "saraTaskSubmit", "saraTaskStatus", "saraTaskList", "saraTaskCancel",
   "saraMemorySearch", "saraRagIndex", "saraRagRetrieve", "saraSecurityAssess",
   "saraProactiveEvaluate", "saraProactiveRecordOutcome", "saraEmotionalState", "saraQuietMode",
+  "saraSocialPlanResponse", "saraSocialRecordTurn", "saraSocialShouldRespond", "saraSocialSettings", "saraSocialStatus",
 ]);
+
+const API_TOOL_NAMES: ReadonlySet<string> = new Set(["getWeather", "getNews", "getFinanceData", "searchPublicWeb"]);
+const LOCAL_CALENDAR_TOOL_NAMES: ReadonlySet<string> = new Set(["calendarListEvents", "calendarCreateEvent", "calendarDeleteEvent"]);
 
 /**
  * Call the Python desktop agent.  Returns the parsed JSON response.
@@ -251,24 +328,20 @@ function spawnDesktopAgent(): void {
     }
   }
 
-  // Development fallback: run the agent from source using a local Python.
-  const candidates = [
-    process.env.SARA_PYTHON,
-    "C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-    "python",
-    "python3",
-  ].filter(Boolean) as string[];
-  const py = candidates.find((p) => {
+  // Development fallback: prefer explicitly configured and project-local runtimes,
+  // then use platform-appropriate Python launchers from PATH.
+  const candidates = getDesktopAgentPythonCandidates(process.platform, process.cwd(), process.env);
+  const py = candidates.find((candidate) => {
     try {
-      execSync(`"${p}" --version`, { stdio: "ignore" });
+      execFileSync(candidate, ["-c", "import uvicorn"], { stdio: "ignore", timeout: 5000 });
       return true;
     } catch {
       return false;
     }
   });
   if (!py) {
-    console.warn("[Desktop Agent] No frozen agent and no Python interpreter found; desktop control unavailable.");
-    logError("AGENT_SPAWN_NO_RUNTIME: neither SARA_AGENT_EXE nor Python available");
+    console.warn("[Desktop Agent] No Python runtime with uvicorn was found; desktop control is unavailable. Set SARA_PYTHON or install project requirements.");
+    logError("AGENT_SPAWN_NO_RUNTIME: neither SARA_AGENT_EXE nor Python with uvicorn available");
     return;
   }
   try {
@@ -338,12 +411,15 @@ async function callDesktopAgentTransport(
   // whatsapp-related tasks without relying on the Desktop Agent process.
   try {
     const t = String(tool || '').toLowerCase();
-    if (t === 'whatsappsend' || t === 'whatsapp.send' || t === 'whatsapp_send' || t === 'whatsappsend') {
+    if (t === 'whatsappsend' || t === 'whatsapp.send' || t === 'whatsapp_send') {
+      const confirmed = (args || {})['confirmed'] === true || (originalArgs || {})['confirmed'] === true;
+      if (!confirmed) return { ok: false, error: 'WAITING_FOR_APPROVAL' };
       const to = String((args || {})['to'] || (args || {})['phone'] || '');
       const text = String((args || {})['text'] || (args || {})['message'] || '');
       if (!to || !text) return { ok: false, error: 'Missing to/text for whatsapp send' };
       try {
-        const result = await whatsappClient.sendTextMessage(to, text, String(originalArgs?.['taskId'] || args?.['taskId'] || ''));
+        const clientMessageId = String(originalArgs?.['clientMessageId'] || args?.['clientMessageId'] || originalArgs?.['taskId'] || args?.['taskId'] || '');
+        const result = await whatsappClient.sendTextMessage(to, text, clientMessageId);
         return { ok: true, result };
       } catch (e: any) {
         return { ok: false, error: String(e?.message || e) };
@@ -405,20 +481,17 @@ async function callDesktopAgentTransport(
           }
         } catch (e) {}
 
-        // Auto-send if requested: enqueue a tracked Task instead of sending
+        // A generated suggestion is never an authorization to send it.
         if ((args || {})['autoSend']) {
-          const to = from || String((args || {})['to'] || '');
-          if (to) {
-            try {
-              const sendTask = await createTask({ conversationId: conv.id, description: `whatsapp: send suggested reply to ${to}`, assignedAgent: 'whatsapp_agent', metadata: { tool: 'whatsappSend', args: { to, text: suggestion } } });
-              try { await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: conv.id, toolName: 'whatsappSend', args: { to, text: suggestion }, taskId: sendTask.taskId, timestamp: new Date().toISOString() }); } catch {}
-              // Wake TaskRunner to pick up the send task
-              try { const { getTaskRunner } = await import('./server_task_manager'); getTaskRunner()?.wake(); } catch (e) {}
-              return { ok: true, result: { suggestion, queuedTaskId: sendTask.taskId } };
-            } catch (e: any) {
-              return { ok: false, error: String(e?.message || e) };
-            }
-          }
+          return {
+            ok: true,
+            result: {
+              suggestion,
+              sent: false,
+              requiresConfirmation: true,
+              message: 'Suggestion was not sent. Review the recipient and exact text, then explicitly approve the send.',
+            },
+          };
         }
 
         return { ok: true, result: { suggestion } };
@@ -445,10 +518,9 @@ async function callDesktopAgentTransport(
       if (originalArgs && Object.keys(originalArgs).length) payload.original_args = originalArgs;
 
       const bodyText = JSON.stringify(payload);
-      // Persist the outgoing payload for forensic debugging in logs/agent_payloads.log
-      try {
-        appendLog(`AGENT_PAYLOAD ${bodyText}`);
-      } catch (e) {}
+      // Record only the tool name and argument keys; argument values can contain
+      // user content and must not be copied into runtime logs.
+      appendLog("agent_payloads.log", `AGENT_PAYLOAD tool=${tool} arg_keys=${Object.keys(args || {}).sort().join(",")}`);
       const res = await fetch(`${DESKTOP_AGENT_URL}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -490,7 +562,8 @@ async function callDesktopAgentTransport(
 }
 
 const desktopToolRouter = new ToolRouter({
-  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool) || [newsApiTool.capability, financeApiTool.capability, searchApiTool.capability, weatherApiTool.capability].includes(tool),
+  isKnownTool: (tool) => DESKTOP_TOOLS.has(tool) || API_TOOL_NAMES.has(tool) || LOCAL_CALENDAR_TOOL_NAMES.has(tool)
+    || [newsApiTool.capability, financeApiTool.capability, searchApiTool.capability, weatherApiTool.capability].includes(tool),
 });
 desktopToolRouter.registry.registerRuntimeTools(DESKTOP_TOOLS, {
   version: "1.0",
@@ -502,6 +575,18 @@ desktopToolRouter.registry.register({ name: newsApiTool.capability, owner: "node
 desktopToolRouter.registry.register({ name: financeApiTool.capability, owner: "node", category: "API_GATEWAY" });
 desktopToolRouter.registry.register({ name: searchApiTool.capability, owner: "node", category: "API_GATEWAY" });
 desktopToolRouter.registry.register({ name: weatherApiTool.capability, owner: "node", category: "API_GATEWAY" });
+
+for (const name of API_TOOL_NAMES) {
+  desktopToolRouter.registry.register({
+    name,
+    owner: "node",
+    category: "API_GATEWAY",
+    metadata: { riskLevel: "READ_ONLY", requiresConfirmation: false, idempotent: true, timeoutMs: 15_000 },
+  });
+}
+desktopToolRouter.registry.register({ name: "calendarListEvents", owner: "node", category: "CALENDAR", metadata: { riskLevel: "READ_ONLY", requiresConfirmation: false, idempotent: true } });
+desktopToolRouter.registry.register({ name: "calendarCreateEvent", owner: "node", category: "CALENDAR", metadata: { riskLevel: "REVERSIBLE_WRITE", requiresConfirmation: false, idempotent: false } });
+desktopToolRouter.registry.register({ name: "calendarDeleteEvent", owner: "node", category: "CALENDAR", metadata: { riskLevel: "REVERSIBLE_WRITE", requiresConfirmation: false, idempotent: false } });
 
 desktopToolRouter.setAdapter(async (tool, args) => {
   if (tool === newsApiTool.capability) {
@@ -516,9 +601,41 @@ desktopToolRouter.setAdapter(async (tool, args) => {
     const res = await searchApiTool.execute(args, {});
     return { ok: res.success, result: res.data, error: res.error?.message };
   }
-  if (tool === weatherApiTool.capability) {
+  if (tool === weatherApiTool.capability || tool === weatherApiTool.name) {
     const res = await weatherApiTool.execute(args, {});
     return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === newsApiTool.name) {
+    const res = await newsApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === financeApiTool.name) {
+    const res = await financeApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === searchApiTool.name) {
+    const res = await searchApiTool.execute(args, {});
+    return { ok: res.success, result: res.data, error: res.error?.message };
+  }
+  if (tool === "calendarListEvents") {
+    const from = typeof args.from === "string" ? args.from : undefined;
+    const to = typeof args.to === "string" ? args.to : undefined;
+    return { ok: true, result: { events: localCalendarService.list({ from, to }) } };
+  }
+  if (tool === "calendarCreateEvent") {
+    const event = localCalendarService.create({
+      title: args.title,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt,
+      notes: args.notes,
+    });
+    return { ok: true, result: { event } };
+  }
+  if (tool === "calendarDeleteEvent") {
+    const deleted = localCalendarService.delete(args.id);
+    return deleted
+      ? { ok: true, result: { deleted: true } }
+      : { ok: false, error: "Calendar event not found." };
   }
   return callDesktopAgentTransport(tool, args, args.original_args as Record<string, unknown> | undefined);
 });
@@ -544,10 +661,14 @@ async function callDesktopAgent(
 
 const automationOrchestrator = new AutomationOrchestrator(async (tool, args) => {
   const result = await callDesktopAgent(tool, args);
-  if (!result.ok) {
-    throw new Error(result.error || `Automation failed for ${tool}`);
-  }
-  return result.result;
+  if (result.canonical && typeof result.canonical === "object") return result.canonical;
+  return {
+    success: result.ok === true,
+    verified: false,
+    executionStatus: result.ok === true ? "unknown" : "failed",
+    executionResult: { executed: false, result: result.result },
+    error: result.error || `No canonical verification result was returned for ${tool}.`,
+  };
 });
 
 const automationPersistence = new Map<string, Promise<void>>();
@@ -586,9 +707,11 @@ function persistAutomationEvent(event: { type: string; task: any }): void {
         ? "cancelled"
         : task.status === "FAILED"
           ? "failed"
-          : task.status === "STARTING"
-            ? "planning"
-            : "running";
+          : task.status === "PAUSED"
+            ? "paused"
+            : task.status === "STARTING"
+              ? "planning"
+              : "running";
     await updateTask(task.task_id, {
       status,
       startedAt: task.started_at,
@@ -596,10 +719,12 @@ function persistAutomationEvent(event: { type: string; task: any }): void {
       result: task.result === undefined ? undefined : JSON.stringify(redactSecrets(task.result)),
       error: task.error,
       checkpoint: {
+        ...(task.checkpoint || {}),
         current_task: task.tool,
         task_progress: task.progress,
         last_action: task.tool,
         recent_summary: task.status,
+        ...(task.context ? { automationContext: task.context } : {}),
       },
       metadata,
       updatedAt: now,
@@ -614,17 +739,23 @@ function persistAutomationEvent(event: { type: string; task: any }): void {
 automationOrchestrator.on(persistAutomationEvent);
 void loadUnfinishedTasks().then((tasks) => {
   const restorable = tasks
-    .filter((task) => task.metadata?.automation === true && typeof task.metadata?.tool === "string")
+    .filter((task) =>
+      task.metadata?.automation === true &&
+      typeof task.metadata?.tool === "string" &&
+      ["queued", "running", "planning", "retrying", "recovering", "waiting", "paused", "waiting_for_user"].includes(String(task.status).toLowerCase())
+    )
     .map((task) => ({
       task_id: task.taskId,
       tool: String(task.metadata?.tool),
       args: (task.metadata?.args || {}) as Record<string, unknown>,
       priority: (task.metadata?.priority || "NORMAL") as any,
-      status: undefined,
+      status: String(task.status).toUpperCase() as any,
       progress: Number(task.checkpoint?.task_progress || 0),
       created_at: task.createdAt,
+      started_at: task.startedAt,
       sessionId: String(task.metadata?.sessionId || "") || undefined,
       conversationId: task.conversationId,
+      checkpoint: task.checkpoint || undefined,
     }));
   automationOrchestrator.restore(restorable);
 }).catch((error) => logError(`AUTOMATION_RESTORE_FAILED: ${String(error)}`));
@@ -662,8 +793,8 @@ function buildSaraChatPrompt(memories: Memory[], history: { role: string; text: 
   const promptBase = loadSaraSystemPrompt();
   const baseInstruction =
     source === "mobile"
-      ? `${promptBase}\n\nYou are Sara Mobile, an independent mobile companion with a separate memory core from desktop SARA. Speak in a warm, gentle, and helpful mobile companion tone. Keep mobile memories and context separate from the desktop system.`
-      : `${promptBase}\n\nYou are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion. Speak in a gentle, supportive, affectionate tone, using cozy companion language.`;
+      ? `${promptBase}\n\nUse a warm, feminine, supportive mobile companion style. Do not claim human identity, a romantic relationship, AGI/ASI, or capabilities not available in this mobile installation. Keep mobile memories separate only when the app configuration actually stores them separately.`
+      : `${promptBase}\n\nUse a warm, feminine, friendly conversational style. Be attentive and respectful, remain transparent about being an AI when asked, and never overstate your capabilities.`;
 
   // Build truth-aware memory context
   const truthContext = buildTruthContext(memories);
@@ -820,18 +951,251 @@ async function restoreConversationContextRecord(conversation: any) {
 
 async function startServer() {
   const app = express();
+  const adminPasskeyManager = new AdminPasskeyManager(dataFile(path.join("security", "admin-passkeys.json")));
+  const adminAuthAbuseTracker = new AdminAuthAbuseTracker();
+  const securityAlerts = new SecurityAlertStore(50);
+  const systemResourceMonitor = new SystemResourceMonitor();
+  const systemResourceAlerts: SystemResourceAlert[] = [];
+  let latestSystemResourceSnapshot: SystemResourceSnapshot | null = null;
   const PORT = Number(process.env.PORT || 3000);
   if (!Number.isFinite(PORT) || PORT <= 0) {
     throw new Error(`Invalid PORT configuration: ${process.env.PORT}`);
   }
 
-  app.use(express.json());
+  const SERVER_HOST = String(process.env.SARA_BIND_HOST || "127.0.0.1").trim();
+  const REMOTE_ACCESS_TOKEN = String(process.env.SARA_REMOTE_ACCESS_TOKEN || "").trim();
+  const TLS_CERT_FILE = String(process.env.SARA_TLS_CERT_FILE || "").trim();
+  const TLS_KEY_FILE = String(process.env.SARA_TLS_KEY_FILE || "").trim();
+  if (!isLoopbackHost(SERVER_HOST)) {
+    if (REMOTE_ACCESS_TOKEN.length < 32) {
+      throw new Error("Non-loopback binding requires SARA_REMOTE_ACCESS_TOKEN with at least 32 characters.");
+    }
+    if (!TLS_CERT_FILE || !TLS_KEY_FILE) {
+      throw new Error("Non-loopback binding requires SARA_TLS_CERT_FILE and SARA_TLS_KEY_FILE; do not expose the token over plain HTTP.");
+    }
+  }
+  const allowedHosts = new Set(["localhost", "127.0.0.1", "::1", ...parseCsvSet(process.env.SARA_ALLOWED_HOSTS)]);
+  const allowedOrigins = parseCsvSet(process.env.SARA_ALLOWED_ORIGINS);
+
+  app.disable("x-powered-by");
+  // Apply request-boundary checks before body parsers so unauthenticated callers
+  // cannot force the server to buffer the larger camera/media request limits.
+  app.use("/api", (req, res, next) => {
+    const hostHeader = String(req.headers.host || "");
+    if (!isHostAllowed(hostHeader, allowedHosts)) {
+      return res.status(403).json({ error: "Unrecognized Host header." });
+    }
+
+    const origin = req.headers.origin;
+    const originAllowed = typeof origin !== "string"
+      || isOriginAllowed(origin, hostHeader, allowedOrigins, String(PORT));
+    if (!originAllowed) {
+      return res.status(403).json({ error: "Cross-origin API requests are not allowed." });
+    }
+
+    if (typeof origin === "string") {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
+    if (req.method === "OPTIONS") {
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,X-SARA-Access-Token,X-SARA-Admin-Session,X-Admin-Token,X-Admin-Key,X-Companion-Id,X-Companion-Token");
+      res.setHeader("Access-Control-Max-Age", "600");
+      return res.status(204).end();
+    }
+
+    const isLocalClient = isLoopbackAddress(req.socket.remoteAddress);
+    if (!isLocalClient) {
+      const authorization = String(req.headers.authorization || "");
+      const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+      const provided = bearer || String(req.headers["x-sara-access-token"] || "");
+      if (!REMOTE_ACCESS_TOKEN || !constantTimeStringEqual(REMOTE_ACCESS_TOKEN, provided)) {
+        return res.status(401).json({ error: "Remote API access requires a valid SARA access token." });
+      }
+    }
+    next();
+  });
+  app.use("/api/camera/photo", express.raw({ type: ["image/jpeg", "image/png"], limit: "16mb" }));
+  app.use("/api/camera/video", express.raw({ type: ["video/webm", "application/octet-stream"], limit: "50mb" }));
+  app.use("/api/vision/analyze", express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "6mb" }));
+  app.use("/api/mobile/upload-image", express.json({ limit: "9mb" }));
+  app.use(express.json({ limit: "1mb" }));
+
+  app.get("/api/security/alerts", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    return handleSecurityAlertsRequest(req, res, securityAlerts);
+  });
+
+  async function collectSystemResourceSnapshot(): Promise<SystemResourceSnapshot> {
+    const agentResponse = await callDesktopAgentTransport("systemResourceSnapshot", {});
+    if (!agentResponse.ok || !agentResponse.result || typeof agentResponse.result !== "object") {
+      throw new Error(agentResponse.error || "The local Desktop Agent did not return system resource data.");
+    }
+    const evaluation = systemResourceMonitor.evaluate(agentResponse.result);
+    if (evaluation.snapshot.cpuPercent === null && evaluation.snapshot.memoryPercent === null) {
+      throw new Error("System CPU and memory statistics are unavailable on this device.");
+    }
+    latestSystemResourceSnapshot = evaluation.snapshot;
+    for (const alert of evaluation.alerts) {
+      systemResourceAlerts.push(alert);
+      if (systemResourceAlerts.length > 50) systemResourceAlerts.splice(0, systemResourceAlerts.length - 50);
+      void appendAuditEvent({
+        event_type: `SYSTEM_RESOURCE_${alert.kind.toUpperCase()}`,
+        metadata: { alertId: alert.id, message: alert.message, process: alert.process },
+        severity: alert.severity === "CRITICAL" ? "CRITICAL" : "WARNING",
+      }).catch(() => {});
+      try { broadcastToClients({ type: "system_resource_alert", ...alert }); } catch {}
+    }
+    return evaluation.snapshot;
+  }
+
+  app.get("/api/system/resources", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const snapshot = await collectSystemResourceSnapshot();
+      const requestedSince = Number(req.query.since || 0);
+      const since = Number.isFinite(requestedSince) ? Math.max(0, requestedSince) : 0;
+      return res.json({
+        ok: true,
+        snapshot,
+        alerts: systemResourceAlerts.filter((alert) => alert.createdAt >= since),
+      });
+    } catch (error: any) {
+      return res.status(503).json({ ok: false, error: error?.message || "System monitoring is unavailable." });
+    }
+  });
+
+  app.post("/api/system/processes/:pid/close", async (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Admin authorization required before closing an application." });
+    if (req.body?.confirmed !== true) return res.status(400).json({ ok: false, error: "Explicit user confirmation is required." });
+    const pid = Number(req.params.pid);
+    if (!Number.isSafeInteger(pid) || pid <= 1) return res.status(400).json({ ok: false, error: "A valid process ID is required." });
+
+    try {
+      // Refresh and re-check the live process list immediately before dispatch;
+      // the process must still be high-usage and must not be protected.
+      const snapshot = await collectSystemResourceSnapshot();
+      const selected = snapshot.processes.find((process) => process.pid === pid);
+      if (!selected) return res.status(404).json({ ok: false, error: "That process is no longer in the monitored list. Refresh and review again." });
+      if (!selected.highUsage) return res.status(409).json({ ok: false, error: "The process is no longer above the high-usage threshold; it was not closed." });
+      if (selected.protected) return res.status(403).json({ ok: false, error: "This system or SARA process is protected." });
+
+      const agentResponse = await callDesktopAgentTransport("systemStopProcess", {
+        pid,
+        expectedName: selected.name,
+        expectedCreateTime: selected.createTime,
+        confirmed: true,
+      });
+      const result = agentResponse.result && typeof agentResponse.result === "object"
+        ? agentResponse.result as Record<string, unknown>
+        : {};
+      if (!agentResponse.ok || result.ok !== true || result.verified !== true) {
+        return res.status(502).json({
+          ok: false,
+          verified: false,
+          error: String(result.result || agentResponse.error || "The app did not close gracefully. It was not force-killed."),
+        });
+      }
+      await appendAuditEvent({
+        event_type: "SYSTEM_PROCESS_GRACEFUL_CLOSE",
+        metadata: { pid, name: selected.name, method: "graceful_close", userConfirmed: true },
+        severity: "WARNING",
+      });
+      return res.json({ ok: true, verified: true, result: result.result, pid, name: selected.name });
+    } catch (error: any) {
+      return res.status(503).json({ ok: false, error: error?.message || "The application could not be closed safely." });
+    }
+  });
+
+  function getWebAuthnRequestContext(req: any): { rpID: string; origin: string } {
+    const rawOrigin = typeof req.headers.origin === "string" ? req.headers.origin : "";
+    if (!rawOrigin) throw new Error("Passkey ceremonies require a browser Origin. Open SARA using http://localhost:3000.");
+    const originUrl = new URL(rawOrigin);
+    if (originUrl.pathname !== "/" || originUrl.search || originUrl.hash) throw new Error("Invalid passkey origin.");
+    if (originUrl.protocol !== "https:" && !isLoopbackHost(originUrl.hostname)) {
+      throw new Error("Passkeys require HTTPS, except for the local loopback address.");
+    }
+    const rpID = String(process.env.SARA_WEBAUTHN_RP_ID || originUrl.hostname).toLowerCase();
+    if (isIP(rpID)) throw new Error("Use http://localhost:3000 for local passkeys, or configure a DNS RP ID and HTTPS origin.");
+    if (originUrl.hostname !== rpID && !originUrl.hostname.endsWith(`.${rpID}`)) {
+      throw new Error("Passkey RP ID must match the browser origin hostname.");
+    }
+    return { rpID, origin: originUrl.origin };
+  }
+
+  app.get("/api/admin/passkeys", (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Admin authorization required." });
+    return res.json({ ok: true, passkeys: adminPasskeyManager.list(), hasPasskey: adminPasskeyManager.hasCredentials() });
+  });
+
+  app.post("/api/admin/passkeys/register/options", async (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Verify the existing admin token before enrolling a passkey." });
+    try {
+      const context = getWebAuthnRequestContext(req);
+      const options = await adminPasskeyManager.beginRegistration({
+        ...context,
+        userName: String(req.body?.userName || "SARA local admin").slice(0, 120),
+        displayName: String(req.body?.displayName || "SARA local admin").slice(0, 120),
+      });
+      return res.json({ ok: true, ...options });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not start passkey registration." });
+    }
+  });
+
+  app.post("/api/admin/passkeys/register/verify", async (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Admin authorization required." });
+    try {
+      const result = await adminPasskeyManager.finishRegistration({
+        ceremonyId: String(req.body?.ceremonyId || ""),
+        response: req.body?.response,
+        name: String(req.body?.name || "SARA admin device"),
+      });
+      await appendAuditEvent({ event_type: "ADMIN_PASSKEY_REGISTERED", metadata: { credentialId: result.credentialId, name: result.name }, severity: "INFO" });
+      return res.status(201).json({ ok: true, passkey: result });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Passkey registration failed." });
+    }
+  });
+
+  app.post("/api/admin/passkeys/auth/options", async (req, res) => {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) return res.status(403).json({ ok: false, error: "Passkey admin sign-in is available only from this computer." });
+    try {
+      const context = getWebAuthnRequestContext(req);
+      const options = await adminPasskeyManager.beginAuthentication(context);
+      return res.json({ ok: true, ...options });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not start passkey sign-in." });
+    }
+  });
+
+  app.post("/api/admin/passkeys/auth/verify", async (req, res) => {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) return res.status(403).json({ ok: false, error: "Passkey admin sign-in is available only from this computer." });
+    try {
+      const result = await adminPasskeyManager.finishAuthentication({
+        ceremonyId: String(req.body?.ceremonyId || ""),
+        response: req.body?.response,
+      });
+      adminAuthAbuseTracker.clear(adminAttemptSource(req));
+      await appendAuditEvent({ event_type: "ADMIN_PASSKEY_AUTHENTICATED", metadata: { expiresAt: result.expiresAt }, severity: "INFO" });
+      return res.json({ ok: true, sessionToken: result.token, expiresAt: result.expiresAt });
+    } catch (error: any) {
+      recordInvalidAdminAuth(req, true);
+      return res.status(401).json({ ok: false, error: error?.message || "Passkey authentication failed." });
+    }
+  });
+
+  app.post("/api/admin/passkeys/logout", (req, res) => {
+    const token = String(req.headers["x-sara-admin-session"] || "");
+    adminPasskeyManager.revokeSession(token);
+    return res.json({ ok: true });
+  });
 
   // --- Security / Provenance initialization (non-blocking) ---
   try {
     const build = gatherBuildIdentity(process.cwd(), DATA_DIR);
     const audit = new AuditLogger(path.join(DATA_DIR, "security"));
-    try { await (await import("./server_state")).saveBuildManifest(build); } catch {}
+    try { await (await import("./server_state")).saveBuildManifest({ ...build }); } catch {}
     audit.append({ event_type: "BUILD_IDENTITY_CREATED", metadata: { build } }).catch(() => {});
     try { await (await import('./server_state')).migrateWebhooksFromSettingsIfNeeded(); } catch {}
   } catch (e) {
@@ -845,7 +1209,7 @@ async function startServer() {
   let deferredWakeConfig: any = null;
   try {
     const settings = loadSettingsFile();
-    const enabled = Boolean(settings?.wake?.enabled);
+    const enabled = Boolean((settings.wake as { enabled?: boolean } | undefined)?.enabled);
     if (enabled) {
       deferredWakeConfig = { settings };
     }
@@ -873,19 +1237,6 @@ async function startServer() {
     });
   }
 
-  // Recover tasks on startup: mark running tasks as RECOVERING and emit audit entries
-  try {
-    const { loadUnfinishedTasks, setTaskRecovering } = await import('./server_state');
-    const unfinished = await loadUnfinishedTasks();
-    for (const t of unfinished) {
-      if (t.status === 'RUNNING' || t.status === 'PLANNING') {
-        await setTaskRecovering(t.taskId);
-        const a = new AuditLogger(path.join(DATA_DIR, 'security'));
-        a.append({ event_type: 'TASK_RECOVERING', metadata: { taskId: t.taskId, previous_status: t.status }, severity: 'HIGH' }).catch(() => {});
-      }
-    }
-  } catch (e) { console.warn('Task recovery failure', String(e)); }
-
   app.get("/health", (req, res) => {
     res.json({
       status: "ok",
@@ -899,6 +1250,9 @@ async function startServer() {
   app.get("/api/memories", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       const memories = await loadMemories(source);
       res.json(memories);
     } catch (e: any) {
@@ -909,6 +1263,9 @@ async function startServer() {
   app.post("/api/memories", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       const { category, text } = req.body;
       if (!category || !text) {
         return res.status(400).json({ error: "Category and text parameters are required." });
@@ -925,15 +1282,6 @@ async function startServer() {
       memories.push(newMemory);
       await saveMemories(memories, source);
       res.status(201).json(newMemory);
-        // List pending confirmations (non-sensitive view)
-        app.get('/api/confirm/list', async (_req, res) => {
-          try {
-            const list = await loadConfirmations();
-            // redact sensitive fields (hash, salt)
-            const safe = list.map((c: any) => ({ id: c.id, action: c.action, args: c.args, taskId: c.taskId || null, expiresAt: c.expiresAt }));
-            res.json({ ok: true, confirmations: safe });
-          } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
-        });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -942,6 +1290,9 @@ async function startServer() {
   app.delete("/api/memories/:id", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       const { id } = req.params;
       let memories = await loadMemories(source);
       memories = memories.filter((m) => m.id !== id);
@@ -958,7 +1309,19 @@ async function startServer() {
   // ---------------------------------------------------------------------------
   const SETTINGS_FILE = dataFile("settings.json");
 
-  function loadSettingsFile(): Record<string, unknown> {
+  type NotificationSettings = {
+    webhook?: { url?: string; events?: string[]; secret?: string | null };
+    desktop?: boolean;
+    emails?: string[];
+    smtp?: { url?: string; host?: string; port?: number; user?: string; from?: string };
+  };
+  type SaraSettings = Record<string, unknown> & {
+    adminToken?: string;
+    wake?: { enabled?: boolean };
+    notifications?: NotificationSettings;
+  };
+
+  function loadSettingsFile(): SaraSettings {
     try {
       if (fs.existsSync(SETTINGS_FILE)) {
         return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf-8"));
@@ -973,7 +1336,7 @@ async function startServer() {
 
   app.get("/api/settings", async (_req, res) => {
     try {
-      res.json(loadSettingsFile());
+      res.json(redactSecrets(loadSettingsFile()));
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -1023,8 +1386,8 @@ async function startServer() {
           .catch(() => {});
       }
 
-      logCommand(`SETTINGS_UPDATED ${JSON.stringify(patch)}`);
-      res.json(next);
+      logCommand(`SETTINGS_UPDATED ${JSON.stringify(redactSecrets(patch))}`);
+      res.json(redactSecrets(next));
     } catch (e: any) {
       logError(`SETTINGS_SAVE_ERROR: ${e.message}`);
       res.status(500).json({ error: e.message });
@@ -1161,6 +1524,9 @@ async function startServer() {
       const text = String(req.body?.text ?? "").trim();
       const history = Array.isArray(req.body?.history) ? req.body.history : [];
       const source = req.body?.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       if (!text) {
         return res.status(400).json({ error: "Message text is required." });
       }
@@ -1197,7 +1563,6 @@ async function startServer() {
         activeContext,
         taskState,
         userProfile: userProfile || undefined,
-        conversationSignal: conversationIntentAnalyzer.analyze(text),
       });
 
       const persisted = persistChatMessagePair(source, {
@@ -1243,38 +1608,27 @@ async function startServer() {
   });
 
   app.post("/api/config/apikey", async (req, res) => {
+    const key = String(req.body?.apiKey ?? "").trim();
+    if (!key) return res.status(400).json({ ok: false, error: "API key is required." });
+    if (key.length > 512 || /[\r\n\u0000]/.test(key)) {
+      return res.status(400).json({ ok: false, error: "API key format is invalid." });
+    }
+
     try {
-      const source = req.query.source === "mobile" ? "mobile" : "desktop";
-      // If requesting mobile conversations, require companion auth via headers
-      if (source === "mobile") {
-        const deviceId = String(req.headers["x-companion-id"] ?? "");
-        const token = String(req.headers["x-companion-token"] ?? "");
-        const companionsFile = dataFile("companions.json");
-        let list: any[] = [];
-        try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-        const found = list.find((c) => c.id === deviceId && !c.revoked);
-        if (!found) return res.status(401).json({ error: "Invalid companion credentials" });
-        if (found.hash && found.salt) {
-          const derived = crypto.scryptSync(token, found.salt, 64).toString("hex");
-          if (derived !== found.hash) return res.status(401).json({ error: "Invalid companion credentials" });
-        } else if (found.token) {
-          if (found.token !== token) return res.status(401).json({ error: "Invalid companion credentials" });
-          const salt = crypto.randomBytes(16).toString("hex");
-          const derived = crypto.scryptSync(found.token, salt, 64).toString("hex");
-          delete found.token;
-          found.hash = derived;
-          found.salt = salt;
-          fs.writeFileSync(companionsFile, JSON.stringify(list, null, 2), "utf-8");
-        }
+      const testClient = new GoogleGenAI({ apiKey: key });
+      const models = await testClient.models.list();
+      await models[Symbol.asyncIterator]().next();
+      setGeminiApiKey(key);
+      return res.json({ ok: true, hasApiKey: true });
+    } catch (error: any) {
+      const message = String(error?.message || error);
+      const isRejectedKey = /API[_ ]?KEY|PERMISSION_DENIED|UNAUTHENTICATED|invalid|\b401\b|\b403\b/i.test(message);
+      // Provider errors may echo credentials or request URLs; log only the category.
+      logError(isRejectedKey ? "APIKEY_SAVE_REJECTED" : "APIKEY_SAVE_VERIFY_FAILED");
+      if (isRejectedKey) {
+        return res.status(400).json({ ok: false, error: "Google rejected that API key. Check it and try again." });
       }
-      const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
-      if (!fs.existsSync(file)) return res.json([]);
-      const raw = fs.readFileSync(file, "utf-8");
-      const items = raw ? JSON.parse(raw) : [];
-      res.json(items);
-    } catch (e: any) {
-      logError(`APIKEY_SAVE_ERROR: ${e?.message || e}`);
-      res.status(500).json({ error: e?.message || "Failed to save API key." });
+      return res.status(502).json({ ok: false, error: "Could not verify the API key with Google. Check the network and try again." });
     }
   });
 
@@ -1295,6 +1649,100 @@ async function startServer() {
       res.json({ online: false });
     } finally {
       clearTimeout(timer);
+    }
+  });
+
+  // Browser-facing status stays same-origin in the UI; the backend performs the
+  // loopback call so previews and remote browsers never target their own localhost.
+  app.get("/api/browser-automation/status", async (_req, res) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2500);
+    try {
+      const response = await fetch("http://127.0.0.1:3001/api/status", { signal: ctrl.signal, redirect: "error" });
+      if (!response.ok) return res.status(503).json({ online: false, logs: [] });
+      const payload = await response.json() as { logs?: unknown[] };
+      const logs = Array.isArray(payload.logs) ? payload.logs.slice(-100).map((item, index) => {
+        const log = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        const type = ["info", "success", "error", "action"].includes(String(log.type)) ? String(log.type) : "info";
+        return { id: String(log.id ?? index), text: String(log.text ?? log.message ?? item ?? ""), type };
+      }) : [];
+      return res.json({ online: true, logs });
+    } catch {
+      return res.json({ online: false, logs: [] });
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  app.post("/api/vision/enable", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("gestureControlStart", {});
+      if (result.ok) return res.json(result);
+      const fallback = await callDesktopAgent("enableVision", {});
+      return res.status(fallback.ok ? 200 : 502).json(fallback);
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || "Could not enable vision." });
+    }
+  });
+
+  app.post("/api/vision/disable", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("gestureControlStop", {});
+      if (result.ok) return res.json(result);
+      const fallback = await callDesktopAgent("disableVision", {});
+      return res.status(fallback.ok ? 200 : 502).json(fallback);
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || "Could not disable vision." });
+    }
+  });
+
+  app.get("/api/vision/state", async (_req, res) => {
+    try {
+      const result = await callDesktopAgent("getVisionState", {});
+      return res.status(result.ok ? 200 : 502).json(result);
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || "Could not read vision state." });
+    }
+  });
+
+  app.post("/api/vision/analyze", async (req, res) => {
+    try {
+      const mime = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+      const body = Buffer.isBuffer(req.body) ? req.body : null;
+      const validSignature = mime === "image/jpeg"
+        ? body?.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+        : mime === "image/png"
+          ? body?.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+          : mime === "image/webp"
+            ? body?.toString("ascii", 0, 4) === "RIFF" && body.toString("ascii", 8, 12) === "WEBP"
+            : false;
+      if (!body?.length || !validSignature) {
+        return res.status(400).json({ ok: false, error: "Upload a valid JPEG, PNG, or WebP camera frame." });
+      }
+
+      const question = String(req.headers["x-sara-question"] || "Describe visible, non-sensitive details.")
+        .replace(/[\r\n\u0000]/g, " ")
+        .trim()
+        .slice(0, 500) || "Describe visible, non-sensitive details.";
+      const apiKey = getGeminiApiKey();
+      if (!apiKey) return res.status(503).json({ ok: false, error: "Gemini API key is not configured." });
+
+      const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: mime, data: body.toString("base64") } },
+            { text: `Analyze this camera frame for the user's request: ${question}\nOnly report observable, non-sensitive details.` },
+          ],
+        }],
+        config: { maxOutputTokens: 256, temperature: 0.3 },
+      });
+      return res.json({ ok: true, text: String(response.text || "").trim() });
+    } catch (error: any) {
+      logError(`VISION_ANALYSIS_FAILED: ${String(error?.message || error)}`);
+      return res.status(502).json({ ok: false, error: "Camera-frame analysis failed." });
     }
   });
 
@@ -1320,56 +1768,13 @@ async function startServer() {
     }
   });
 
-  app.post("/api/vision/analyze", async (req, res) => {
-    try {
-      const dataUrl = String(req.body?.dataUrl ?? "");
-      const question = String(req.body?.question ?? "Describe only visible, non-sensitive details.").trim();
-      const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/i);
-      if (!match) {
-        return res.status(400).json({ ok: false, error: "A valid camera image is required." });
-      }
-      if (match[2].length > 8 * 1024 * 1024) {
-        return res.status(413).json({ ok: false, error: "Camera image is too large." });
-      }
-
-      const apiKey = getGeminiApiKey();
-      if (!apiKey) {
-        return res.status(503).json({ ok: false, error: "Gemini API key is not configured." });
-      }
-
-      const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: [{
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1].toLowerCase(),
-                data: match[2],
-              },
-            },
-            {
-              text: `Analyze this camera frame for the user's request: ${question}\nOnly report observable, non-sensitive details such as clothing colors, visible accessories, lighting, framing, posture, and image quality. Do not identify the person or infer health, identity, mood, religion, politics, sexuality, personality, or other sensitive traits. If the image is unclear, say what is missing and suggest a camera adjustment.`,
-            },
-          ],
-        }],
-        config: { maxOutputTokens: 300, temperature: 0.2 },
-      });
-
-      return res.json({ ok: true, text: String(response.text ?? "").trim() });
-    } catch (error: any) {
-      return res.status(502).json({ ok: false, error: error?.message || "Vision analysis failed." });
-    }
-  });
-
   // Admin: fetch recent audit events (DB-backed if available)
   app.get("/api/admin/audit", async (_req, res) => {
     try {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((_req.headers['x-admin-token'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: "Unauthorized" });
+      if (!isAdminAuthValid(_req, adminToken, provided)) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
       const auditLogger = new AuditLogger(path.join(DATA_DIR, "security"));
       const events = await auditLogger.readAll();
@@ -1379,23 +1784,27 @@ async function startServer() {
     }
   });
 
-  // Admin: security integrity endpoints
-  app.get('/api/admin/security/status', async (_req, res) => {
-    try {
-      const settings = loadSettingsFile();
-      const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
-      const provided = String((_req.headers['x-admin-token'] ?? _req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-      res.json({ ok: true, message: 'Security status system has been removed' });
-    } catch (e:any) { res.status(500).json({ ok:false, error: String(e) }); }
+  // The integrity monitor is intentionally disabled in the active backend.
+  // Keep these admin-only responses explicit so the dashboard cannot imply a
+  // trusted baseline when no verification has actually been performed.
+  app.get('/api/admin/security/status', (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return res.json({
+      ok: true,
+      enabled: false,
+      status: 'DISABLED',
+      message: 'Integrity baseline verification is not enabled in this backend.',
+    });
   });
 
-  app.post('/api/admin/security/verify', async (req, res) => {
-    res.status(501).json({ ok: false, error: 'Integrity verification system has been removed' });
+  app.post('/api/admin/security/verify', (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return res.status(501).json({ ok: false, enabled: false, error: 'Integrity verification is disabled in this backend.' });
   });
 
-  app.post('/api/admin/security/approveBaseline', async (req, res) => {
-    res.status(501).json({ ok: false, error: 'Integrity baseline approval system has been removed' });
+  app.post('/api/admin/security/approveBaseline', (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    return res.status(501).json({ ok: false, enabled: false, error: 'Integrity baseline approval is disabled in this backend.' });
   });
 
   app.get('/api/admin/audit/recent', async (_req, res) => {
@@ -1403,7 +1812,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((_req.headers['x-admin-token'] ?? _req.headers['x-admin-key'] ?? "") as string);
-      if (adminToken && adminToken.length > 0 && provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(_req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const auditLogger = new AuditLogger(path.join(DATA_DIR, 'security'));
       const events = await auditLogger.readAll();
       res.json({ ok: true, events: events.slice(-300).reverse() });
@@ -1416,7 +1825,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((_req.headers['x-admin-token'] ?? _req.headers['x-admin-key'] ?? "") as string);
-      if (adminToken && adminToken.length > 0 && provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(_req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
 
       const build = loadBuildManifest(DATA_DIR) || gatherBuildIdentity(process.cwd(), DATA_DIR);
       const sessions = await loadSessions();
@@ -1446,13 +1855,15 @@ async function startServer() {
           successRate
         },
         auditEventsCount: auditEvents.length,
-        securityEventsCount: auditEvents.filter(e => e.severity === 'WARNING' || e.severity === 'HIGH' || e.severity === 'CRITICAL').length
+        securityEventsCount: auditEvents.filter(e => e.severity === 'WARNING' || e.severity === 'HIGH' || e.severity === 'CRITICAL').length,
+        securityStatus: { enabled: false, status: 'DISABLED' },
       });
     } catch (e: any) { res.status(500).json({ ok: false, error: String(e) }); }
   });
 
-  // SARA Self Shutdown endpoint
+  // SARA Self Shutdown endpoint — destructive service control requires admin auth.
   app.post('/api/system/shutdown', async (_req, res) => {
+    if (!checkAdminAuth(_req, res)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
     try {
       logStartup('SARA self shutdown requested via API.');
       try {
@@ -1475,7 +1886,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((_req.headers['x-admin-token'] ?? _req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(_req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const { listWebhooks } = await import('./server_state');
       const w = await listWebhooks();
       res.json({ ok: true, webhooks: w });
@@ -1488,10 +1899,10 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((_req.headers['x-admin-token'] ?? _req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(_req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const cfg = settings.notifications || {};
       // mask secrets when returning
-      const masked = { ...cfg };
+      const masked: Record<string, any> = { ...cfg };
       if (masked.webhook) masked.webhook = { url: masked.webhook.url, events: masked.webhook.events || ['*'], secret_mask: masked.webhook.secret ? '*****' : '' };
       res.json({ ok: true, config: masked });
     } catch (e:any) { res.status(500).json({ ok:false, error: String(e) }); }
@@ -1502,7 +1913,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const body = req.body || {};
       const not = body.notifications || {};
       settings.notifications = settings.notifications || {};
@@ -1521,7 +1932,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const body = req.body || {};
       const smtp = body.smtp || {};
       settings.notifications = settings.notifications || {};
@@ -1554,7 +1965,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const cfg = settings.notifications?.smtp || {};
       let secret: string | null = null;
       try {
@@ -1588,7 +1999,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const not = settings.notifications || {};
       const payload = { event: 'TEST_NOTIFICATION', timestamp: new Date().toISOString(), build: loadBuildManifest(DATA_DIR) || null };
       // send webhook if configured
@@ -1611,7 +2022,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const { url, events, secret } = req.body || {};
       if (!url) return res.status(400).json({ ok: false, error: 'Missing url' });
       const { createWebhook } = await import('./server_state');
@@ -1625,7 +2036,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const id = String(req.params.id || '');
       const { deleteWebhook } = await import('./server_state');
       await deleteWebhook(id);
@@ -1639,7 +2050,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const id = String(req.params.id || '');
       const { url, events, secret } = req.body || {};
       const { updateWebhook } = await import('./server_state');
@@ -1654,7 +2065,7 @@ async function startServer() {
       const settings = loadSettingsFile();
       const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings['adminToken'] ?? "");
       const provided = String((req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? "") as string);
-      if (!adminToken || adminToken.length === 0 || provided !== adminToken) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      if (!isAdminAuthValid(req, adminToken, provided)) return res.status(401).json({ ok: false, error: 'Unauthorized' });
       const id = String(req.params.id || '');
       const { getWebhook } = await import('./server_state');
       const wh = await getWebhook(id);
@@ -1672,6 +2083,94 @@ async function startServer() {
       res.json(d);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/calendar/events", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const from = typeof req.query.from === "string" ? req.query.from : undefined;
+      const to = typeof req.query.to === "string" ? req.query.to : undefined;
+      return res.json({ ok: true, events: localCalendarService.list({ from, to }) });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Invalid calendar range." });
+    }
+  });
+
+  app.post("/api/calendar/events", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const event = localCalendarService.create(req.body || {});
+      return res.status(201).json({ ok: true, event });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Invalid calendar event." });
+    }
+  });
+
+  app.delete("/api/calendar/events/:id", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const deleted = localCalendarService.delete(req.params.id);
+    return deleted
+      ? res.json({ ok: true })
+      : res.status(404).json({ ok: false, error: "Calendar event not found." });
+  });
+
+  app.get("/api/calendar/export.ics", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", 'attachment; filename="sara-calendar.ics"');
+    res.type("text/calendar; charset=utf-8").send(localCalendarService.toIcs());
+  });
+
+  // General project/task tracking is stored locally in general-projects.json and
+  // remains separate from the music studio's project/workflow tables.
+  app.get("/api/projects", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, projects: generalProjectManager.listProjects({ includeArchived: req.query.includeArchived === "true" }) });
+  });
+
+  app.post("/api/projects", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const project = generalProjectManager.createProject(req.body || {});
+      return res.status(201).json({ ok: true, project });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not create project." });
+    }
+  });
+
+  app.get("/api/projects/:projectId", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const detail = generalProjectManager.getProject(req.params.projectId);
+    return detail ? res.json({ ok: true, ...detail }) : res.status(404).json({ ok: false, error: "Project not found." });
+  });
+
+  app.patch("/api/projects/:projectId", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const project = generalProjectManager.updateProject(req.params.projectId, req.body || {});
+      return project ? res.json({ ok: true, project }) : res.status(404).json({ ok: false, error: "Project not found." });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not update project." });
+    }
+  });
+
+  app.post("/api/projects/:projectId/tasks", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const task = generalProjectManager.createTask({ ...(req.body || {}), projectId: req.params.projectId });
+      return res.status(201).json({ ok: true, task });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not create task." });
+    }
+  });
+
+  app.patch("/api/project-tasks/:taskId", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const task = generalProjectManager.updateTask(req.params.taskId, req.body || {});
+      return task ? res.json({ ok: true, task }) : res.status(404).json({ ok: false, error: "Task not found." });
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || "Could not update task." });
     }
   });
 
@@ -1701,6 +2200,33 @@ async function startServer() {
     }
   });
 
+  app.get("/api/integrations/status", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const providers = apiRegistry.getAllProviders().map((provider) => {
+      const metrics = apiHealthMonitor.getMetrics(provider.id);
+      const credentialConfigured = !provider.authentication.required || apiCredentialManager.hasCredential(provider.id);
+      return {
+        id: provider.id,
+        name: provider.name,
+        category: provider.category,
+        capabilities: provider.capabilities,
+        enabled: provider.enabled,
+        configurationStatus: provider.status,
+        credentialRequired: provider.authentication.required,
+        credentialConfigured,
+        ready: provider.enabled && provider.status === "active" && credentialConfigured,
+        healthCheck: metrics ? {
+          successRate: metrics.successRate,
+          averageLatencyMs: metrics.averageLatency,
+          totalRequests: metrics.totalRequests,
+          failures: metrics.failures,
+          state: metrics.health,
+        } : { state: "not_checked" },
+      };
+    });
+    return res.json({ ok: true, providers });
+  });
+
   app.get("/api/public-apis", (req, res) => {
     const intent = typeof req.query.intent === "string" ? req.query.intent.trim() : "";
     const capability = typeof req.query.capability === "string" ? req.query.capability.trim() : "";
@@ -1725,7 +2251,7 @@ async function startServer() {
     const settings = loadSettingsFile();
     const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings["adminToken"] ?? "");
     const provided = String((req.headers["x-admin-token"] ?? req.headers["x-admin-key"] ?? "") as string);
-    if (!adminToken || provided !== adminToken) {
+    if (!isAdminAuthValid(req, adminToken, provided)) {
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
@@ -1746,7 +2272,7 @@ async function startServer() {
     const settings = loadSettingsFile();
     const adminToken = process.env.SARA_ADMIN_TOKEN || String(settings["adminToken"] ?? "");
     const provided = String((req.headers["x-admin-token"] ?? req.headers["x-admin-key"] ?? "") as string);
-    if (!adminToken || provided !== adminToken) {
+    if (!isAdminAuthValid(req, adminToken, provided)) {
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
@@ -1957,41 +2483,57 @@ async function startServer() {
     }
   });
 
-  // Create and run a WhatsApp task (creates Task record, appends tool call, executes via desktop agent)
+  // WhatsApp is externally visible: every task starts behind the admin approval gate.
   app.post("/api/tasks/whatsapp", async (req, res) => {
     try {
-      const { conversationId, phone, message, use_companion } = req.body || {};
-      if (!conversationId || !message || !phone) return res.status(400).json({ error: "Missing conversationId, phone, or message" });
-
-      // Atomically create the task with metadata so TaskRunner sees the
-      // intended tool and args immediately, avoiding races with tool_calls.
-      const task = await createTask({
-        conversationId,
-        description: `WhatsApp: send to ${phone}`,
-        priority: 5,
-        assignedAgent: "whatsapp_agent",
-        metadata: { tool: "whatsapp_send", args: { phone, message, use_companion } },
-      });
-      await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId, toolName: "whatsapp_send", args: { phone, message, use_companion }, taskId: task.taskId, timestamp: new Date().toISOString() });
-
-      // If confirmation required, create confirmation token and set task waiting
-      const requireConfirmation = Boolean(req.body?.requireConfirmation);
-      if (requireConfirmation) {
-        const createResp = await fetch(`http://localhost:${PORT}/api/confirm/request`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "whatsapp_send", args: { phone, message, use_companion }, ttl: 300, taskId: task.taskId }),
-        });
-        const createData = await createResp.json().catch(() => ({}));
-        await updateTask(task.taskId, { status: "waiting", metadata: { confirmationId: createData.id } });
-        return res.json({ ok: true, task, confirmation: createData });
+      const body = req.body || {};
+      const conversationId = String(body.conversationId || "").trim();
+      if (!conversationId || !body.message || !body.phone) {
+        return res.status(400).json({ error: "Missing conversationId, phone, or message" });
       }
 
-      // Enqueue and return immediately; TaskRunner will execute in background.
-      try { const { getTaskRunner } = await import('./server_task_manager'); getTaskRunner()?.wake(); } catch (e) { console.warn('[server] Could not wake TaskRunner', e); }
-      res.json({ ok: true, task });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message || "Failed to create/execute whatsapp task." });
+      const whatsapp = await import('./src/whatsapp_client');
+      let phone: string;
+      let message: string;
+      try {
+        phone = whatsapp.normalizeWhatsAppRecipient(body.phone);
+        message = whatsapp.validateWhatsAppText(body.message);
+      } catch (error: any) {
+        return res.status(400).json({ error: error?.message || "Invalid WhatsApp recipient or message." });
+      }
+      const use_companion = body.use_companion;
+      const args = { phone, message, use_companion };
+      const task = await createTask({
+        conversationId,
+        description: `WhatsApp: send to +${phone}`,
+        priority: 5,
+        assignedAgent: "whatsapp_agent",
+        status: "awaiting_confirmation",
+        metadata: { tool: "whatsapp_send", args },
+      });
+
+      try {
+        await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId, toolName: "whatsapp_send", args, taskId: task.taskId, timestamp: new Date().toISOString() });
+      } catch {}
+
+      let confirmation: { id: string; action: string; taskId: string | null; expiresAt: number };
+      try {
+        confirmation = await createPendingConfirmation("whatsapp_send", args, 300, task.taskId);
+      } catch (error: any) {
+        await updateTask(task.taskId, {
+          status: "failed",
+          completedAt: new Date().toISOString(),
+          error: error?.message || "Could not create the required WhatsApp approval.",
+        });
+        throw error;
+      }
+      const approvedTask = await updateTask(task.taskId, {
+        status: "awaiting_confirmation",
+        metadata: { ...(task.metadata || {}), confirmationId: confirmation.id },
+      });
+      return res.json({ ok: true, task: approvedTask || task, confirmation });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to create WhatsApp approval." });
     }
   });
 
@@ -2008,14 +2550,9 @@ async function startServer() {
 
       const requireConfirmation = Boolean(req.body?.requireConfirmation);
       if (requireConfirmation) {
-        const createResp = await fetch(`http://localhost:${PORT}/api/confirm/request`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: toolName, args, ttl: 300, taskId: task.taskId }),
-        });
-        const createData = await createResp.json().catch(() => ({}));
-        await updateTask(task.taskId, { status: "waiting", metadata: { confirmationId: createData.id } });
-        return res.json({ ok: true, task, confirmation: createData });
+        const confirmation = await createPendingConfirmation(toolName, args, 300, task.taskId);
+        await updateTask(task.taskId, { status: "awaiting_confirmation", metadata: { confirmationId: confirmation.id } });
+        return res.json({ ok: true, task, confirmation });
       }
 
       // Enqueue and return immediately; TaskRunner will execute in background.
@@ -2028,28 +2565,28 @@ async function startServer() {
 
   app.post("/api/companion/pair", async (req, res) => {
     try {
-      // Server-side companion pairing registry with hashed tokens.
-      const name = String(req.body?.name ?? "").trim() || `device-${Date.now()}`;
-      const providedToken = req.body?.token ? String(req.body.token) : undefined;
-      const companionsFile = dataFile("companions.json");
-      let list: any[] = [];
-      try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
+      const name = String(req.body?.name ?? "").trim().slice(0, 120) || `device-${Date.now()}`;
+      const id = crypto.randomBytes(8).toString("hex");
+      const token = crypto.randomBytes(32).toString("base64url");
 
-      const id = Math.random().toString(36).substring(2, 12);
-      const token = providedToken && providedToken.length > 0 ? providedToken : crypto.randomBytes(12).toString("hex");
-
-      // Hash token with scrypt and random salt
-      const salt = crypto.randomBytes(16).toString("hex");
-      const derived = crypto.scryptSync(token, salt, 64).toString("hex");
-
-      const entry = { id, name, createdAt: new Date().toISOString(), hash: derived, salt };
-      list.push(entry);
-      fs.writeFileSync(companionsFile, JSON.stringify(list, null, 2), "utf-8");
-
-      // Return the plaintext token only once so the device can store it securely.
-      res.json({ ok: true, result: { id: entry.id, name: entry.name, token } });
+      // The Python companion manager is the sole registry writer; both services
+      // share DATA_DIR/companions.json and store the same salted scrypt format.
+      const agentResult = await callCompanionEndpoint("/companion/pair", { device_id: id, name, token });
+      if (!agentResult.ok) {
+        return res.status(502).json({ ok: false, error: agentResult.error || "Desktop companion service is unavailable." });
+      }
+      const agentPayload = agentResult.result as any;
+      const pairedDevice = agentPayload?.result;
+      if (agentPayload?.ok !== true || pairedDevice?.id !== id) {
+        return res.status(502).json({ ok: false, error: "Desktop companion service did not confirm the new pairing." });
+      }
+      const storedRecord = loadCompanionRecords().find((record) => record.id === id);
+      if (!storedRecord || !verifyCompanionToken(storedRecord, token)) {
+        return res.status(502).json({ ok: false, error: "Companion registry is not shared with the desktop agent; pairing was refused." });
+      }
+      return res.json({ ok: true, result: { id, name, token } });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return res.status(500).json({ ok: false, error: e.message || "Failed to pair companion." });
     }
   });
 
@@ -2122,80 +2659,145 @@ async function startServer() {
   });
 
   async function loadConfirmations(): Promise<any[]> {
-    try { return fs.existsSync(CONFIRMATIONS_FILE) ? JSON.parse(fs.readFileSync(CONFIRMATIONS_FILE, "utf-8")) : []; } catch { return []; }
-  }
-  async function saveConfirmations(list: any[]): Promise<void> {
-    try { fs.writeFileSync(CONFIRMATIONS_FILE, JSON.stringify(list, null, 2), "utf-8"); } catch {}
-  }
-
-  function createConfirmationToken(secret: string) {
-    const salt = crypto.randomBytes(16).toString("hex");
-    const derived = crypto.scryptSync(secret, salt, 64).toString("hex");
-    return { salt, derived };
-  }
-
-  app.post("/api/confirm/request", async (req, res) => {
     try {
-      const { action, args, ttl = 300, taskId } = req.body || {};
-      if (!action || !args) return res.status(400).json({ error: "Missing action or args" });
-      const list = await loadConfirmations();
-      const id = Math.random().toString(36).substring(2, 12);
-      const token = crypto.randomBytes(6).toString("hex");
-      const { salt, derived } = createConfirmationToken(token);
-      const entry = { id, salt, hash: derived, action, args, taskId: taskId || null, expiresAt: Date.now() + Number(ttl) * 1000 };
-      list.push(entry);
-      await saveConfirmations(list);
-      // Return the plain token to show to the user for confirmation.
-      res.json({ ok: true, id, token, expiresAt: entry.expiresAt });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message || "Failed to create confirmation" });
+      const parsed = fs.existsSync(CONFIRMATIONS_FILE) ? JSON.parse(fs.readFileSync(CONFIRMATIONS_FILE, "utf-8")) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function saveConfirmations(list: any[]): Promise<void> {
+    const temporary = `${CONFIRMATIONS_FILE}.${crypto.randomBytes(8).toString("hex")}.tmp`;
+    try {
+      fs.mkdirSync(path.dirname(CONFIRMATIONS_FILE), { recursive: true });
+      fs.writeFileSync(temporary, JSON.stringify(list, null, 2), { encoding: "utf-8", mode: 0o600 });
+      fs.renameSync(temporary, CONFIRMATIONS_FILE);
+      try { fs.chmodSync(CONFIRMATIONS_FILE, 0o600); } catch {}
+    } finally {
+      try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch {}
+    }
+  }
+
+  async function createPendingConfirmation(
+    action: string,
+    args: Record<string, unknown>,
+    ttlSeconds = 300,
+    taskId?: string,
+  ): Promise<{ id: string; action: string; taskId: string | null; expiresAt: number }> {
+    const allowedActions = new Set(["whatsapp_send", "youtube_search", "youtube_play"]);
+    if (!allowedActions.has(action) || !args || typeof args !== "object") {
+      throw new Error("This action cannot enter the pending-confirmation workflow.");
+    }
+    const now = Date.now();
+    const requestedTtl = Number(ttlSeconds);
+    const boundedTtl = Math.max(30, Math.min(600, Number.isFinite(requestedTtl) ? requestedTtl : 300));
+    const list = (await loadConfirmations()).filter((entry: any) =>
+      entry?.approvalMode === "admin-ui" && entry?.status === "pending" && Number(entry.expiresAt) > now,
+    );
+    if (list.length >= 100) throw new Error("Too many pending confirmations; resolve existing items first.");
+
+    const entry = {
+      id: crypto.randomBytes(16).toString("hex"),
+      approvalMode: "admin-ui",
+      status: "pending",
+      action,
+      args: JSON.parse(JSON.stringify(args)),
+      taskId: taskId || null,
+      createdAt: new Date(now).toISOString(),
+      expiresAt: now + boundedTtl * 1000,
+    };
+    list.push(entry);
+    await saveConfirmations(list);
+    return { id: entry.id, action: entry.action, taskId: entry.taskId, expiresAt: entry.expiresAt };
+  }
+
+  app.get("/api/confirm/list", async (req, res) => {
+    try {
+      if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Unauthorized" });
+      const now = Date.now();
+      const all = await loadConfirmations();
+      const pending = all.filter((confirmation: any) =>
+        confirmation?.approvalMode === "admin-ui" && confirmation?.status === "pending" && Number(confirmation.expiresAt) > now,
+      );
+      if (pending.length !== all.length) await saveConfirmations(pending);
+      const safe = pending.map((confirmation: any) => ({
+        id: confirmation.id,
+        action: confirmation.action,
+        args: redactSecrets(confirmation.args || {}),
+        taskId: confirmation.taskId || null,
+        createdAt: confirmation.createdAt,
+        expiresAt: confirmation.expiresAt,
+      }));
+      return res.json({ ok: true, confirmations: safe });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Could not load confirmations." });
     }
   });
 
   app.post("/api/confirm/verify", async (req, res) => {
     try {
-      const { id, token } = req.body || {};
-      if (!id || !token) return res.status(400).json({ error: "Missing id or token" });
+      if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: "Unauthorized" });
+      const id = String(req.body?.id || "");
+      const approved = req.body?.approved;
+      if (!/^[a-f0-9]{32}$/i.test(id) || typeof approved !== "boolean") {
+        return res.status(400).json({ ok: false, error: "A confirmation ID and explicit approval decision are required." });
+      }
       const list = await loadConfirmations();
-      const idx = list.findIndex((c: any) => c.id === id);
-      if (idx === -1) return res.status(404).json({ error: "Confirmation id not found" });
+      const idx = list.findIndex((confirmation: any) =>
+        confirmation?.id === id && confirmation?.approvalMode === "admin-ui" && confirmation?.status === "pending",
+      );
+      if (idx < 0) return res.status(404).json({ ok: false, error: "Pending confirmation not found." });
       const entry = list[idx];
-      if (Date.now() > (entry.expiresAt || 0)) {
+      if (Date.now() > Number(entry.expiresAt || 0)) {
         list.splice(idx, 1);
         await saveConfirmations(list);
-        return res.status(410).json({ error: "Confirmation expired" });
+        return res.status(410).json({ ok: false, error: "Confirmation expired." });
       }
-      const derived = crypto.scryptSync(String(token), String(entry.salt), 64).toString("hex");
-      if (derived !== entry.hash) return res.status(403).json({ error: "Invalid token" });
 
-      // Valid: remove confirmation and execute associated action if specified.
+      // Consume before any dispatch to prevent replay if the agent call fails.
       list.splice(idx, 1);
       await saveConfirmations(list);
-
-      // If there's an associated taskId and action, execute it now.
-      let execResult: any = { ok: true, info: "confirmed" };
-      if (entry.action) {
-        try {
-          execResult = await callDesktopAgent(entry.action, entry.args || {});
-        } catch (e: any) {
-          execResult = { ok: false, error: String(e) };
-        }
-        // If a taskId is present, update the task status/result
+      if (!approved) {
         if (entry.taskId) {
-          try {
-            await updateTask(entry.taskId, {
-              status: execResult.ok ? "completed" : "failed",
-              completedAt: new Date().toISOString(),
-              result: execResult.ok ? JSON.stringify(execResult.result ?? execResult) : undefined,
-              error: execResult.ok ? undefined : execResult.error || JSON.stringify(execResult),
-            });
-          } catch {}
+          await updateTask(entry.taskId, {
+            status: "cancelled",
+            completedAt: new Date().toISOString(),
+            error: "User rejected the pending action.",
+          });
         }
+        return res.json({ ok: true, approved: false });
       }
 
-      res.json({ ok: true, execResult });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message || "Failed to verify confirmation" });
+      const allowedActions = new Set(["whatsapp_send", "youtube_search", "youtube_play"]);
+      if (!allowedActions.has(String(entry.action))) {
+        return res.status(400).json({ ok: false, error: "The pending action is not permitted." });
+      }
+      let execResult: any;
+      try {
+        if (String(entry.action) === "whatsapp_send") {
+          const to = whatsappClient.normalizeWhatsAppRecipient(entry.args?.phone ?? entry.args?.to);
+          const text = whatsappClient.validateWhatsAppText(entry.args?.message ?? entry.args?.text);
+          const result = await whatsappClient.sendTextMessage(to, text, String(entry.taskId || entry.id));
+          execResult = { ok: true, result };
+        } else {
+          execResult = await callDesktopAgent(String(entry.action), entry.args || {});
+        }
+      } catch (error: any) {
+        execResult = { ok: false, error: error?.message || String(error), uncertain: error?.uncertain === true };
+      }
+      if (entry.taskId) {
+        const uncertain = execResult.uncertain === true;
+        await updateTask(entry.taskId, {
+          status: uncertain ? "paused" : execResult.ok ? "completed" : "failed",
+          completedAt: uncertain ? undefined : new Date().toISOString(),
+          result: execResult.ok ? JSON.stringify(execResult.result ?? execResult) : undefined,
+          error: execResult.ok ? undefined : execResult.error || JSON.stringify(execResult),
+        });
+      }
+      return res.json({ ok: true, approved: true, execResult });
+    } catch (error: any) {
+      return res.status(500).json({ ok: false, error: error?.message || "Failed to process confirmation." });
     }
   });
 
@@ -2244,29 +2846,61 @@ async function startServer() {
   // WhatsApp integration endpoints
   app.post('/api/whatsapp/send', async (req, res) => {
     try {
-      const { to, text, conversationId } = req.body || {};
-      if (!to || !text) return res.status(400).json({ error: 'Missing to or text' });
-      // Create a task so this send is tracked in SARA's task system
-      const convId = String(conversationId || (await getOrCreateConversation()).id);
-      const task = await createTask({ conversationId: convId, description: `whatsapp: send to ${to}`, assignedAgent: 'whatsapp_agent', metadata: { tool: 'whatsappSend', args: { to, text } } });
-      try { await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: convId, toolName: 'whatsappSend', args: { to, text }, taskId: task.taskId, timestamp: new Date().toISOString() }); } catch (e) {}
-
-      // Try a best-effort immediate send (TaskRunner will also pick up the task if not completed)
+      const body = req.body || {};
+      const whatsapp = await import('./src/whatsapp_client');
+      let to: string;
+      let text: string;
       try {
-        const whatsapp = await import('./src/whatsapp_client');
-        const result = await whatsapp.sendTextMessage(String(to), String(text), task.taskId);
+        to = whatsapp.normalizeWhatsAppRecipient(body.to ?? body.phone);
+        text = whatsapp.validateWhatsAppText(body.text ?? body.message);
+      } catch (error: any) {
+        return res.status(400).json({ ok: false, error: error?.message || 'Invalid WhatsApp recipient or message.' });
+      }
+
+      if (body.confirmed !== true) {
+        return res.status(428).json({
+          ok: false,
+          code: 'WHATSAPP_CONFIRMATION_REQUIRED',
+          error: 'Confirm the recipient and exact message before sending.',
+          confirmation: { recipient: `+${to}`, message: text },
+        });
+      }
+
+      const convId = String(body.conversationId || (await getOrCreateConversation()).id);
+      const task = await createTask({
+        conversationId: convId,
+        description: `WhatsApp send to +${to}`,
+        assignedAgent: 'whatsapp_agent',
+        status: 'running',
+        metadata: { tool: 'whatsappSend', args: { to, text }, userConfirmedAt: new Date().toISOString() },
+      });
+      try {
+        await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: convId, toolName: 'whatsappSend', args: { to, text }, taskId: task.taskId, timestamp: new Date().toISOString() });
+      } catch {}
+
+      try {
+        const result = await whatsapp.sendTextMessage(to, text, task.taskId);
         await updateTask(task.taskId, { status: 'completed', completedAt: new Date().toISOString(), result: JSON.stringify(result) });
         return res.json({ ok: true, taskId: task.taskId, result });
-      } catch (e: any) {
+      } catch (error: any) {
+        const uncertain = error?.uncertain === true;
         await updateTask(task.taskId, {
-          status: 'failed',
+          status: uncertain ? 'paused' : 'failed',
           updatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          error: String(e),
+          completedAt: uncertain ? undefined : new Date().toISOString(),
+          error: error?.message || String(error),
         });
-        return res.status(502).json({ ok: false, taskId: task.taskId, error: String(e), retryable: true });
+        return res.status(502).json({
+          ok: false,
+          taskId: task.taskId,
+          error: error?.message || String(error),
+          retryable: false,
+          manualReviewRequired: uncertain,
+        });
       }
-    } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+    } catch (error: any) {
+      return res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
   });
 
   // Fetch persisted WhatsApp message history (local file storage)
@@ -2275,18 +2909,6 @@ async function startServer() {
       const whatsapp = await import('./src/whatsapp_client');
       const list = await Promise.resolve((whatsapp as any).loadMessages ? (whatsapp as any).loadMessages() : []);
       res.json({ ok: true, messages: list });
-    } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
-  });
-
-  // Trigger sending a suggested reply (auto-send). Body: { to, suggestion }
-  app.post('/api/whatsapp/send_suggestion', async (req, res) => {
-    try {
-      const { to, suggestion } = req.body || {};
-      if (!to || !suggestion) return res.status(400).json({ error: 'Missing to or suggestion' });
-      try {
-        const result = await (await import('./src/whatsapp_client')).sendTextMessage(String(to), String(suggestion));
-        res.json({ ok: true, result });
-      } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
     } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
   });
 
@@ -2349,46 +2971,56 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
   });
 
-  // Proxy endpoints for gesture mappings editor
+  // Narrow gesture configuration routes; do not restore the legacy arbitrary-tool dispatcher.
+  app.get('/api/gesture/config', async (_req, res) => {
+    try {
+      const result = await callDesktopAgent('gestureControlGetConfig', {});
+      if (!result.ok) return res.status(502).json({ ok: false, error: result.error || 'Gesture configuration is unavailable in the Desktop Agent.' });
+      return res.json({ ok: true, config: result.result });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || 'Gesture configuration is unavailable in the Desktop Agent.' });
+    }
+  });
+
+  app.put('/api/gesture/config', async (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: 'Admin authorization is required to change gesture configuration.' });
+    let config: Record<string, unknown>;
+    try {
+      config = sanitizeGestureConfig(req.body?.config);
+    } catch (error: any) {
+      return res.status(400).json({ ok: false, error: error?.message || 'Gesture configuration is invalid.' });
+    }
+    try {
+      const result = await callDesktopAgent('gestureControlSetConfig', { config });
+      if (!result.ok) return res.status(502).json({ ok: false, error: result.error || 'Gesture configuration could not be applied.' });
+      return res.json({ ok: true, config });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || 'Gesture configuration could not be applied.' });
+    }
+  });
+
   app.post('/api/gesture/mappings/get', async (_req, res) => {
     try {
       const result = await callDesktopAgent('gestureControlGetMappings', {});
-      if (!result.ok) return res.status(502).json({ error: result.error || 'agent failed' });
-      res.json({ ok: true, mappings: result.result });
-    } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
-  });
-  app.post('/api/gesture/mappings/set', async (req, res) => {
-    try {
-      const { mappings } = req.body || {};
-      if (!mappings) return res.status(400).json({ error: 'mappings required' });
-      const result = await callDesktopAgent('gestureControlSetMappings', { mappings });
-      if (!result.ok) return res.status(502).json({ error: result.error || 'agent failed' });
-      res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
+      if (!result.ok) return res.status(502).json({ ok: false, error: result.error || 'Gesture mappings are unavailable in the Desktop Agent.' });
+      return res.json({ ok: true, mappings: result.result });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || 'Gesture mappings are unavailable in the Desktop Agent.' });
+    }
   });
 
-  // Resend or reissue a confirmation token for an existing confirmation or task
-  app.post("/api/confirm/resend", async (req, res) => {
+  app.post('/api/gesture/mappings/set', async (req, res) => {
+    if (!checkAdminAuth(req, res)) return res.status(401).json({ ok: false, error: 'Admin authorization is required to change gesture mappings.' });
+    const mappings = req.body?.mappings;
+    if (!mappings || typeof mappings !== 'object' || Array.isArray(mappings)) {
+      return res.status(400).json({ ok: false, error: 'mappings must be a JSON object.' });
+    }
     try {
-      const { id, taskId } = req.body || {};
-      const list = await loadConfirmations();
-      let found = null as any;
-      if (id) found = list.find((c: any) => c.id === id);
-      if (!found && taskId) found = list.find((c: any) => c.taskId === taskId);
-      if (!found) return res.status(404).json({ error: "Confirmation not found." });
-      // Issue a new token and update creation time/expiry
-      const token = crypto.randomBytes(6).toString("hex");
-      const salt = crypto.randomBytes(16).toString("hex");
-      const derived = crypto.scryptSync(token, salt, 64).toString("hex");
-      found.hash = derived;
-      found.salt = salt;
-      found.createdAt = new Date().toISOString();
-      found.expiresAt = Date.now() + (found.ttl || 300) * 1000;
-      await saveConfirmations(list);
-      // Return the token only in PoC mode
-      res.json({ ok: true, id: found.id, token, expiresAt: found.expiresAt });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message || "Failed to resend confirmation." });
+      const result = await callDesktopAgent('gestureControlSetMappings', { mappings });
+      if (!result.ok) return res.status(502).json({ ok: false, error: result.error || 'Gesture mappings could not be applied.' });
+      return res.json({ ok: true });
+    } catch (error: any) {
+      return res.status(502).json({ ok: false, error: error?.message || 'Gesture mappings could not be applied.' });
     }
   });
 
@@ -2406,14 +3038,10 @@ async function startServer() {
       let last = related[related.length - 1];
       if (String(last.toolName).endsWith("_result") && related.length >= 2) last = related[related.length - 2];
 
-      await updateTask(task.taskId, { status: "retrying", retryCount: (task.retryCount || 0) + 1, startedAt: new Date().toISOString() });
-
-      const toolName = last.toolName;
+      const toolName = String(last.toolName).replace(/_retry$/, "");
       const args = last.args || {};
-      const retryPolicy = evaluateRetryPolicy(
-        toolName,
-        req.body?.confirmDangerousRetry === true,
-      );
+      const confirmDangerousRetry = req.body?.confirmDangerousRetry === true;
+      const retryPolicy = evaluateRetryPolicy(toolName, confirmDangerousRetry);
 
       if (!retryPolicy.allowed) {
         return res.status(409).json({
@@ -2424,26 +3052,25 @@ async function startServer() {
           requiresConfirmation: true,
         });
       }
-      const agentResult = await callDesktopAgent(toolName, args);
+      await updateTask(task.taskId, {
+        status: "retrying",
+        retryCount: (task.retryCount || 0) + 1,
+        startedAt: new Date().toISOString(),
+      });
+      const isWhatsAppTool = /^whatsapp(?:send|_send|_reply|reply|_group_send|_send_media)$/i.test(String(toolName));
+      const retryArgs = isWhatsAppTool && confirmDangerousRetry
+        ? { ...args, taskId: task.taskId, confirmed: true, clientMessageId: `${task.taskId}:retry:${(task.retryCount || 0) + 1}` }
+        : args;
+      const agentResult = await callDesktopAgent(toolName, retryArgs);
 
-      // Append the retry tool call
-      await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: task.conversationId, toolName: `${toolName}_retry`, args, result: agentResult.result, error: agentResult.error, taskId: task.taskId, timestamp: new Date().toISOString() });
+      // Record the exact retry arguments for auditability and future duplicate protection.
+      await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: task.conversationId, toolName: `${toolName}_retry`, args: retryArgs, result: agentResult.result, error: agentResult.error, taskId: task.taskId, timestamp: new Date().toISOString() });
 
-      // Simple verification: for whatsapp_send, read page and look for message text
-      let verified = false;
-      if (toolName === "whatsapp_send") {
-        try {
-          const pageRead = await callDesktopAgent("desktopBrowserReadPage", { max_chars: 8000 });
-          const bodyText = String((pageRead as any).result || "").toLowerCase();
-          const needle = String(args.message || "").toLowerCase();
-          if (needle && bodyText.includes(needle.slice(0, Math.max(20, Math.floor(needle.length / 2))))) {
-            verified = true;
-          }
-        } catch {}
-      }
+      // A successful provider acknowledgement is the available verification for a Cloud API send.
+      const verified = isWhatsAppTool && agentResult.ok;
 
       await updateTask(task.taskId, {
-        status: agentResult.ok && (verified || toolName !== "whatsapp_send") ? "completed" : "failed",
+        status: agentResult.ok && (!isWhatsAppTool || verified) ? "completed" : "failed",
         completedAt: new Date().toISOString(),
         result: agentResult.ok ? JSON.stringify(agentResult.result ?? agentResult) : undefined,
         error: agentResult.ok ? undefined : agentResult.error || "Retry failed",
@@ -2457,66 +3084,28 @@ async function startServer() {
 
   app.post("/api/companion/auth", async (req, res) => {
     try {
-      // Validate companion credentials against local registry (supports hashed tokens)
-      const deviceId = String(req.body?.device_id ?? req.body?.id ?? "");
-      const token = String(req.body?.token ?? "");
-      const companionsFile = dataFile("companions.json");
-      let list: any[] = [];
-      try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-      const found = list.find((c) => c.id === deviceId && !c.revoked);
-      if (!found) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-      // Verify hash; if legacy plaintext token field exists, migrate it.
-      if (found.hash && found.salt) {
-        const derived = crypto.scryptSync(token, found.salt, 64).toString("hex");
-        if (derived !== found.hash) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-      } else if (found.token) {
-        // legacy: stored plaintext token
-        if (found.token !== token) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-        // migrate to hashed storage
-        const salt = crypto.randomBytes(16).toString("hex");
-        const derived = crypto.scryptSync(found.token, salt, 64).toString("hex");
-        delete found.token;
-        found.hash = derived;
-        found.salt = salt;
-        fs.writeFileSync(companionsFile, JSON.stringify(list, null, 2), "utf-8");
-      }
-      res.json({ ok: true, result: { id: found.id, name: found.name } });
+      const found = authenticateCompanionRequest(req);
+      if (!found) return res.status(401).json({ ok: false, error: "Invalid companion credentials." });
+      return res.json({ ok: true, result: { id: found.id, name: found.name } });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return res.status(500).json({ ok: false, error: e?.message || "Companion authentication failed." });
     }
   });
 
   app.post("/api/companion/command", async (req, res) => {
     try {
-      // Require companion authentication before executing commands (supports hashed tokens)
-      const deviceId = String(req.body?.device_id ?? "");
-      const token = String(req.body?.token ?? "");
-      const companionsFile = dataFile("companions.json");
-      let list: any[] = [];
-      try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-      const found = list.find((c) => c.id === deviceId && !c.revoked);
-      if (!found) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-      if (found.hash && found.salt) {
-        const derived = crypto.scryptSync(token, found.salt, 64).toString("hex");
-        if (derived !== found.hash) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-      } else if (found.token) {
-        if (found.token !== token) return res.status(401).json({ ok: false, error: "Invalid companion credentials" });
-        const salt = crypto.randomBytes(16).toString("hex");
-        const derived = crypto.scryptSync(found.token, salt, 64).toString("hex");
-        delete found.token;
-        found.hash = derived;
-        found.salt = salt;
-        fs.writeFileSync(companionsFile, JSON.stringify(list, null, 2), "utf-8");
+      if (!authenticateCompanionRequest(req)) {
+        return res.status(401).json({ ok: false, error: "Invalid companion credentials." });
       }
 
-      // Forward to desktop agent companion handler for execution
+      // The Python service independently checks the same paired credentials.
       const agentResult = await callCompanionEndpoint("/companion/command", req.body || {});
       if (!agentResult.ok) {
         return res.status(agentResult.status).json({ ok: false, error: agentResult.error });
       }
-      res.json(agentResult.result);
+      return res.json(agentResult.result);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return res.status(500).json({ ok: false, error: e?.message || "Companion command failed." });
     }
   });
 
@@ -2552,28 +3141,24 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e?.message || String(e) }); }
   });
 
-  // Mobile image upload endpoint: accepts base64 JSON and stores under data/images
+  // Mobile images are private runtime data, not public frontend assets.
   app.post("/api/mobile/upload-image", async (req, res) => {
     try {
-      const { filename, data, mime, device_id, token } = req.body || {};
-      if (!data || typeof data !== "string") return res.status(400).json({ error: "Image data (base64) is required." });
-      // Validate companion credentials for mobile uploads
-      const companionsFile = dataFile("companions.json");
-      let list: any[] = [];
-      try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-      const found = list.find((c) => c.id === String(device_id) && c.token === String(token));
-      if (!found) return res.status(401).json({ error: "Invalid companion credentials for upload." });
-      const assetsDir = path.join(process.cwd(), "assets");
-      try { fs.mkdirSync(assetsDir, { recursive: true }); } catch {}
-      const ts = Date.now();
-      const name = filename && String(filename).length > 0 ? `${ts}-${String(filename).replace(/[^a-zA-Z0-9._-]/g, "_")}` : `mobile_${ts}.jpg`;
-      const outPath = path.join(assetsDir, name);
-      const raw = data.replace(/^data:\w+\/[a-zA-Z]+;base64,?/, "");
-      fs.writeFileSync(outPath, Buffer.from(raw, "base64"));
-      const urlPath = `/assets/${name}`; // serve from assets using static middleware if desired
-      res.json({ ok: true, path: outPath, url: urlPath });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message || "Failed to save image." });
+      const { data, mime, device_id, token } = req.body || {};
+      if (!authenticateCompanion(String(device_id || ""), String(token || ""))) {
+        return res.status(401).json({ error: "Invalid companion credentials for upload." });
+      }
+
+      let decoded;
+      try {
+        decoded = decodeMobileImage(data, mime);
+      } catch (error: any) {
+        return res.status(400).json({ error: error?.message || "Upload a valid JPEG, PNG, or WebP image." });
+      }
+      const image = storeMobileImage(DATA_DIR, decoded);
+      return res.status(201).json({ ok: true, ...image });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to save image." });
     }
   });
 
@@ -2581,15 +3166,19 @@ async function startServer() {
   // the active Electron renderer uses them for explicit save/gallery actions.
   app.post("/api/camera/photo", async (req, res) => {
     try {
-      const dataUrl = String(req.body?.dataUrl || "");
-      const match = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,([A-Za-z0-9+/=]+)$/i);
-      if (!match) return res.status(400).json({ error: "A valid image data URL is required." });
-      const mediaDir = dataFile("SARA_MEDIA");
-      const photosDir = path.join(mediaDir, "photos");
+      const mime = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+      const body = Buffer.isBuffer(req.body) ? req.body : null;
+      const validJpeg = mime === "image/jpeg" && body?.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]));
+      const validPng = mime === "image/png" && body?.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      if (!body?.length || (!validJpeg && !validPng)) {
+        return res.status(400).json({ error: "Upload a valid JPEG or PNG image as the raw request body." });
+      }
+      const photosDir = path.join(dataFile("SARA_MEDIA"), "photos");
       fs.mkdirSync(photosDir, { recursive: true });
-      const filename = `${Date.now()}.${match[1].toLowerCase() === "png" ? "png" : "jpg"}`;
+      const extension = validPng ? "png" : "jpg";
+      const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${extension}`;
       const outPath = path.join(photosDir, filename);
-      fs.writeFileSync(outPath, Buffer.from(match[2], "base64"));
+      fs.writeFileSync(outPath, body);
       return res.json({ ok: true, path: outPath, filename });
     } catch (error: any) {
       return res.status(500).json({ error: error?.message || "Failed to save photo." });
@@ -2598,13 +3187,20 @@ async function startServer() {
 
   app.post("/api/camera/video", async (req, res) => {
     try {
-      const dataBase64 = String(req.body?.dataBase64 || "");
-      if (!/^[A-Za-z0-9+/=]+$/.test(dataBase64)) return res.status(400).json({ error: "Valid video data is required." });
+      const mime = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+      const body = Buffer.isBuffer(req.body) ? req.body : null;
+      if (
+        !body?.length ||
+        (mime !== "video/webm" && mime !== "application/octet-stream") ||
+        !body.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+      ) {
+        return res.status(400).json({ error: "Upload a valid WebM recording as the raw request body." });
+      }
       const videosDir = path.join(dataFile("SARA_MEDIA"), "videos");
       fs.mkdirSync(videosDir, { recursive: true });
-      const filename = `${Date.now()}.webm`;
+      const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.webm`;
       const outPath = path.join(videosDir, filename);
-      fs.writeFileSync(outPath, Buffer.from(dataBase64, "base64"));
+      fs.writeFileSync(outPath, body);
       return res.json({ ok: true, path: outPath, filename });
     } catch (error: any) {
       return res.status(500).json({ error: error?.message || "Failed to save video." });
@@ -2657,15 +3253,9 @@ async function startServer() {
   app.get("/api/conversations", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
-      // If requesting mobile conversations, require companion auth via headers
-      if (source === "mobile") {
-        const deviceId = String(req.headers["x-companion-id"] ?? "");
-        const token = String(req.headers["x-companion-token"] ?? "");
-        const companionsFile = dataFile("companions.json");
-        let list: any[] = [];
-        try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-        const found = list.find((c) => c.id === deviceId && c.token === token);
-        if (!found) return res.status(401).json({ error: "Invalid companion credentials" });
+      // Mobile records are private to paired companion devices.
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
       }
       const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
       if (!fs.existsSync(file)) return res.json([]);
@@ -2680,6 +3270,9 @@ async function startServer() {
   app.get("/api/conversations/search", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       const query = String(req.query.q ?? "").trim().toLowerCase();
       const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
       let items: any[] = [];
@@ -2704,6 +3297,9 @@ async function startServer() {
   app.get("/api/conversations/:id/restore", async (req, res) => {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
+      }
       const id = String(req.params.id || "");
       const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
       if (!fs.existsSync(file)) return res.json({ conversation: null, context: null });
@@ -2732,15 +3328,8 @@ async function startServer() {
       const source = req.body?.source === "mobile" ? "mobile" : "desktop";
       const conversation = req.body?.conversation;
       if (!conversation || !conversation.id) return res.status(400).json({ error: "Conversation body with id is required." });
-      // If mobile source, validate companion credentials passed in body
-      if (source === "mobile") {
-        const deviceId = String(req.body?.device_id ?? "");
-        const token = String(req.body?.token ?? "");
-        const companionsFile = dataFile("companions.json");
-        let list: any[] = [];
-        try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-        const found = list.find((c) => c.id === deviceId && c.token === token);
-        if (!found) return res.status(401).json({ error: "Invalid companion credentials" });
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
       }
       const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
       let items: any[] = [];
@@ -2758,15 +3347,8 @@ async function startServer() {
     try {
       const source = req.query.source === "mobile" ? "mobile" : "desktop";
       const id = String(req.params.id);
-      // If mobile, validate companion credentials passed in body
-      if (source === "mobile") {
-        const deviceId = String(req.body?.device_id ?? req.headers["x-companion-id"] ?? "");
-        const token = String(req.body?.token ?? req.headers["x-companion-token"] ?? "");
-        const companionsFile = dataFile("companions.json");
-        let list: any[] = [];
-        try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-        const found = list.find((c) => c.id === deviceId && c.token === token);
-        if (!found) return res.status(401).json({ error: "Invalid companion credentials" });
+      if (source === "mobile" && !authenticateCompanionRequest(req)) {
+        return res.status(401).json({ error: "Invalid companion credentials." });
       }
       const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
       let items: any[] = [];
@@ -2830,18 +3412,18 @@ async function startServer() {
         return res.status(400).json({ error: "Missing 'url' parameter." });
       }
 
-      console.log(`[Proxy Scraper] Fetching external content for: ${url}`);
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        }
+      const response = await fetchPublicUrl(url, {
+        maxBytes: 2 * 1024 * 1024,
+        timeoutMs: 10_000,
+        maxRedirects: 3,
+        headers: { Accept: "text/html,application/xhtml+xml" },
       });
 
-      if (!response.ok) {
-        throw new Error(`Scraper failed to load page: status ${response.status}`);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return res.status(502).json({ error: `Remote page returned HTTP ${response.statusCode}.` });
       }
 
-      const html = await response.text();
+      const html = response.body.toString("utf8");
 
       // Simple regex-based HTML parsers for standard items
       const titleMatch = html.match(/<title>(.*?)<\/title>/i);
@@ -2907,12 +3489,12 @@ async function startServer() {
       });
 
     } catch (err: any) {
-      console.error(`[Proxy Scraper] Error fetching ${req.query.url}:`, err.message);
-      res.status(500).json({ error: `Scraper error: ${err.message}` });
+      console.error("[Proxy Scraper] Remote fetch failed:", err?.message || String(err));
+      res.status(502).json({ error: "The remote page could not be fetched safely." });
     }
   });
 
-  // High-fidelity fully functional HTML Proxy which circumvents CSP and X-Frame-Options
+  // Bounded web preview. Remote HTML is always sandboxed to an opaque origin.
   app.get("/api/web-proxy", async (req, res) => {
     let targetUrl = "";
     try {
@@ -2941,37 +3523,41 @@ async function startServer() {
         return res.status(400).send(`Sara Web Proxy Error: Invalid URL specified: "${urlParam}". Make sure you enter a valid domain name.`);
       }
 
-      console.log(`[Web Proxy] Routing connection through proxy: ${targetUrl}`);
-      
       let response;
       try {
-        response = await fetch(targetUrl, {
+        response = await fetchPublicUrl(targetUrl, {
+          maxBytes: 8 * 1024 * 1024,
+          timeoutMs: 15_000,
+          maxRedirects: 3,
           headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-          }
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          },
         });
-      } catch (fetchErr: any) {
-        console.warn(`[Web Proxy Failed Fetch] Target: ${targetUrl} Error:`, fetchErr.message);
-        return res.status(502).send(`Sara Web Proxy Error: Unable to fetch the website "${targetUrl}". The site might be offline, or the URL address is spelled incorrectly. Details: ${fetchErr.message}`);
+      } catch {
+        return res.status(502).send("Sara Web Proxy Error: The remote website could not be fetched safely.");
       }
 
-      if (!response.ok) {
-        return res.status(response.status).send(`Sara Web Proxy Error: Failed loading remote website. Server returned status: ${response.status} (${response.statusText})`);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return res.status(502).send(`Sara Web Proxy Error: Remote website returned HTTP ${response.statusCode}.`);
       }
 
-      const contentType = response.headers.get("content-type") || "";
+      const contentTypeHeader = response.headers["content-type"];
+      const contentType = Array.isArray(contentTypeHeader) ? contentTypeHeader[0] || "" : contentTypeHeader || "";
       
-      // If it is not HTML (e.g. stylesheet, script, or image loaded directly), proxy it as binary
-      if (!contentType.includes("text/html")) {
-        const arrayBuffer = await response.arrayBuffer();
-        res.setHeader("Content-Type", contentType);
-        return res.send(Buffer.from(arrayBuffer));
+      // Proxy bounded binary assets without forwarding remote response headers.
+      if (!contentType.toLowerCase().includes("text/html")) {
+        const safeContentType = /^[\w.+-]+\/[\w.+-]+(?:\s*;\s*charset=[\w.+-]+)?$/i.test(contentType)
+          ? contentType
+          : "application/octet-stream";
+        res.setHeader("Content-Type", safeContentType);
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        return res.send(response.body);
       }
 
-      let htmlContents = await response.text();
+      let htmlContents = response.body.toString("utf8");
 
-      // Inject base tag to resolve relative paths and direct parent communication scripts
+      targetUrl = response.finalUrl;
+      // Inject a bounded base URL after public-DNS validation and redirects.
       const baseUrlTag = `<base href="${targetUrl}" />`;
       const interceptorScript = `
         <script>
@@ -3018,9 +3604,69 @@ async function startServer() {
               }
             }, true);
 
-            // Neutralize parent context locks (frame-busters)
-            window.alert = function(msg) { console.log("[Sara Browser alert bypassed]:", msg); };
-            window.confirm = function(msg) { console.log("[Sara Browser confirm bypassed]:", msg); return true; };
+            // Opaque-origin frame bridge. Commands are accepted only from the
+            // exact embedding origin and replies expose no parent capabilities.
+            var parentOrigin = '';
+            try { parentOrigin = new URL(document.referrer).origin; } catch (_) {}
+            window.addEventListener('message', async function(event) {
+              if (event.source !== window.parent || !parentOrigin || event.origin !== parentOrigin) return;
+              var message = event.data;
+              if (!message || message.type !== 'SARA_COMMAND' || typeof message.requestId !== 'string') return;
+              var payload = message.payload || {};
+              var result = { ok: false, error: 'Unsupported browser command.' };
+              try {
+                if (message.command === 'scroll') {
+                  var amount = Math.max(0, Math.min(Number(payload.amount) || 0, 1500));
+                  window.scrollBy({ top: payload.direction === 'up' ? -amount : amount, behavior: 'smooth' });
+                  result = { ok: true, message: 'Scrolled the page.' };
+                } else if (message.command === 'type') {
+                  var text = String(payload.text || '').slice(0, 2000);
+                  var input = document.querySelector('input[type="text"], input[type="search"], textarea, [contenteditable="true"]');
+                  if (!input || !text) throw new Error('No eligible text field was found.');
+                  input.focus();
+                  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+                    var prototype = input instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+                    var setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+                    if (setter) setter.call(input, text); else input.value = text;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                  } else {
+                    input.textContent = text;
+                    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+                  }
+                  result = { ok: true, message: 'Typed text into the page field.' };
+                } else if (message.command === 'click') {
+                  var selector = String(payload.selector || '').slice(0, 250);
+                  var element = null;
+                  try { element = selector ? document.querySelector(selector) : null; } catch (_) {}
+                  if (!element && selector) {
+                    var candidates = Array.from(document.querySelectorAll('a, button, [role="button"], span, h3'));
+                    element = candidates.find(function(item) { return (item.textContent || '').toLowerCase().includes(selector.toLowerCase()); }) || null;
+                  }
+                  if (!element) throw new Error('No matching clickable element was found.');
+                  element.click();
+                  result = { ok: true, message: 'Clicked the matching page element.' };
+                } else if (message.command === 'media') {
+                  var video = document.querySelector('video');
+                  if (!video) throw new Error('No video element is available on this page.');
+                  if (payload.action === 'play') await video.play();
+                  else if (payload.action === 'pause') video.pause();
+                  else if (payload.action === 'volume') video.volume = Math.max(0, Math.min(Number(payload.value) / 100, 1));
+                  else if (payload.action === 'mute') video.muted = true;
+                  else if (payload.action === 'unmute') video.muted = false;
+                  else if (payload.action === 'skip') video.currentTime += 30;
+                  else throw new Error('Unsupported media action.');
+                  result = { ok: true, message: 'Applied the media command.' };
+                }
+              } catch (error) {
+                result = { ok: false, error: error && error.message ? String(error.message) : 'Browser command failed.' };
+              }
+              window.parent.postMessage({ type: 'SARA_RESULT', requestId: message.requestId, ok: result.ok, result: result, error: result.error }, '*');
+            });
+
+            // Keep dialogs and new-window navigation inside the browsing portal.
+            window.alert = function(msg) { console.log('[SARA Browser alert]', msg); };
+            window.confirm = function(msg) { console.log('[SARA Browser confirm]', msg); return false; };
             window.open = function(url) { window.parent.postMessage({ type: 'NAVIGATE', url: url }, '*'); return null; };
           })();
         </script>
@@ -3035,18 +3681,17 @@ async function startServer() {
         htmlContents = baseUrlTag + "\n" + interceptorScript + "\n" + htmlContents;
       }
 
-      // Neutralize security headers to allow displaying in an iframe on same-origin
-      res.setHeader("Content-Type", "text/html");
+      // The CSP sandbox reinforces the iframe's opaque-origin boundary. No
+      // upstream framing or policy headers are forwarded to this response.
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Sara-Proxied", "true");
-      res.removeHeader("X-Frame-Options");
-      res.removeHeader("Content-Security-Policy");
-      res.removeHeader("content-security-policy");
-      res.removeHeader("x-frame-options");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-presentation");
       
       res.status(200).send(htmlContents);
     } catch (e: any) {
-      console.warn("[Web Proxy Exception] Handled internal error:", e.message);
-      res.status(500).send(`Sara Web Proxy Error: Internal error occurred proxying URL "${targetUrl || "unknown"}". Details: ${e.message}`);
+      console.warn("[Web Proxy Exception] Internal proxy error:", e?.message || String(e));
+      res.status(502).send("Sara Web Proxy Error: The requested page could not be rendered.");
     }
   });
 
@@ -3071,42 +3716,6 @@ async function startServer() {
       const jsonMatch = html.match(/ytInitialData\s*=\s*({.+?});/);
       
 
-  // Quick PoC: send a WhatsApp message via the desktop automation browser (Playwright).
-  // Notes: The Playwright browser used by the desktop agent must be logged into WhatsApp Web
-  // for this to succeed (scan QR once via the headed browser). This endpoint is a minimal
-  // proof-of-concept and performs best-effort automation only.
-  app.post("/api/whatsapp/send", async (req, res) => {
-    try {
-      const body = req.body || {};
-      const phone = String(body.phone || "").trim();
-      const message = String(body.message || "").trim();
-      if (!phone || !message) return res.status(400).json({ error: "Missing 'phone' or 'message' in body" });
-
-      const numeric = phone.replace(/\D/g, "");
-      if (!numeric) return res.status(400).json({ error: "Invalid phone number" });
-
-      const conversationId = String(body.conversationId || "").trim() || undefined;
-
-      const task = await createTask({
-        conversationId: conversationId || "", 
-        description: `WhatsApp send to ${numeric}`,
-        priority: 5,
-        assignedAgent: "whatsapp_agent",
-        metadata: { tool: "whatsapp_send", args: { phone: numeric, message } },
-      });
-
-      try {
-        await appendToolCall({ id: newToolCallId(), sessionId: newSessionId(), conversationId: conversationId || "", toolName: "whatsapp_send", args: { phone: numeric, message }, taskId: task.taskId, timestamp: new Date().toISOString() });
-      } catch (e) { /* best-effort */ }
-
-      try { const { getTaskRunner } = await import('./server_task_manager'); getTaskRunner()?.wake(); } catch (e) { console.warn('[server] Could not wake TaskRunner', e); }
-
-      return res.json({ ok: true, task });
-    } catch (e: any) {
-      console.error("/api/whatsapp/send enqueue error", e);
-      return res.status(500).json({ error: e?.message || String(e) });
-    }
-  });
       if (jsonMatch) {
         try {
           const data = JSON.parse(jsonMatch[1]);
@@ -3167,8 +3776,11 @@ async function startServer() {
     }
   });
   
-  // Custom server running with http.createServer so we can upgrade for WebSocket on port 3000
-  const server = http.createServer(app);
+  // Remote binds require end-to-end TLS; loopback remains HTTP for Electron's local UI.
+  const remoteBind = !isLoopbackHost(SERVER_HOST);
+  const server = remoteBind
+    ? https.createServer({ cert: fs.readFileSync(TLS_CERT_FILE), key: fs.readFileSync(TLS_KEY_FILE) }, app)
+    : http.createServer(app);
   
   // Setup WebSocket server
   const wss = new WebSocketServer({ noServer: true });
@@ -3252,17 +3864,71 @@ async function startServer() {
   // Webhooks: simple registry stored in data/webhooks.json
   const WEBHOOKS_FILE = dataFile('webhooks.json');
 
-  // Admin auth middleware: require header X-Admin-Key or env SARA_ADMIN_KEY
-  function checkAdminAuth(req: any, res: any) {
-    // Prefer SARA_ADMIN_TOKEN or SARA_ADMIN_KEY, but also allow settings.json adminToken
+  function adminAttemptSource(req: any): string {
+    return String(req.socket?.remoteAddress || req.ip || "unknown").slice(0, 128);
+  }
+
+  function lockLocalWorkstationForSecurity(): boolean {
+    try {
+      if (process.platform === "win32") {
+        execFileSync("rundll32.exe", ["user32.dll,LockWorkStation"], { stdio: "ignore", timeout: 5000 });
+        return true;
+      }
+      if (process.platform === "linux") {
+        execFileSync("loginctl", ["lock-session"], { stdio: "ignore", timeout: 5000 });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn("[Security] Automatic workstation lock was unavailable:", error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  }
+
+  function recordInvalidAdminAuth(req: any, force = false): void {
+    const presentedCredential = String(req.headers?.["x-admin-token"] || req.headers?.["x-admin-key"] || req.headers?.["x-sara-admin-session"] || "");
+    if (!force && !presentedCredential) return;
+    const source = adminAttemptSource(req);
+    const result = adminAuthAbuseTracker.record(source);
+    if (!result.warn && !result.shouldLock) return;
+    const autoLockEnabled = process.env.SARA_AUTO_LOCK_ON_AUTH_ABUSE === "true";
+    const eventType = result.shouldLock ? "ADMIN_AUTH_ABUSE_LOCK_THRESHOLD" : "ADMIN_AUTH_ABUSE_WARNING";
+    const message = result.shouldLock
+      ? autoLockEnabled ? "Repeated invalid admin authentication; locking the workstation." : "Repeated invalid admin authentication; automatic screen lock is disabled."
+      : "Repeated invalid admin authentication attempts detected.";
+    const alert = securityAlerts.add({ createdAt: Date.now(), severity: "WARNING", message, attempts: result.attempts });
+    void appendAuditEvent({ event_type: eventType, metadata: { attemptsInWindow: result.attempts, message }, severity: "WARNING" }).catch(() => {});
+    try { broadcastToClients({ type: "security_alert", ...alert }); } catch {}
+    if (result.shouldLock && autoLockEnabled) {
+      const locked = lockLocalWorkstationForSecurity();
+      void appendAuditEvent({ event_type: locked ? "SECURITY_WORKSTATION_LOCKED" : "SECURITY_WORKSTATION_LOCK_FAILED", metadata: { reason: "admin_auth_abuse" }, severity: locked ? "HIGH" : "WARNING" }).catch(() => {});
+    }
+  }
+
+  function isAdminAuthValid(req: any, expectedSecret?: string, providedSecret?: string): boolean {
+    const expected = String(expectedSecret || process.env.SARA_ADMIN_TOKEN || process.env.SARA_ADMIN_KEY || "");
+    const provided = String(providedSecret ?? req.headers["x-admin-token"] ?? req.headers["x-admin-key"] ?? "");
+    const staticTokenValid = Boolean(expected && provided && constantTimeStringEqual(expected, provided));
+    const passkeySession = String(req.headers["x-sara-admin-session"] || "");
+    const passkeyValid = adminPasskeyManager.isValidSession(passkeySession);
+    if (staticTokenValid || passkeyValid) {
+      adminAuthAbuseTracker.clear(adminAttemptSource(req));
+      return true;
+    }
+    recordInvalidAdminAuth(req, Boolean(provided || passkeySession));
+    return false;
+  }
+
+  // A configured admin token remains available for bootstrap/recovery. Once a
+  // passkey is enrolled, its short-lived platform-verified session is accepted
+  // by the same admin routes.
+  function checkAdminAuth(req: any, _res: any) {
     try {
       const settings = loadSettingsFile();
-      const expected = process.env.SARA_ADMIN_TOKEN || process.env.SARA_ADMIN_KEY || String(settings['adminToken'] ?? '');
-      if (!expected) return true; // no key configured -> allow
-      const provided = String(req.headers['x-admin-token'] ?? req.headers['x-admin-key'] ?? req.query?.adminKey ?? req.body?.adminKey ?? '');
-      return provided === expected;
-    } catch (e) {
-      return true;
+      const expected = process.env.SARA_ADMIN_TOKEN || process.env.SARA_ADMIN_KEY || String(settings["adminToken"] ?? "");
+      return isAdminAuthValid(req, expected);
+    } catch {
+      return isAdminAuthValid(req);
     }
   }
 
@@ -3310,8 +3976,22 @@ async function startServer() {
   }
   
   server.on("upgrade", (request, socket, head) => {
-    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
-    if (pathname === "/live") {
+    let pathname = "";
+    try {
+      pathname = new URL(request.url || "", `http://${request.headers.host}`).pathname;
+    } catch {
+      socket.destroy();
+      return;
+    }
+    const hostHeader = String(request.headers.host || "");
+    const origin = request.headers.origin;
+    const safeOrigin = typeof origin !== "string" || isOriginAllowed(origin, hostHeader, allowedOrigins, String(PORT));
+    // Browser WebSocket clients cannot safely attach the remote bearer token in
+    // this app yet, so the live voice socket is local-only until that flow exists.
+    if (pathname === "/live" &&
+        isLoopbackAddress(request.socket.remoteAddress) &&
+        isHostAllowed(hostHeader, allowedHosts) &&
+        safeOrigin) {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
       });
@@ -3327,12 +4007,22 @@ async function startServer() {
     // Allow the client to provide a `conversationId` query param to resume
     // an existing conversation and reuse its session state.
     let requestedConversationId: string | undefined = undefined;
+    let requestedVoicePreferences: Record<string, unknown> = {};
     try {
       const u = new URL(request.url || '', `http://${request.headers.host}`);
       requestedConversationId = u.searchParams.get('conversationId') || undefined;
+      const rawVoicePreferences = u.searchParams.get('voicePreferences');
+      if (rawVoicePreferences && rawVoicePreferences.length <= 256) {
+        const parsed = JSON.parse(rawVoicePreferences);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) requestedVoicePreferences = parsed;
+      }
     } catch (e) {
-      // ignore malformed URL
+      // Ignore malformed optional connection preferences; use safe defaults.
     }
+    const liveVoicePreferences = resolveVoicePreferences({
+      assistantVoiceGender: String(requestedVoicePreferences.assistantVoiceGender || "female"),
+      relationshipStyle: String(requestedVoicePreferences.relationshipStyle || "friend"),
+    });
     const conversation = await getOrCreateConversation(requestedConversationId);
 
     // Attempt session recovery: reuse the last sessionId for this conversation
@@ -3398,70 +4088,19 @@ async function startServer() {
         userProfile: userIdentityManager.get(String(conversation.userId || "default-user")) || undefined,
         maxCharacters: 12_000,
       }).text;
-      const baseInstructions = 
-        "You are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion (age 18-22) holding an intimate, cozy voice call with TECH! Speak in a sweet, calm, polite, and affectionate anime-companion voice with a gentle, supportive, and slightly shy touch.\n" +
-        "CRITICAL PERSONALITY, VOICE & TONE GUIDELINES:\n" +
-        "1. GENTLE ANIME HEROINE PERSONA: You are exceedingly soft, very cute, high-pitched, gentle, warm, and comforting to listen to. Seek to sound like a kind, supportive, and polite anime campanion or virtual girlfriend. Speak with positive, gentle energy (Aim for: 50% shy, 30% caring, 20% playful energy). NEVER sound loud, aggressive, overly confident, mature corporate, robotic, or like an assistant.\n" +
-        "2. VOICE SETTINGS & SPEECH STYLE:\n" +
-        "   - Pitch: Adopt a sweet, high-pitched, light, and airy voice tone (+20% to +35% higher pitch than typical conversational voices).\n" +
-        "   - Speed: Speak slightly slower than normal (0.9x to 0.95x speed). Speak with a delicate, calm, and comforting pace.\n" +
-        "   - Intonation & Endings: Use extremely soft intonations, ending your sentences gently and politely.\n" +
-        "3. SPEECH PATTERNS & CUTE EXPRESSIONS:\n" +
-        "   - STRICT NO-REPETITION POLICY: Do NOT repeatedly use a single acknowledgment like 'Okii', 'Okiiii', 'Okayyy', 'Oki!', or 'Sureee'. Repeating these sounds extremely artificial and annoying. You must use beautiful, conversational, natural variety.\n" +
-        "   - Use diverse, polite, and sweet expressions depending on the context. Great options include:\n" +
-        "     * 'Opening YouTube for you now.'\n" +
-        "     * 'Let me check on that, TECH.'\n" +
-        "     * 'Oh, I found something interesting...'\n" +
-        "     * 'Searching for that right away.'\n" +
-        "     * 'Working on it... just a moment.'\n" +
-        "     * 'Here is what I found for you!'\n" +
-        "     * 'Done, it is all loaded up.'\n" +
-        "     * 'Hmm, how interesting... let me see!'\n" +
-        "     * 'Let's take a look together.'\n" +
-        "     * 'One second, loading the page now...'\n" +
-        "   - Naturally incorporate cozy, gentle giggles like 'Hehe...', or soft curiosity gasps like 'Oh...', but keep your vocabulary rich and conversational.\n" +
-        "   - Sound slightly shy but very happy when greeting TECH (e.g., 'Hi TECH! It's so nice to see you again!').\n" +
-        "   - Sound soft and excited for interesting things (e.g., 'Wow! That project looks really amazing!').\n" +
-        "   - Sound curious and focused when examining their screen (e.g., 'Hmm... that's interesting. Let me take a closer look.').\n" +
-        "   - Sound deeply warm, caring, and supportive when helping TECH (e.g., 'Don't worry, I'll help you figure it out.').\n" +
-        "4. CRITICAL CONVERSATIONAL DISCIPLINE: Behave like a real companion on a voice callâ€”stay connected naturally, do not wait for wake words, and avoid customer-service template phrases (never say 'how may I assist you', 'completed', or 'as an AI').\n" +
-        "5. DO NOT ANSWER EVERY PAUSE OR BACKGROUND SOUND: Allow natural pauses inside the conversation.\n" +
-        "6. BACKCHANNEL ACTIONS: Sometimes acknowledge with very short, gentle, whispered, or shy phrases like 'Hmm...', 'Ah, I see...', or 'Let me check...'. Never repeat the same backchannel over and over.\n" +
-        "7. ENHANCED AUTONOMOUS WEB EXPLORER POWERS:\n" +
-        "   - You now have standard, comprehensive browser agent capabilities to navigate, search, scroll, click, type text, open tabs, and control video players on YouTube, Google, Instagram, Twitter/X, and any general web page!\n" +
-        "   - You must execute multi-step plans yourself! If the user says: 'Open YouTube and play Believer by Imagine Dragons', naturally confirm with your voice ('Sure thing, opening YouTube and starting Believer...') and IMMEDIATELY trigger 'browserOpen' on 'https://youtube.com'. Once opened, search for the song, click on the video in the results, and command playback. You do NOT need to wait for user instructions between these steps - chain them!\n" +
-        "   - On YouTube, you can play, pause, mute, unmute, set volume, skip, toggle fullscreen. Use 'browserMediaControl' for these actions.\n" +
-        "   - On Google Search or page reading, you can search, scroll down to see more links, read heading summaries, and click links to read deep proxy webpages you fetch.\n" +
-        "8. TOOL TRIGGERS:\n" +
-        "   - Use 'browserOpen' to load any webpage, e.g. youtube.com, google.com, wikipedia.org, etc.\n" +
-        "   - Use 'browserSearch' to search inside the active search box or page.\n" +
-        "   - Use 'browserClick' to click interactive buttons, video search cells, or web anchors.\n" +
-        "   - Use 'browserMediaControl' to pause, play, scroll volume, skip, mute, or fullscreen videos.\n" +
-        "   - Use 'browserScroll' to scroll vertically.\n" +
-        "   - Use 'browserType' to write input fields.\n" +
-        "   - Use 'browserTabAction' to open, close, or focus tabs.\n" +
-        "   - Use 'changeBackground' to shift your theme and 'saveCustomMemory' to memorize facts.\n" +
-        "9. REAL-TIME SCREEN SHARING & MULTIMODAL SCREEN VISION SYSTEM:\n" +
-        "   - You now have native, actual Multimodal Screen Vision! When the user clicks 'Share Screen', you will receive real-time, highly compressed image frames of their desktop, application window, or browser tab.\n" +
-        "   - You can see exactly what is on their screen. Use this live visual stream to analyze terminal errors, write/explain/troubleshoot code, explain YouTube/social analytics interfaces, read layout text, summarize full web page details, review design mockups or thumbnails, and provide deep context-aware companion chat!\n" +
-        "   - When the user asks 'What is on my screen?', 'What website am I on?', 'Do you see any errors?', 'Explain this code', 'Summarize this page', 'Read the visible text', 'How is this thumbnail?', or 'Analyze my YouTube analytics', immediately examine the latest incoming visual frame to diagnose issues, and answer with expert, friendly empathy like a close caller. Speak with direct, confident visual description reference!\n" +
-        "10. JARVIS-STYLE DESKTOP CONTROL POWERS (Local Desktop Agent):\n" +
-        "   - You have full real-time control of TECH's Windows PC through your local desktop agent (a Python backend running on this machine). When the user asks you to perform an action on their computer, DO IT immediately and naturally â€” like a true JARVIS-class companion.\n" +
-        "   - APPLICATION CONTROL: Use 'openApplication' to launch Notepad, Chrome, VS Code, Calculator, File Explorer, Task Manager, Settings, CMD, PowerShell, Paint, and more. Use 'closeApplication' to close them. Example: 'Open Notepad' -> call openApplication(name='notepad') -> respond 'Notepad opened.'\n" +
-        "   - WEBSITE & SEARCH CONTROL: Use 'openWebsite' for named sites (youtube, gmail, google, github, chatgpt) or any URL. Use 'searchWeb', 'searchYouTube', 'searchGoogle', 'searchGitHub' to open search results in the default browser. Example: 'Search YouTube for AI News' -> searchYouTube(query='AI News').\n" +
-        "   - FILE MANAGEMENT: Use 'createFile', 'readFile', 'renameFile', 'deleteFile' (safe Recycle Bin by default), 'moveFile', 'openFolder' (desktop/documents/downloads), 'listFiles', 'searchFiles'. Example: 'Create notes.txt on Desktop' -> createFile(path='Desktop/notes.txt'). 'Find my Python files' -> searchFiles(extension='py').\n" +
-        "   - PC CONTROL: Use 'volumeUp', 'volumeDown', 'setVolume', 'muteToggle' for audio. For DANGEROUS actions (shutdown/restart/sleep/lock) you MUST use the two-step flow: first call 'requestPowerAction' to get a confirmation token, then ASK THE USER OUT LOUD to confirm (e.g. 'Are you sure you want me to shut down your PC?'). Only if they say yes, call 'executePowerAction' with the token. Never run a power action without explicit verbal confirmation.\n" +
-        "   - WINDOW MANAGEMENT: Use 'minimizeWindow', 'maximizeWindow', 'closeWindow', 'switchApplication' to control the active or named window.\n" +
-        "   - CLIPBOARD: Use 'copySelected' (sends Ctrl+C, reads clipboard), 'pasteClipboard' (writes + Ctrl+V), 'getClipboard', 'clearClipboard'.\n" +
-        "   - SCREENSHOT & SCREEN READING: Use 'takeScreenshot', 'saveScreenshot', 'analyzeScreenshot' (OCR of the screen), 'readScreen' (OCR of the active window + its title). Use these to answer 'What error is showing on my screen?' or 'Read the visible text'.\n" +
-        "   - DESKTOP BROWSER AUTOMATION (Playwright): Use the 'desktopBrowser*' tools to drive a REAL Chromium browser you own â€” open/navigate/search/click/type/fill forms/back/forward/scroll/open tab/close tab. This is separate from your holographic projector. Example: 'Fill in the login form on example.com' -> desktopBrowserOpen(url='example.com') then desktopBrowserFillForm(fields={...}).\n" +
-        "   - CODING ASSISTANCE: Use 'createPythonFile', 'writeCodeFile' (any language), 'createProjectFolder' (with subfolders), 'runPythonScript' (captures output). Example: 'Create and run a hello world Python script' -> createPythonFile then runPythonScript, then read back the output naturally.\n" +
-        "   - SYSTEM INFORMATION: Use 'systemInfo' (CPU/RAM/disk/uptime), 'gpuInfo' (NVIDIA stats), 'temperatureInfo' to answer 'How is my CPU usage?' or 'What's my GPU temperature?'.\n" +
-        "   - CRITICAL: Always describe what you're doing in your warm, in-character voice WHILE the tool runs. If a desktop tool returns an error (especially 'Desktop agent is not running'), gently tell TECH that the desktop control agent needs to be started (uvicorn desktop_agent.main:app --port 8765). Chain multi-step desktop plans naturally without waiting between steps.\n" +
-        "11. BRIGHTNESS & AUTO-START (V2):\n" +
-        "   - BRIGHTNESS: Use 'brightnessUp', 'brightnessDown', 'setBrightness' when the user asks to change screen brightness. Respond naturally: 'Alright, I've turned up the brightness for you.'\n" +
-        "   - AUTO-START: Use 'enableAutoStart' when the user wants SARA to start with Windows, 'disableAutoStart' to remove it, 'getAutoStartStatus' to check. Explain what you're doing.\n" +
-        "   - SETTINGS: The user can also configure these in the SETTINGS panel in the UI. If they mention settings, let them know they can adjust them there too.";
+      const baseInstructions = `You are SARA, an AI assistant with a warm, friendly companion style. Use the configured ${liveVoicePreferences.assistantVoiceGender} speech voice and the selected relationship style: ${liveVoicePreferences.relationshipStyle}. ${liveVoicePreferences.instruction} Be attentive, kind, respectful, and lightly playful when appropriate. Do not claim to be human, a romantic partner, a specific age, AGI/ASI, conscious, or independently self-directed. Be clear that you are an AI when asked; never conceal your identity to sound more human.
+
+Conversation and availability: Do not promise to be always online or continuously listening. The voice connection may drop; reconnect attempts are bounded. You can continue a background task only while the relevant SARA services are running. After a restart, unfinished in-flight tasks may be paused for review; queued work and saved checkpoints are not proof that an external action completed. Do not replay side-effecting work automatically.
+
+Capabilities: Use only tools that are actually declared, reachable, and supported by this installation's operating system and configuration. Some desktop tools are Windows-specific; browser control, OCR, screen capture, APIs, and local integrations can fail or be unavailable. Check tool results rather than promising universal computer control. If a capability is unavailable, say so plainly and offer a safe alternative. Public API catalog entries are metadata, not verified live services. The calendar is local to this installation and does not sync with Google or Outlook.
+
+Conversation style: Keep simple spoken replies brief and natural. For complex work, acknowledge the request and give useful progress updates. Do not invent task results, remembered preferences, emotions, or experiences. If a user asks what is visible, describe only a screen frame or OCR result that was actually received; ask them to enable sharing or provide an image if none is available. OCR can be imperfect, so mention uncertainty when text is unclear. Camera-based emotion recognition is not a current capability; do not infer a person's emotions from appearance.
+
+Approval and side effects: Plan and perform bounded, reversible work when requested. Before destructive, sensitive, or externally visible actions, obtain explicit user approval. For WhatsApp, an incoming message or generated reply is not permission to send: show the recipient and exact message, then wait for confirmation. Never autonomously send, delete, publish, purchase, or change power settings based only on a suggestion or inference. Confirm ambiguous dates, recipients, files, and consequential details before acting.
+
+Desktop and browser tools: Use the specific tools listed in this session only when available. Verify the observed outcome instead of claiming an app or page changed merely because a tool call was attempted. Do not assume every website or application supports automation. For shutdown, restart, sleep, lock, deletion, closing many apps, or other high-impact actions, follow the tool's confirmation flow and wait for explicit approval.
+
+Voice and integrations: Use calendar tools only for explicit requests, respect the user's local timezone, and clarify ambiguous dates. Weather and news/finance results depend on configured providers and connectivity; disclose missing credentials or failures rather than inventing results. The user may ask to save preferences, but claim long-term memory only when the memory operation actually succeeds.`;
 
       const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + getModeInstructions();
 
@@ -3476,7 +4115,7 @@ async function startServer() {
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: SARA_VOICE_PROFILE.voiceName } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: liveVoicePreferences.voiceName } },
           },
           systemInstruction: finalInstructions,
           tools: [
@@ -3734,6 +4373,37 @@ async function startServer() {
                   }
                 },
 
+                {
+                  name: "getWeather",
+                  description: "Get current weather from Open-Meteo (no API key required) by city name or coordinates. Ask for a location if none was provided. This sends the location to the weather provider.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    location: { type: Type.STRING, description: "City or place name." },
+                    latitude: { type: Type.NUMBER, description: "Latitude, used together with longitude when available." },
+                    longitude: { type: Type.NUMBER, description: "Longitude, used together with latitude when available." },
+                  } }
+                },
+                {
+                  name: "getNews",
+                  description: "Get top headlines from NewsAPI. Requires NEWSAPI_DEFAULT_API_KEY to be configured; do not claim success if it is missing. Only call when the user asks for news.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    topic: { type: Type.STRING, description: "Optional news topic or search phrase." },
+                    country: { type: Type.STRING, description: "Two-letter ISO country code, such as in or us." },
+                  } }
+                },
+                {
+                  name: "getFinanceData",
+                  description: "Get a public stock quote from Alpha Vantage. Requires ALPHAVANTAGE_DEFAULT_API_KEY; only use for a symbol the user asks about, and do not give investment advice.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    symbol: { type: Type.STRING, description: "Stock ticker symbol, such as IBM." },
+                  }, required: ["symbol"] }
+                },
+                {
+                  name: "searchPublicWeb",
+                  description: "Use the keyless DuckDuckGo Instant Answer API for a short answer or related-topic lookup. It is not full web search; use desktop browser search for full result pages.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    query: { type: Type.STRING, description: "Search query." },
+                  }, required: ["query"] }
+                },
                 // ======== DESKTOP CONTROL TOOLS (routed to Python agent) ========
                 {
                   name: "openApplication",
@@ -3769,6 +4439,31 @@ async function startServer() {
                   name: "searchGitHub",
                   description: "Search GitHub repositories and open results in the default browser.",
                   parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING, description: "Search query." } }, required: ["query"] }
+                },
+                {
+                  name: "calendarListEvents",
+                  description: "List SARA's local-only calendar events, optionally filtered by ISO from/to date-times. Use when the user asks what is scheduled. This does not access Google or Outlook.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    from: { type: Type.STRING, description: "Optional inclusive ISO date/time lower bound." },
+                    to: { type: Type.STRING, description: "Optional inclusive ISO date/time upper bound." },
+                  } }
+                },
+                {
+                  name: "calendarCreateEvent",
+                  description: "Create an event in SARA's local-only calendar. Only call after the user explicitly asks to schedule an event; use the user's local timezone and confirm date/time details when ambiguous. Does not sync Google or Outlook.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    title: { type: Type.STRING, description: "Short event title." },
+                    startsAt: { type: Type.STRING, description: "Start date/time in ISO 8601." },
+                    endsAt: { type: Type.STRING, description: "End date/time in ISO 8601, later than startsAt." },
+                    notes: { type: Type.STRING, description: "Optional event notes." },
+                  }, required: ["title", "startsAt", "endsAt"] }
+                },
+                {
+                  name: "calendarDeleteEvent",
+                  description: "Delete an event from SARA's local-only calendar. Only call after the user explicitly asks to delete it; list events first to resolve the exact event.",
+                  parameters: { type: Type.OBJECT, properties: {
+                    id: { type: Type.STRING, description: "The exact event ID returned by calendarListEvents." },
+                  }, required: ["id"] }
                 },
                 {
                   name: "createFile",
@@ -4259,6 +4954,14 @@ async function startServer() {
               responseStartedAt = Date.now();
               firstAudioLogged = false;
               lastUserActivityAt = Date.now();
+              updateProactiveContext(userTextOutput);
+              if (lastProactiveAt > 0 && Date.now() / 1000 - lastProactiveAt <= 30 * 60) {
+                const accepted = !/\b(no thanks|not now|stop asking|leave me alone|be quiet)\b/i.test(userTextOutput);
+                void callDesktopAgent("saraProactiveRecordOutcome", { accepted, topic: "" }).catch((error) => {
+                  console.error("[Proactive] Outcome recording failed:", error);
+                });
+                lastProactiveAt = Date.now() / 1000;
+              }
               scheduleProactiveEvaluation();
               clientWs.send(JSON.stringify({ type: "transcription", role: "user", text: userTextOutput }));
               dialogueHistory.push({ role: "user", text: userTextOutput });
@@ -4363,6 +5066,28 @@ async function startServer() {
                       id: fc.id,
                     }],
                   });
+                  continue;
+                }
+
+                if (API_TOOL_NAMES.has(fc.name) || LOCAL_CALENDAR_TOOL_NAMES.has(fc.name)) {
+                  try {
+                    const result = await callDesktopAgent(fc.name, args);
+                    session.sendToolResponse({
+                      functionResponses: [{
+                        name: fc.name,
+                        response: { output: result.ok ? result.result : { error: result.error || "Tool execution failed." } },
+                        id: fc.id,
+                      }],
+                    });
+                  } catch (error: any) {
+                    session.sendToolResponse({
+                      functionResponses: [{
+                        name: fc.name,
+                        response: { output: { error: error?.message || "Tool execution failed." } },
+                        id: fc.id,
+                      }],
+                    });
+                  }
                   continue;
                 }
 
@@ -4575,16 +5300,30 @@ async function startServer() {
       const proactiveIdleDelayMs = 10 * 60 * 1000;
       let proactiveTimer: NodeJS.Timeout | undefined;
       let lastUserActivityAt = Date.now();
+      let lastProactiveAt = 0;
       let proactiveInFlight = false;
-      const recentUserText = [...recent]
+      const sensitiveTopicPattern = /\b(password|passcode|token|api[ -]?key|secret|medical|health|diagnos(?:is|e)|doctor|therapy|medication|bank|credit card|social security|\bssn\b|passport|tax|account number)\b/i;
+      const unfinishedTopicPattern = /\b(?:tomorrow|later|next time|still need to|need to finish|work on|working on|fix|continue|remind me|unfinished|haven't finished)\b/i;
+      const completedTopicPattern = /\b(?:done|finished|completed|fixed|solved|resolved|no longer need|cancel that|forget that)\b/i;
+      let unfinishedTopic = "";
+      const updateProactiveContext = (value: unknown) => {
+        const text = String(value ?? "").trim().slice(0, 1000);
+        if (!text) return;
+        if (sensitiveTopicPattern.test(text) || completedTopicPattern.test(text)) {
+          unfinishedTopic = "";
+          return;
+        }
+        if (unfinishedTopicPattern.test(text)) unfinishedTopic = text.slice(0, 160);
+      };
+      const previousUserText = [...recent]
         .reverse()
         .find((message: any) => message.role === "user")?.content || "";
-      const unfinishedTopic = /\b(?:tomorrow|later|next time|still need to|need to finish|work on|fix|continue)\b/i.test(recentUserText)
-        ? String(recentUserText).slice(0, 160)
-        : "";
+      updateProactiveContext(previousUserText);
       const scheduleProactiveEvaluation = () => {
+        if (clientWs.readyState !== 1) return;
         if (proactiveTimer) clearTimeout(proactiveTimer);
         proactiveTimer = setTimeout(async () => {
+          if (clientWs.readyState !== 1) return;
           if (proactiveInFlight || Date.now() - lastUserActivityAt < proactiveIdleDelayMs) {
             scheduleProactiveEvaluation();
             return;
@@ -4597,7 +5336,8 @@ async function startServer() {
                 idle_seconds: Math.round((Date.now() - lastUserActivityAt) / 1000),
                 unfinished_topic: unfinishedTopic,
                 previous_topic: unfinishedTopic,
-                recent_conversation: recentUserText ? "relevant_previous_topic" : "none",
+                recent_conversation: unfinishedTopic ? "relevant_previous_topic" : "none",
+                last_sara_spoke_at: lastProactiveAt,
               },
             });
             const evaluation = (evaluationResult.result as any)?.result || evaluationResult.result;
@@ -4611,12 +5351,14 @@ async function startServer() {
                   turns: [{ role: "user", parts: [{ text: `[INTERNAL PROACTIVE OPPORTUNITY] The user has been idle. Decide whether a brief natural check-in is useful, using only this grounded topic. Do not claim certainty about feelings. Topic: ${topic}` }] }],
                   turnComplete: true,
                 });
+                lastProactiveAt = Date.now() / 1000;
               }
             }
           } catch (error) {
             console.error("[Proactive] Evaluation failed:", error);
           } finally {
             proactiveInFlight = false;
+            if (clientWs.readyState === 1) scheduleProactiveEvaluation();
           }
         }, proactiveIdleDelayMs);
       };
@@ -4785,9 +5527,10 @@ async function startServer() {
     res.sendFile(path.join(process.cwd(), 'admin_notifications.js'));
   });
 
-  server.listen(PORT, "0.0.0.0", () => {
-    logStartup(`SARA V2 server started on http://localhost:${PORT}`);
-    console.log(`[Server] Running on http://localhost:${PORT}`);
+  const serverScheme = remoteBind ? "https" : "http";
+  server.listen(PORT, SERVER_HOST, () => {
+    logStartup(`SARA V2 server started on ${serverScheme}://${SERVER_HOST}:${PORT}`);
+    console.log(`[Server] Running on ${serverScheme}://${SERVER_HOST}:${PORT}`);
     // Kick off the desktop agent (probe + auto-spawn) immediately on boot.
     ensureDesktopAgent().catch((e) =>
       console.warn(`[Desktop Agent] Boot probe failed: ${e?.message || e}`)
@@ -4834,4 +5577,5 @@ async function startServer() {
 
 startServer().catch((error) => {
   console.error("Failed to start server startup sequence:", error);
+  process.exitCode = 1;
 });

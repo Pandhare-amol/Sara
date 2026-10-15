@@ -1,5 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CameraManager, FrameRateController, VisionSession } from "../vision";
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not encode camera frame.")), type, quality);
+  });
+}
 
 export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -17,6 +23,20 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisText, setAnalysisText] = useState<string | null>(null);
+
+  const updateVisionEnabled = useCallback(async (enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/vision/${enabled ? "enable" : "disable"}`, { method: "POST" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok === false) {
+        throw new Error(result?.error || `Failed to ${enabled ? "enable" : "disable"} vision.`);
+      }
+      setVisionEnabled(enabled);
+      setErrorText(null);
+    } catch (error: any) {
+      setErrorText(error?.message || `Failed to ${enabled ? "enable" : "disable"} vision.`);
+    }
+  }, []);
 
   useEffect(() => {
     cameraManagerRef.current.onStatusChange = (snapshot) => {
@@ -123,12 +143,11 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      // POST to server for saving
+      const image = await canvasToBlob(canvas, "image/jpeg", 0.92);
       const resp = await fetch("/api/camera/photo", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl })
+        headers: { "Content-Type": "image/jpeg" },
+        body: image
       });
       const j = await resp.json();
       if (!resp.ok) {
@@ -160,13 +179,14 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       visionSessionRef.current?.recordFrame();
       visionSessionRef.current?.beginAnalysis();
       const startedAt = performance.now();
+      const image = await canvasToBlob(canvas, "image/jpeg", 0.8);
       const response = await fetch("/api/vision/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dataUrl: canvas.toDataURL("image/jpeg", 0.8),
-          question: "How am I looking?",
-        }),
+        headers: {
+          "Content-Type": "image/jpeg",
+          "X-SARA-Question": "Describe visible, non-sensitive details only. Do not infer emotion, personality, health, or identity.",
+        },
+        body: image,
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Vision analysis failed.");
@@ -194,13 +214,13 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       };
       rec.onstop = async () => {
         const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
-        const arrayBuffer = await blob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
         try {
+          if (blob.size === 0) throw new Error("The recording is empty.");
+          if (blob.size > 50 * 1024 * 1024) throw new Error("The recording exceeds the 50 MB upload limit.");
           const resp = await fetch("/api/camera/video", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ dataBase64: base64 })
+            headers: { "Content-Type": "video/webm" },
+            body: blob
           });
           const j = await resp.json();
           if (!resp.ok) setErrorText(j?.error || "Failed to save video");
@@ -267,14 +287,14 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
     const visionHandler = (e: any) => {
       const d = e?.detail || {};
       if (d.action === 'enable') {
-        fetch('/api/vision/enable', { method: 'POST' }).then(() => setVisionEnabled(true)).catch(() => {});
+        void updateVisionEnabled(true);
       } else if (d.action === 'disable') {
-        fetch('/api/vision/disable', { method: 'POST' }).then(() => setVisionEnabled(false)).catch(() => {});
+        void updateVisionEnabled(false);
       }
     };
     window.addEventListener('sara-vision-action', visionHandler as EventListener);
     return () => window.removeEventListener('sara-vision-action', visionHandler as EventListener);
-  }, []);
+  }, [updateVisionEnabled]);
 
   useEffect(() => {
     if (visionEnabled) {
@@ -284,7 +304,8 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
           const r = await fetch('/api/vision/state');
           if (!r.ok) return;
           const j = await r.json();
-          setVisionState(j);
+          if (j?.ok === false) return;
+          setVisionState(j?.result || j);
         } catch (e) { /* ignore */ }
       }, 250) as unknown as number;
     } else {
@@ -350,6 +371,9 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       <div className="mb-2 text-xs font-semibold text-cyan-200">
         CAMERA: {status === "active" ? "ON" : "OFF"} · VISION: {isAnalyzing || analysisText ? "ACTIVE" : "INACTIVE"}
       </div>
+      <p className="mb-2 text-[11px] leading-relaxed text-slate-400">
+        Analyze sends one still frame to Gemini. SARA does not continuously scan or infer your emotions from your face. Stop Camera to end the stream.
+      </p>
       {analysisText && <div className="mb-2 rounded bg-cyan-950/50 p-2 text-xs text-cyan-100">{analysisText}</div>}
 
       {errorText && <div className="text-xs text-rose-300">{errorText}</div>}
@@ -367,17 +391,8 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       </div>
       <div className="mt-4">
         <button onClick={() => { fetchAndShowGallery(); }} className="px-3 py-1 bg-slate-700 rounded text-xs">Open Gallery</button>
-        <button onClick={async () => {
-          // toggle gesture control via server vision endpoints
-          try {
-            const r = await fetch('/api/vision/enable', { method: 'POST' });
-            if (!r.ok) setErrorText('Failed to enable vision');
-            else setErrorText(null);
-          } catch (e) { setErrorText('Vision enable failed'); }
-        }} className="ml-2 px-3 py-1 bg-indigo-600 rounded text-xs">Enable Gesture Control</button>
-        <button onClick={async () => {
-          try { await fetch('/api/vision/disable', { method: 'POST' }); } catch {}
-        }} className="ml-2 px-3 py-1 bg-rose-600 rounded text-xs">Disable Gesture Control</button>
+        <button onClick={() => void updateVisionEnabled(true)} className="ml-2 px-3 py-1 bg-indigo-600 rounded text-xs">Enable Gesture Control</button>
+        <button onClick={() => void updateVisionEnabled(false)} className="ml-2 px-3 py-1 bg-rose-600 rounded text-xs">Disable Gesture Control</button>
         <button onClick={async () => { try { await fetch('/api/orchestrator/emergency-stop', { method: 'POST' }); } catch {} }} className="ml-2 px-3 py-1 bg-red-700 rounded text-xs">Emergency Stop</button>
       </div>
 

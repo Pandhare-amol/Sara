@@ -9,6 +9,8 @@
  * - Input & Output AnalyserNodes for real-time waveform visuals.
  */
 
+import { VoiceActivityGate } from "./voiceActivityGate";
+
 export type LiveState = "disconnected" | "connecting" | "listening" | "speaking";
 
 // PCM Conversion Helper: converts Float32Array [-1.0, 1.0] to signed Int16 Raw PCM Little Endian
@@ -62,6 +64,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export function buildLiveConnectionQuery(
   conversationId?: string | null,
   speakerProfile?: { userId?: string; displayName?: string } | null,
+  voicePreferences?: { assistantVoiceGender?: "female" | "male"; relationshipStyle?: string } | null,
 ): string {
   const params = new URLSearchParams();
   if (conversationId) params.set("conversationId", conversationId);
@@ -71,12 +74,32 @@ export function buildLiveConnectionQuery(
       displayName: speakerProfile.displayName || "Local User",
     }));
   }
+  if (voicePreferences) {
+    params.set("voicePreferences", JSON.stringify({
+      assistantVoiceGender: voicePreferences.assistantVoiceGender === "male" ? "male" : "female",
+      relationshipStyle: typeof voicePreferences.relationshipStyle === "string" ? voicePreferences.relationshipStyle.slice(0, 32) : "friend",
+    }));
+  }
   const query = params.toString();
   return query ? `?${query}` : "";
 }
 
+export const LIVE_RECONNECT_MAX_ATTEMPTS = 5;
+
+export function getLiveReconnectDelay(attempt: number, random = Math.random): number {
+  const boundedAttempt = Math.max(1, Math.min(30, Math.floor(Number(attempt) || 1)));
+  const baseDelay = Math.min(1000 * 2 ** (boundedAttempt - 1), 16_000);
+  const jitter = Math.floor(Math.max(0, Math.min(0.999, random())) * 250);
+  return baseDelay + jitter;
+}
+
 export class SaraAudioSession {
   private ws: WebSocket | null = null;
+  private shouldReconnect = false;
+  private reconnectAttempts = 0;
+  private reconnectTimer: number | null = null;
+  private stableSessionTimer: number | null = null;
+  private lastConversationId: string | null = null;
   
   // Audios contexts (separate to match exact required sample rates)
   private inputAudioCtx: AudioContext | null = null;
@@ -86,6 +109,8 @@ export class SaraAudioSession {
   private micStream: MediaStream | null = null;
   private micSourceNode: MediaStreamAudioSourceNode | null = null;
   private micProcessorNode: ScriptProcessorNode | null = null;
+  private micSilenceGainNode: GainNode | null = null;
+  private readonly voiceActivityGate = new VoiceActivityGate({ sensitivity: 55, attackFrames: 2, hangoverFrames: 18 });
   
   // Visualisers
   public inputAnalyser: AnalyserNode | null = null;
@@ -140,10 +165,12 @@ export class SaraAudioSession {
 
   public setMuted(v: boolean) {
     this.muted = v;
+    if (v) this.voiceActivityGate.reset();
   }
 
   public toggleMuted(): boolean {
     this.muted = !this.muted;
+    if (this.muted) this.voiceActivityGate.reset();
     return this.muted;
   }
 
@@ -164,37 +191,49 @@ export class SaraAudioSession {
     }
   }
 
-  // Requests microphone and creates connections
+  // Requests microphone and creates connections.
   public async connect(conversationId?: string | null) {
     if (this.isActivated) return;
+    this.shouldReconnect = true;
+    this.reconnectAttempts = 0;
+    if (this.stableSessionTimer !== null) {
+      window.clearTimeout(this.stableSessionTimer);
+      this.stableSessionTimer = null;
+    }
+    this.lastConversationId = conversationId ?? null;
+    await this.openConnection();
+  }
+
+  private async openConnection() {
+    if (!this.shouldReconnect || this.isActivated) return;
     this.isActivated = true;
     this.setState("connecting");
 
     try {
       // 1. Establish custom WebSocket server bridge
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const storedConv = conversationId ?? window.localStorage.getItem("sara.conversationId");
-      let speakerProfile: { userId?: string; displayName?: string } | null = null;
+      const storedConv = this.lastConversationId ?? window.localStorage.getItem("sara.conversationId");
+      let voicePreferences: { assistantVoiceGender?: "female" | "male"; relationshipStyle?: string } = {};
       try {
-        const rawProfile = window.localStorage.getItem("sara.voiceProfile.v1");
-        if (rawProfile) {
-          const parsed = JSON.parse(rawProfile) as { userId?: string; displayName?: string };
-          if (parsed && (parsed.userId || parsed.displayName)) {
-            speakerProfile = parsed;
-          }
-        }
+        const settingsRaw = window.localStorage.getItem("sara.settings.v2");
+        const settings = settingsRaw ? JSON.parse(settingsRaw) : {};
+        voicePreferences = {
+          assistantVoiceGender: settings?.assistantVoiceGender === "male" ? "male" : "female",
+          relationshipStyle: typeof settings?.relationshipStyle === "string" ? settings.relationshipStyle : "friend",
+        };
       } catch {
-        speakerProfile = null;
+        voicePreferences = { assistantVoiceGender: "female", relationshipStyle: "friend" };
       }
-      const wsQuery = buildLiveConnectionQuery(storedConv, speakerProfile);
-      this.ws = new WebSocket(`${protocol}//${window.location.host}/live${wsQuery}`);
-      this.ws.binaryType = "blob";
+      const wsQuery = buildLiveConnectionQuery(storedConv, null, voicePreferences);
+      const socket = new WebSocket(`${protocol}//${window.location.host}/live${wsQuery}`);
+      this.ws = socket;
+      socket.binaryType = "blob";
 
-      this.ws.onopen = async () => {
+      socket.onopen = async () => {
         console.log("[Sara] Connected to server side WS bridge");
         try {
-          // Guard against early user disconnect during connection setup
-          if (!this.isActivated) return;
+          // Guard against a user disconnect or a newer retry while audio setup awaits permissions.
+          if (!this.isActivated || this.ws !== socket) return;
 
           // Safe, cross-browser AudioContext initialization
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -223,16 +262,35 @@ export class SaraAudioSession {
           this.outputAnalyser.connect(this.outputAudioCtx.destination);
           
           // Obtain User Microphone layout
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            }
-          });
+          let preferredMicId = "";
+          try {
+            const settingsRaw = window.localStorage.getItem("sara.settings.v2");
+            preferredMicId = settingsRaw ? String(JSON.parse(settingsRaw)?.micDeviceId || "") : "";
+          } catch {
+            preferredMicId = "";
+          }
+          const audioConstraints: MediaTrackConstraints = {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            ...(preferredMicId ? { deviceId: { exact: preferredMicId } } : {}),
+          };
+          let stream: MediaStream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+          } catch (error) {
+            // A previously selected device may have been unplugged or its ID
+            // may have changed. Keep voice usable by falling back to default.
+            if (!preferredMicId) throw error;
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            });
+            this.onError("The selected microphone is unavailable; using the system default.");
+          }
 
           // Safeguard: Check if we disconnected while waiting for user to grant mic permissions
-          if (!this.isActivated || !this.inputAudioCtx || !this.outputAudioCtx) {
+          if (!this.isActivated || this.ws !== socket || !this.inputAudioCtx || !this.outputAudioCtx) {
             stream.getTracks().forEach((track) => {
               try {
                 track.stop();
@@ -250,24 +308,28 @@ export class SaraAudioSession {
           this.micSourceNode = this.inputAudioCtx.createMediaStreamSource(this.micStream);
           this.micSourceNode.connect(this.inputAnalyser);
 
-          // Stream input PCM 16-bit to WS
-          // 512 samples @ 16kHz = ~32ms per chunk (was 2048 = ~128ms) — lower input latency
-          this.micProcessorNode = this.inputAudioCtx.createScriptProcessor(512, 1, 1);
+          // 256 samples @ 16 kHz is about 16 ms of audio per chunk. Smaller
+          // chunks reduce capture latency while the local VAD suppresses noise.
+          this.micProcessorNode = this.inputAudioCtx.createScriptProcessor(256, 1, 1);
+          this.micSilenceGainNode = this.inputAudioCtx.createGain();
+          this.micSilenceGainNode.gain.value = 0;
           this.micSourceNode.connect(this.micProcessorNode);
-          this.micProcessorNode.connect(this.inputAudioCtx.destination);
+          this.micProcessorNode.connect(this.micSilenceGainNode);
+          this.micSilenceGainNode.connect(this.inputAudioCtx.destination);
+          this.voiceActivityGate.reset();
 
           this.micProcessorNode.onaudioprocess = (e) => {
             if (this.currentState === "disconnected" || this.currentState === "connecting") return;
-            // If muted, do not forward microphone audio to the server, but keep audio nodes for visuals
             if (this.muted) return;
             const channelData = e.inputBuffer.getChannelData(0);
-            
-            // Convert to base64 Int16 Little Endian PCM
-            const pcmBuffer = floatTo16BitPCM(channelData);
-            const base64 = base64ArrayBuffer(pcmBuffer);
-            
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-              this.ws.send(JSON.stringify({ audio: base64 }));
+            const gated = this.voiceActivityGate.process(channelData);
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+            // Preserve the live stream's silence timing with zeroed PCM frames;
+            // background sound below the speech threshold is never forwarded.
+            for (const frame of gated.frames) {
+              const pcmBuffer = floatTo16BitPCM(frame);
+              this.ws.send(JSON.stringify({ audio: base64ArrayBuffer(pcmBuffer) }));
             }
           };
 
@@ -281,10 +343,19 @@ export class SaraAudioSession {
         }
       };
 
-      this.ws.onmessage = async (event) => {
+      socket.onmessage = async (event) => {
+        if (this.ws !== socket) return;
         try {
           const data = JSON.parse(event.data);
-          
+
+          if (data.type === "security_alert") {
+            window.dispatchEvent(new CustomEvent("sara.securityAlert", { detail: {
+              message: String(data.message || "Repeated invalid admin authentication attempts detected."),
+              severity: String(data.severity || "WARNING"),
+            } }));
+            return;
+          }
+
           // Root Error Handler message
           if (data.type === "error") {
             this.onError(data.error);
@@ -315,9 +386,15 @@ export class SaraAudioSession {
             if (data.status === "connecting_gemini") {
               // Wait for Gemini Live connection
             } else if (data.status === "connected") {
+              if (this.stableSessionTimer !== null) window.clearTimeout(this.stableSessionTimer);
+              this.stableSessionTimer = window.setTimeout(() => {
+                this.reconnectAttempts = 0;
+                this.stableSessionTimer = null;
+              }, 30_000);
+              this.onError("");
               this.setState("listening");
             } else if (data.status === "session_closed") {
-              this.disconnect();
+              this.scheduleReconnect(socket, "The live session closed unexpectedly.");
             }
             return;
           }
@@ -393,15 +470,14 @@ export class SaraAudioSession {
         }
       };
 
-      this.ws.onerror = (wsError) => {
+      socket.onerror = (wsError) => {
         console.error("WebSocket transport error:", wsError);
-        this.onError("Holographic network link lost. Please check connection.");
-        this.disconnect();
+        this.scheduleReconnect(socket, "Voice connection was interrupted.");
       };
 
-      this.ws.onclose = () => {
+      socket.onclose = () => {
         console.log("WebSocket connection closed");
-        this.disconnect();
+        this.scheduleReconnect(socket, "Voice connection was interrupted.");
       };
 
     } catch (e: any) {
@@ -481,64 +557,88 @@ export class SaraAudioSession {
     }
   }
 
-  // Fully cleanup and release microphones & connection sockets
-  public disconnect() {
-    this.isActivated = false;
-    this.setState("disconnected");
+  private scheduleReconnect(socket: WebSocket, reason: string) {
+    if (!this.shouldReconnect || this.ws !== socket || this.reconnectTimer !== null) return;
 
-    // Close WS socket
-    if (this.ws) {
-      try {
-        this.ws.close();
-      } catch (e) {}
-      this.ws = null;
+    this.ws = null;
+    this.isActivated = false;
+    if (this.stableSessionTimer !== null) {
+      window.clearTimeout(this.stableSessionTimer);
+      this.stableSessionTimer = null;
+    }
+    try { if (socket.readyState < WebSocket.CLOSING) socket.close(); } catch {}
+    this.releaseAudioResources();
+
+    if (this.reconnectAttempts >= LIVE_RECONNECT_MAX_ATTEMPTS) {
+      this.shouldReconnect = false;
+      this.setState("disconnected");
+      this.onError(`${reason} Automatic retry stopped after ${LIVE_RECONNECT_MAX_ATTEMPTS} attempts. Reconnect manually when ready.`);
+      return;
     }
 
-    // Stop and release user microphone streams
+    this.reconnectAttempts += 1;
+    const attempt = this.reconnectAttempts;
+    const delay = getLiveReconnectDelay(attempt);
+    this.onError(`${reason} Reconnecting (${attempt}/${LIVE_RECONNECT_MAX_ATTEMPTS})…`);
+    this.setState("connecting");
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.openConnection();
+    }, delay);
+  }
+
+  private releaseAudioResources() {
     if (this.micStream) {
       this.micStream.getTracks().forEach((track) => {
-        try {
-          track.stop();
-        } catch (e) {}
+        try { track.stop(); } catch {}
       });
       this.micStream = null;
     }
-
-    // Disconnect routing nodes
     if (this.micProcessorNode) {
-      try {
-        this.micProcessorNode.disconnect();
-      } catch (e) {}
+      try { this.micProcessorNode.disconnect(); } catch {}
       this.micProcessorNode = null;
     }
-
     if (this.micSourceNode) {
-      try {
-        this.micSourceNode.disconnect();
-      } catch (e) {}
+      try { this.micSourceNode.disconnect(); } catch {}
       this.micSourceNode = null;
     }
-
-    // Close Audio contexts
+    if (this.micSilenceGainNode) {
+      try { this.micSilenceGainNode.disconnect(); } catch {}
+      this.micSilenceGainNode = null;
+    }
+    this.voiceActivityGate.reset();
     if (this.inputAudioCtx) {
-      try {
-        this.inputAudioCtx.close();
-      } catch (e) {}
+      try { void this.inputAudioCtx.close(); } catch {}
       this.inputAudioCtx = null;
     }
-
     if (this.outputAudioCtx) {
-      try {
-        this.outputAudioCtx.close();
-      } catch (e) {}
+      try { void this.outputAudioCtx.close(); } catch {}
       this.outputAudioCtx = null;
     }
-
     this.activeSources = [];
     this.nextStartTime = 0;
     this.inputAnalyser = null;
     this.outputAnalyser = null;
     this.outputGainNode = null;
+  }
+
+  /** Explicit user disconnect: stop the retry loop and release all device resources. */
+  public disconnect() {
+    this.shouldReconnect = false;
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.stableSessionTimer !== null) {
+      window.clearTimeout(this.stableSessionTimer);
+      this.stableSessionTimer = null;
+    }
+    this.isActivated = false;
+    const socket = this.ws;
+    this.ws = null;
+    try { socket?.close(); } catch {}
+    this.releaseAudioResources();
+    this.setState("disconnected");
   }
 }
 

@@ -1,65 +1,50 @@
 import EventEmitter from 'events';
 import { loadTasks, updateTask, loadToolCalls } from './server_state';
 import fs from 'fs/promises';
-import fsSync from 'fs';
 import { dataFile } from './server_paths';
 import { callDesktopAgent as defaultCallDesktopAgent, logToolCall } from './desktop_agent_bridge';
 import { sysLogger } from './server_logger';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createUserResponseFromResult } from './src/types/AuthoritativeTaskResult';
+import { buildInterruptedTaskPatch } from './src/core/taskRecovery';
+import { FilesystemVerifier } from './src/core/tools/verification/filesystemVerifier';
 import type { AuthoritativeTaskResult, ExecutionState, VerificationResult, ExecutionError } from './src/types/AuthoritativeTaskResult';
 
 const AUTONOMY_LEVEL = parseInt(process.env.AUTONOMY_LEVEL || '3');
 
 type TaskStatus = 'queued' | 'planning' | 'running' | 'waiting' | 'paused' | 'retrying' | 'completed' | 'failed' | 'cancelled' | 'RECOVERING' | 'awaiting_confirmation' | 'partial' | 'timed_out' | 'blocked' | 'succeeded';
 
-const DANGEROUS_TOOLS = ['os.shutdown', 'files.delete', 'communication.bulk_send'];
+const DANGEROUS_TOOLS = [
+  'os.shutdown', 'os.restart', 'files.delete', 'deleteFile', 'deleteFilePermanent',
+  'closeAllApplications', 'requestPowerAction', 'executePowerAction',
+  'whatsapp_send', 'whatsappSend', 'whatsapp_reply', 'whatsappReply',
+  'whatsapp_group_send', 'whatsapp_send_media', 'email_send', 'emailSend',
+  'youtube_upload', 'youtubeUpload', 'communication.bulk_send',
+];
+
+const FILESYSTEM_VERIFIER = new FilesystemVerifier();
+const FILESYSTEM_TOOLS = new Set(["copyFile", "moveFile", "deleteFile", "createFile", "createFolder", "renameFile", "writeFile", "duplicateFile"]);
 
 /**
- * Build a verification result for file operations.
- * Checks if source exists, destination was created, and optionally compares size/hash.
+ * Verify file postconditions independently; a successful tool response alone is not proof.
  */
 async function verifyFileOperation(
   tool: string,
   args: Record<string, unknown>,
-  outcome: { ok: boolean; error?: string }
+  outcome: { ok: boolean; error?: string; result?: unknown; canonical?: unknown }
 ): Promise<VerificationResult> {
-  const checks = [];
-  let passed = outcome.ok;
-
-  try {
-    if (tool === 'copyFile' || tool === 'moveFile') {
-      const source = String(args.source || '');
-      const destination = String(args.destination || '');
-
-      // Check source exists
-      const sourceExists = fsSync.existsSync(source);
-      checks.push({ name: 'source_exists', passed: sourceExists, evidence: { path: source } });
-      passed = passed && sourceExists;
-
-      // Check destination exists after operation
-      const destExists = fsSync.existsSync(destination);
-      checks.push({ name: 'destination_exists', passed: destExists, evidence: { path: destination } });
-      passed = passed && destExists;
-
-      // For copy, both should exist. For move, only destination.
-      if (tool === 'moveFile') {
-        const sourceGone = !fsSync.existsSync(source);
-        checks.push({ name: 'source_removed', passed: sourceGone, evidence: { path: source } });
-        passed = passed && sourceGone;
-      }
-    }
-  } catch (e: any) {
-    checks.push({ name: 'verification_check_failed', passed: false, reason: String(e) });
-    passed = false;
-  }
-
+  const verification = await FILESYSTEM_VERIFIER.verify(tool, args, outcome);
+  const checks = [
+    { name: 'tool_returned_ok', passed: outcome.ok, reason: outcome.ok ? undefined : outcome.error },
+    ...verification.checks,
+  ];
+  const passed = Boolean(outcome.ok && verification.verified);
   return {
     attempted: true,
     passed,
-    method: 'file_system_verification',
+    method: 'independent_file_system_postcondition',
     checks,
-    details: passed ? 'File operation verified' : `File operation failed verification: ${checks.filter((c) => !c.passed).map((c) => c.name).join(', ')}`,
+    details: passed ? verification.details : outcome.error || verification.details,
   };
 }
 
@@ -69,28 +54,24 @@ async function verifyFileOperation(
 async function verifyBrowserOperation(
   tool: string,
   args: Record<string, unknown>,
-  outcome: { ok: boolean; error?: string }
+  outcome: { ok: boolean; error?: string; result?: unknown; canonical?: unknown }
 ): Promise<VerificationResult> {
-  const checks = [];
-  let passed = outcome.ok;
-
-  try {
-    checks.push({
-      name: 'browser_tool_returned_ok',
-      passed: passed,
-      evidence: { tool, outcome: outcome.ok },
-    });
-  } catch (e: any) {
-    checks.push({ name: 'browser_verification_check_failed', passed: false, reason: String(e) });
-    passed = false;
-  }
-
+  const canonical = (outcome.canonical && typeof outcome.canonical === 'object'
+    ? outcome.canonical
+    : outcome.result && typeof outcome.result === 'object' ? outcome.result : {}) as Record<string, any>;
+  const explicitlyVerified = canonical.verified === true ||
+    String(canonical.verification_status || canonical.verificationStatus || '').toUpperCase() === 'VERIFIED';
+  const checks = [
+    { name: 'browser_tool_returned_ok', passed: outcome.ok, evidence: { tool, outcome: outcome.ok } },
+    { name: 'browser_postcondition_independently_verified', passed: explicitlyVerified, reason: explicitlyVerified ? undefined : 'The browser tool returned without independent postcondition evidence.' },
+  ];
+  const passed = Boolean(outcome.ok && explicitlyVerified);
   return {
     attempted: true,
-    passed: Boolean(outcome.ok),
-    method: 'browser_outcome_verification',
+    passed,
+    method: explicitlyVerified ? 'independent_browser_verification' : 'browser_outcome_only',
     checks,
-    details: outcome.ok ? 'Browser operation completed' : (outcome.error || 'Browser operation failed'),
+    details: passed ? 'Browser operation verified.' : outcome.error || 'Browser operation ran, but its postcondition could not be independently verified. Review the browser before retrying.',
   };
 }
 
@@ -108,7 +89,7 @@ export function buildStructuredExecutionResult(
   verification: VerificationResult
 ): AuthoritativeTaskResult {
   const outcomeSucceeded = Boolean(outcome.ok);
-  const verificationPassed = verification?.passed === true;
+  const verificationPassed = verification?.attempted === true && verification?.passed === true;
   const success = outcomeSucceeded && verificationPassed;
 
   const state: ExecutionState = success ? 'SUCCEEDED' : 'FAILED';
@@ -127,7 +108,7 @@ export function buildStructuredExecutionResult(
       : `Failed to complete: ${requestedAction}${error?.message ? ` — ${error.message}` : ''}`,
     state,
     success,
-    verified: verification?.passed === true,
+    verified: verification?.attempted === true && verification?.passed === true,
     actions: [
       {
         tool: executedTool,
@@ -203,6 +184,7 @@ export function inferTaskToolCall(task: any): { tool: string; args: Record<strin
 class TaskRunner extends EventEmitter {
   private concurrency = 2;
   private running = 0;
+  private activeTaskIds = new Set<string>();
   private queueWake = false;
   private stopped = false;
   private callDesktopAgent: (tool: string, args: Record<string, unknown>, originalArgs?: Record<string, unknown>) => Promise<any>;
@@ -210,7 +192,21 @@ class TaskRunner extends EventEmitter {
   constructor(callAgent?: typeof defaultCallDesktopAgent) {
     super();
     this.callDesktopAgent = callAgent || defaultCallDesktopAgent;
-    void this.loop();
+    void this.recoverInterruptedTasks()
+      .catch((error) => console.error('[TaskRunner] interrupted-task recovery failed', error))
+      .finally(() => { void this.loop(); });
+  }
+
+  private async recoverInterruptedTasks() {
+    const tasks = await loadTasks();
+    for (const task of tasks) {
+      const patch = buildInterruptedTaskPatch(task);
+      if (!patch) continue;
+      const updated = await updateTask(task.taskId, patch as any);
+      if (updated) {
+        console.warn(`[TaskRunner] paused interrupted task ${task.taskId} from ${task.status}; checkpoint preserved, automatic replay disabled`);
+      }
+    }
   }
 
   public async wake() {
@@ -220,7 +216,9 @@ class TaskRunner extends EventEmitter {
   // Report progress for a running task: updates checkpoint and emits progress
   public async reportProgress(taskId: string, progress: Record<string, unknown>) {
     try {
-      const updated = await updateTask(taskId, { checkpoint: progress, updatedAt: new Date().toISOString() } as any);
+      const current = (await loadTasks()).find((task) => task.taskId === taskId);
+      const checkpoint = { ...(current?.checkpoint || {}), ...progress };
+      const updated = await updateTask(taskId, { checkpoint, updatedAt: new Date().toISOString() } as any);
       this.emit('taskProgress', { taskId, progress, task: updated });
       return updated;
     } catch (e) {
@@ -236,9 +234,10 @@ class TaskRunner extends EventEmitter {
   private async pickNextTasks(): Promise<any[]> {
     try {
       const tasks = await loadTasks();
+      // Only freshly queued tasks auto-run. In-flight and retry states require
+      // explicit review/retry so an interrupted side effect cannot be replayed.
       const candidates = tasks.filter((t) =>
-        !t.metadata?.automation &&
-        (t.status === "queued" || t.status === "planning" || t.status === "RECOVERING" || t.status === "retrying")
+        !t.metadata?.automation && t.status === "queued" && !this.activeTaskIds.has(t.taskId)
       );
       // simple priority sort: lower numeric value = higher priority
       candidates.sort((a: any, b: any) => (a.priority || 5) - (b.priority || 5));
@@ -274,6 +273,8 @@ class TaskRunner extends EventEmitter {
   }
 
   private async runTask(task: any) {
+    if (this.activeTaskIds.has(task.taskId)) return;
+    this.activeTaskIds.add(task.taskId);
     this.running += 1;
     try {
       const started = await updateTask(task.taskId, { status: 'running', startedAt: new Date().toISOString() });
@@ -295,7 +296,7 @@ class TaskRunner extends EventEmitter {
         const updated = await updateTask(task.taskId, {
           status: succeeded ? "completed" : workflow.status === "WAITING_USER" ? "waiting" : "failed",
           completedAt: succeeded || workflow.status === "FAILED" ? new Date().toISOString() : undefined,
-          checkpoint: workflow.checkpoint,
+          checkpoint: { ...(task.checkpoint || {}), ...(workflow.checkpoint || {}) },
           error: workflow.error?.message,
           result: JSON.stringify({ workflow }),
           metadata: { ...(task.metadata || {}), workflow },
@@ -391,7 +392,7 @@ class TaskRunner extends EventEmitter {
 
       // Perform tool-specific verification
       let verification: VerificationResult;
-      if (callSpec.tool.includes('copy') || callSpec.tool.includes('move') || callSpec.tool.includes('delete') || callSpec.tool.includes('File')) {
+      if (FILESYSTEM_TOOLS.has(callSpec.tool)) {
         verification = await verifyFileOperation(callSpec.tool, originalArgs || (callSpec.args || {}), res);
       } else if (callSpec.tool.includes('browser') || callSpec.tool.includes('open') || callSpec.tool.includes('search') || callSpec.tool.includes('navigate')) {
         verification = await verifyBrowserOperation(callSpec.tool, originalArgs || (callSpec.args || {}), res);
@@ -428,7 +429,7 @@ class TaskRunner extends EventEmitter {
         });
         this.emit('taskUpdated', updated);
         this.emit('taskCompleted', updated);
-        sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, tool: callSpec.tool, action: 'execute', result: 'success', verified: finalResult.verified });
+        sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, tool: callSpec.tool, action: 'execute', result: 'success', verification: finalResult.verified ? 'verified' : 'unverified' });
       } else {
         const updated = await updateTask(task.taskId, {
           status: 'failed',
@@ -439,7 +440,7 @@ class TaskRunner extends EventEmitter {
         });
         this.emit('taskUpdated', updated);
         this.emit('taskCompleted', updated);
-        sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, tool: callSpec.tool, action: 'execute', result: 'failure', verified: finalResult.verified, error: finalResult.error?.message });
+        sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, tool: callSpec.tool, action: 'execute', result: 'failure', verification: finalResult.verified ? 'verified' : 'unverified', error: finalResult.error?.message });
       }
     } catch (e: any) {
       const failed = await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: String(e) });
@@ -449,6 +450,7 @@ class TaskRunner extends EventEmitter {
       sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, action: 'execute', result: 'exception', error: String(e) });
     } finally {
       this.running = Math.max(0, this.running - 1);
+      this.activeTaskIds.delete(task.taskId);
     }
   }
 

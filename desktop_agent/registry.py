@@ -1,4 +1,4 @@
-﻿"""
+"""
 SARA Desktop Control Agent â€” Central tool registry.
 
 Each tool module registers handlers into a flat dict `TOOLS` mapping
@@ -177,6 +177,8 @@ DESKTOP_TOOL_NAMES = [
     "systemInfo",
     "gpuInfo",
     "temperatureInfo",
+    "systemResourceSnapshot",
+    "systemStopProcess",
     # brightness control (V2)
     "brightnessUp",
     "brightnessDown",

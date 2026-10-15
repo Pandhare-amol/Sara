@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 type Msg = {
   id?: string;
@@ -10,10 +10,32 @@ type Msg = {
   raw?: any;
 };
 
+function incomingMessage(event: any) {
+  const values = Array.isArray(event?.entry) ? event.entry : [];
+  for (const entry of values) {
+    for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+      const value = change?.value;
+      if (Array.isArray(value?.messages) && value.messages[0]) return value.messages[0];
+    }
+  }
+  return undefined;
+}
+
+function getRecipient(message: Msg): string {
+  const source = incomingMessage(message.event);
+  return String(message.to || message.event?.from || message.event?.sender?.id || source?.from || '').trim();
+}
+
+function getMessageText(message: Msg): string {
+  const source = incomingMessage(message.event);
+  return String(message.text || message.event?.text?.body || source?.text?.body || source?.button?.text || '');
+}
+
 export function WhatsAppPanel({ onClose }: { onClose?: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<Record<string, boolean>>({});
+  const sendLocks = useRef(new Set<string>());
 
   const load = async () => {
     setLoading(true);
@@ -21,35 +43,52 @@ export function WhatsAppPanel({ onClose }: { onClose?: () => void }) {
       const res = await fetch('/api/whatsapp/history');
       const data = await res.json();
       setMessages(Array.isArray(data?.messages) ? data.messages.reverse() : []);
-    } catch (e) {
-      console.error('Failed to load whatsapp history', e);
-    } finally { setLoading(false); }
+    } catch (error) {
+      console.error('Failed to load WhatsApp history', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
-  const sendSuggestion = async (to: string, suggestion: string, id?: string) => {
-    setSending((s) => ({ ...s, [id || suggestion]: true }));
+  const sendApprovedMessage = async (to: string, message: string, id?: string) => {
+    const recipient = to.replace(/\D/g, '');
+    if (!/^\d{8,15}$/.test(recipient)) {
+      window.alert('This message does not have a valid recipient number. Check the incoming message details.');
+      return;
+    }
+    const exactMessage = message.trim();
+    if (!exactMessage) return;
+
+    const key = id || `${recipient}:${exactMessage}`;
+    if (sendLocks.current.has(key)) return;
+    sendLocks.current.add(key);
+    setSending((current) => ({ ...current, [key]: true }));
     try {
-      const res = await fetch('/api/whatsapp/send_suggestion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, suggestion }) });
+      const approved = window.confirm(
+        `Send this WhatsApp message now?\n\nRecipient: +${recipient}\n\nExact message:\n${exactMessage}`,
+      );
+      if (!approved) return;
+
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: recipient, text: exactMessage, confirmed: true }),
+      });
       const data = await res.json();
-      if (data?.ok) {
+      if (res.ok && data?.ok) {
         await load();
       } else {
-        console.warn('send_suggestion failed', data);
+        window.alert(data?.error || 'WhatsApp message was not sent.');
       }
-    } catch (e) { console.error(e); }
-    setSending((s) => ({ ...s, [id || suggestion]: false }));
-  };
-
-  const queueSend = async (to: string, suggestion: string) => {
-    setSending((s) => ({ ...s, [`q-${to}`]: true }));
-    try {
-      const res = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, text: suggestion }) });
-      const data = await res.json();
-      if (data?.ok) await load();
-    } catch (e) { console.error(e); }
-    setSending((s) => ({ ...s, [`q-${to}`]: false }));
+    } catch (error) {
+      console.error('WhatsApp send failed', error);
+      window.alert('Could not send the WhatsApp message. Check your connection and message history before trying again.');
+    } finally {
+      sendLocks.current.delete(key);
+      setSending((current) => ({ ...current, [key]: false }));
+    }
   };
 
   return (
@@ -57,31 +96,45 @@ export function WhatsAppPanel({ onClose }: { onClose?: () => void }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <strong>WhatsApp</strong>
         <div>
-          <button onClick={load} style={{ marginRight: 8 }}>Refresh</button>
-          <button onClick={() => onClose && onClose()}>Close</button>
+          <button onClick={() => void load()} style={{ marginRight: 8 }}>Refresh</button>
+          <button onClick={() => onClose?.()}>Close</button>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#444', marginBottom: 8 }}>{loading ? 'Loading...' : `${messages.length} messages`}</div>
+      <div style={{ fontSize: 12, color: '#444', marginBottom: 8 }}>
+        {loading ? 'Loading...' : `${messages.length} messages`}
+        <div style={{ marginTop: 4, color: '#666' }}>Every send asks you to review the recipient and exact message first.</div>
+      </div>
       <div>
-        {messages.map((m, idx) => (
-          <div key={String(m.id||idx)} style={{ padding: 8, borderBottom: '1px solid #eee', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: '#666' }}>{m.incoming ? 'Incoming' : 'Outgoing'} • {m.to || (m.event?.from || m.event?.sender?.id) || ''}</div>
-              <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{m.text || m.event?.text?.body || JSON.stringify(m.event)}</div>
-              <div style={{ marginTop: 6 }}>
-                {/* quick suggestion helpers */}
-                {m.incoming && (
-                  <>
-                    <button disabled={Boolean(sending[m.id||idx])} onClick={() => sendSuggestion(String(m.to || (m.event?.from || m.event?.sender?.id || '')), `Thanks — I received your message.`, m.id)}>Suggest</button>
-                    <button disabled={Boolean(sending[m.id||idx])} onClick={() => sendSuggestion(String(m.to || (m.event?.from || m.event?.sender?.id || '')), `I'll check on that and get back to you shortly.`, m.id)} style={{ marginLeft: 6 }}>Suggest (detailed)</button>
-                    <button disabled={Boolean(sending[`q-${m.to}`])} onClick={() => queueSend(String(m.to || (m.event?.from || m.event?.sender?.id || '')), `Thanks — I received your message.`)} style={{ marginLeft: 6 }}>Queue Send</button>
-                  </>
+        {messages.map((item, index) => {
+          const key = String(item.id || index);
+          const recipient = getRecipient(item);
+          const text = getMessageText(item);
+          const quickReplyKey = item.id || `${recipient}:Thanks — I received your message.`;
+          return (
+            <div key={key} style={{ padding: 8, borderBottom: '1px solid #eee', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: '#666' }}>{item.incoming ? 'Incoming' : 'Outgoing'} • {recipient}</div>
+                <div style={{ marginTop: 4, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{text || JSON.stringify(item.event)}</div>
+                {item.incoming && (
+                  <div style={{ marginTop: 6 }}>
+                    <button
+                      disabled={Boolean(sending[quickReplyKey])}
+                      onClick={() => void sendApprovedMessage(recipient, 'Thanks — I received your message.', quickReplyKey)}
+                    >Send quick reply</button>
+                    <button
+                      disabled={Boolean(sending[quickReplyKey])}
+                      onClick={() => void sendApprovedMessage(recipient, "I'll check on that and get back to you shortly.", quickReplyKey)}
+                      style={{ marginLeft: 6 }}
+                    >Send detailed reply</button>
+                  </div>
                 )}
               </div>
+              <div style={{ width: 80, flexShrink: 0, textAlign: 'right', fontSize: 11, color: '#888' }}>
+                {item.ts ? new Date(item.ts).toLocaleString() : ''}
+              </div>
             </div>
-            <div style={{ width: 80, textAlign: 'right', fontSize: 11, color: '#888' }}>{m.ts ? new Date(m.ts).toLocaleString() : ''}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

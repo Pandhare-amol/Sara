@@ -67,13 +67,15 @@ export class ExecutionEngine {
             ? TaskVerificationStatus.SKIPPED
             : TaskVerificationStatus.UNCERTAIN;
 
+    const executionPayload = result.executionResult && typeof result.executionResult === "object"
+      ? result.executionResult as Record<string, unknown>
+      : {};
+    const definitelyNotExecuted = result.executionStatus === "failed" && executionPayload.executed === false;
     const resolvedStatus = result.success && result.verified
       ? TaskExecutionStatus.COMPLETED
-      : result.executionStatus === "timeout"
-        ? TaskExecutionStatus.TIMEOUT
-        : result.status === "partial" || verificationStatus === "FAILED"
-          ? TaskExecutionStatus.FAILED
-          : TaskExecutionStatus.FAILED;
+      : definitelyNotExecuted
+        ? TaskExecutionStatus.FAILED
+        : TaskExecutionStatus.PAUSED;
 
     const nextTask: TaskExecution = {
       ...taskWithContext,
@@ -94,12 +96,14 @@ export class ExecutionEngine {
       error: result.executionError || result.verificationError
         ? {
             code: result.executionError?.code || result.verificationError?.code || "EXECUTION_RESULT",
-            message: (result.executionError?.message || result.verificationError?.message || "Task completed without a clear error"),
-            retryable: result.executionError?.retryable || result.verificationError?.retryable,
+            message: (result.executionError?.message || result.verificationError?.message || "Task outcome needs review; verify it before retrying because a side effect may already have occurred."),
+            retryable: false,
             details: result.executionError?.details || result.verificationError?.details,
           }
-        : undefined,
-      userVisibleStatus: resolvedStatus === TaskExecutionStatus.COMPLETED ? "Completed" : resolvedStatus === TaskExecutionStatus.TIMEOUT ? "Timed out" : "Failed",
+        : resolvedStatus === TaskExecutionStatus.PAUSED
+          ? { code: "VERIFICATION_REQUIRED", message: "Task outcome was not independently verified; review it before retrying because a side effect may already have occurred.", retryable: false }
+          : undefined,
+      userVisibleStatus: resolvedStatus === TaskExecutionStatus.COMPLETED ? "Completed" : resolvedStatus === TaskExecutionStatus.PAUSED ? "Paused for review" : "Failed",
     };
 
     return nextTask;

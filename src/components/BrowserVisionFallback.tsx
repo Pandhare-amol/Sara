@@ -1,102 +1,106 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// Lightweight browser-side MediaPipe-like fallback using minimal heuristics.
-// This component captures video frames, computes simple hand heuristics (center of bright skin-like area),
-// and debounces simple gestures like 'PINCH' (distance between thumb/index) and 'OPEN_PALM' (area large).
-// When a gesture is confirmed locally it POSTs to the server to the gestureForward endpoint.
-
+// Lightweight browser-side gesture preview using simple heuristics. It never
+// dispatches desktop input: gesture forwarding is not implemented by the active agent.
 export function BrowserVisionFallback({ enabled }: { enabled: boolean }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const runningRef = useRef(false);
   const [supported, setSupported] = useState(false);
   const [running, setRunning] = useState(false);
-  const stateRef = useRef({ lastPinch: 0, lastOpen: 0 });
+  const [detectedGesture, setDetectedGesture] = useState('none');
 
   useEffect(() => {
     setSupported(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
   }, []);
 
-  useEffect(() => {
-    if (!enabled) { stop(); return; }
-    start();
-    return () => stop();
-  }, [enabled]);
-
-  const start = async () => {
-    if (!supported) return;
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-      const v = document.createElement('video');
-      v.autoplay = true; v.muted = true; v.playsInline = true;
-      v.srcObject = s;
-      await v.play();
-      videoRef.current = v;
-      setRunning(true);
-      tick();
-    } catch (e) { console.warn('BrowserVisionFallback start failed', e); }
-  };
   const stop = () => {
+    runningRef.current = false;
     setRunning(false);
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((t) => t.stop());
-      videoRef.current.srcObject = null;
+    setDetectedGesture('none');
+    const stream = videoRef.current?.srcObject;
+    if (stream instanceof MediaStream) {
+      stream.getTracks().forEach((track) => track.stop());
     }
+    if (videoRef.current) videoRef.current.srcObject = null;
     videoRef.current = null;
   };
 
   const tick = () => {
-    if (!running || !videoRef.current) return;
-    const v = videoRef.current;
-    const w = 320, h = 240;
-    const c = canvasRef.current;
-    if (!c) {
-      const cc = document.createElement('canvas'); cc.width = w; cc.height = h; canvasRef.current = cc;
+    if (!runningRef.current || !videoRef.current) return;
+    const video = videoRef.current;
+    const width = 320;
+    const height = 240;
+    if (!canvasRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvasRef.current = canvas;
     }
-    const ctx = (canvasRef.current as HTMLCanvasElement).getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(v, 0, 0, w, h);
-    const img = ctx.getImageData(0, 0, w, h);
-    // crude skin detection: R > 95 && G > 40 && B > 20 && R > G && R > B
-    let sumX = 0, sumY = 0, count = 0;
-    let minX = w, minY = h, maxX = 0, maxY = 0;
-    for (let i = 0; i < img.data.length; i += 4) {
-      const r = img.data[i], g = img.data[i+1], b = img.data[i+2];
-      if (r > 95 && g > 40 && b > 20 && r > g && r > b) {
-        const idx = i/4; const x = idx % w; const y = Math.floor(idx / w);
-        sumX += x; sumY += y; count++;
-        if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+    const context = canvasRef.current.getContext('2d');
+    if (!context) return;
+    try {
+      context.drawImage(video, 0, 0, width, height);
+      const image = context.getImageData(0, 0, width, height);
+      let count = 0;
+      let minX = width;
+      let minY = height;
+      let maxX = 0;
+      let maxY = 0;
+      for (let index = 0; index < image.data.length; index += 4) {
+        const red = image.data[index];
+        const green = image.data[index + 1];
+        const blue = image.data[index + 2];
+        if (red > 95 && green > 40 && blue > 20 && red > green && red > blue) {
+          const pixel = index / 4;
+          const x = pixel % width;
+          const y = Math.floor(pixel / width);
+          count += 1;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
       }
+      const area = (maxX - minX) * (maxY - minY);
+      const nextGesture = count > 50 ? area > 1500 ? 'OPEN_PALM' : 'PINCH' : 'none';
+      setDetectedGesture((current) => current === nextGesture ? current : nextGesture);
+    } catch (error) {
+      console.warn('Browser gesture preview frame failed', error);
     }
-    if (count > 50) {
-      const cx = sumX / count / w;
-      const cy = sumY / count / h;
-      const area = (maxX-minX) * (maxY-minY);
-      // heuristics: large area => open palm; small area & narrow bounding box => pinch
-      if (area > 1500) {
-        stateRef.current.lastOpen = Date.now();
-      } else {
-        // potential pinch detected
-        stateRef.current.lastPinch = Date.now();
-      }
-      // confirm events after short debounce
-      const now = Date.now();
-      if (now - stateRef.current.lastPinch < 300) {
-        sendConfirmedGesture('PINCH', { x_norm: cx, y_norm: cy });
-      }
-      if (now - stateRef.current.lastOpen < 300) {
-        sendConfirmedGesture('OPEN_PALM', { x_norm: cx, y_norm: cy });
-      }
-    }
-    requestAnimationFrame(tick);
+    if (runningRef.current) requestAnimationFrame(tick);
   };
 
-  const sendConfirmedGesture = async (gesture: string, args: any) => {
+  const start = async () => {
+    if (!supported || runningRef.current) return;
     try {
-      await fetch('/api/desktop/execute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool: 'gestureForward', args: { gesture, args, confirmed: true } }) });
-    } catch (e) { console.warn('sendConfirmedGesture failed', e); }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      await video.play();
+      videoRef.current = video;
+      runningRef.current = true;
+      setRunning(true);
+      requestAnimationFrame(tick);
+    } catch (error) {
+      console.warn('BrowserVisionFallback start failed', error);
+      stop();
+    }
   };
+
+  useEffect(() => {
+    if (enabled) void start();
+    else stop();
+    return () => stop();
+  }, [enabled, supported]);
 
   if (!supported) return <div className="text-xs p-2">Browser vision not supported</div>;
-  return <div className="text-xs p-2">Browser vision {running ? 'running' : 'stopped'}</div>;
+  return (
+    <div className="text-xs p-2">
+      Gesture preview {running ? 'running' : 'stopped'} · detected: {detectedGesture} · no desktop actions are dispatched.
+    </div>
+  );
 }

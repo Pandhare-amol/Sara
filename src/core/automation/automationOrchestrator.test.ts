@@ -9,27 +9,31 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function verifiedResult(result: unknown = "done") {
+  return { success: true, verified: true, verification: { attempted: true, passed: true, checks: [{ name: "postcondition", passed: true }] }, result };
+}
+
 function nextTurn(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
 test("AutomationOrchestrator submits without waiting for the executor", () => {
-  const gate = deferred<string>();
+  const gate = deferred<unknown>();
   const orchestrator = new AutomationOrchestrator(async () => gate.promise);
   const task = orchestrator.submit({ tool: "youtube_play", args: { query: "Python lectures" } });
 
   assert.equal(task.status, "QUEUED");
   assert.equal(orchestrator.getTask(task.task_id)?.status, "QUEUED");
-  gate.resolve("playing");
+  gate.resolve(verifiedResult());
 });
 
 test("AutomationOrchestrator serializes browser tasks while allowing independent work to start", async () => {
-  const first = deferred<string>();
+  const first = deferred<unknown>();
   const calls: string[] = [];
   const orchestrator = new AutomationOrchestrator(async (tool) => {
     calls.push(tool);
     if (tool === "youtube_play") return first.promise;
-    return "weather";
+    return verifiedResult("weather");
   });
 
   const video = orchestrator.submit({ tool: "youtube_play", args: {} });
@@ -37,13 +41,14 @@ test("AutomationOrchestrator serializes browser tasks while allowing independent
   await nextTurn();
 
   assert.deepEqual(calls, ["systemInfo", "youtube_play"]);
-  first.resolve("done");
+  first.resolve(verifiedResult());
+  await nextTurn();
   await nextTurn();
   assert.equal(orchestrator.getTask(video.task_id)?.status, "COMPLETED");
 });
 
 test("AutomationOrchestrator cancels queued tasks before execution", async () => {
-  const gate = deferred<string>();
+  const gate = deferred<unknown>();
   const calls: string[] = [];
   const orchestrator = new AutomationOrchestrator(async () => {
     calls.push("running");
@@ -56,9 +61,29 @@ test("AutomationOrchestrator cancels queued tasks before execution", async () =>
   assert.equal(orchestrator.cancelTask(queued.task_id), true);
   assert.equal(orchestrator.getTask(queued.task_id)?.status, "CANCELLED");
   assert.equal(calls.length, 1);
-  gate.resolve("done");
+  gate.resolve(verifiedResult());
+  await nextTurn();
   await nextTurn();
   assert.equal(orchestrator.getTask(running.task_id)?.status, "COMPLETED");
+});
+
+test("unverified outcomes pause for review and are never reported completed", async () => {
+  const events: string[] = [];
+  const orchestrator = new AutomationOrchestrator(async () => ({ success: true, verified: false, executionStatus: "success" }));
+  orchestrator.on((event) => events.push(event.type));
+  const task = orchestrator.submit({ tool: "desktopBrowserOpen", args: { url: "https://example.com" } });
+  await nextTurn();
+  await nextTurn();
+
+  const result = orchestrator.getTask(task.task_id);
+  assert.equal(result?.status, "PAUSED");
+  assert.equal(result?.task_state, "WAITING_FOR_USER");
+  assert.match(result?.error || "", /review the external state before explicitly retrying/i);
+  assert.equal((result?.checkpoint?.recovery as any)?.automaticReplay, false);
+  assert.ok(events.includes("VERIFICATION_STARTED"));
+  assert.ok(events.includes("VERIFICATION_FAILED"));
+  assert.ok(events.includes("RECOVERY_PAUSED"));
+  assert.ok(!events.includes("TASK_COMPLETED"));
 });
 
 test("Persisted task context survives GEMINI disconnect and resumes from the last confirmed step", () => {

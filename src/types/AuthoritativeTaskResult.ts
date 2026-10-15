@@ -99,21 +99,29 @@ export interface AuthoritativeTaskResult {
  * The UI and voice layer must use this function to generate their response.
  * They must NOT generate success/failure language independently.
  */
+export function isVerifiedTaskSuccess(result: Pick<AuthoritativeTaskResult, "state" | "success" | "verified" | "verification">): boolean {
+  return result.state === "SUCCEEDED" && result.success === true && result.verified === true &&
+    result.verification?.attempted === true && result.verification?.passed === true;
+}
+
 export function createUserResponseFromResult(result: AuthoritativeTaskResult): string {
   switch (result.state) {
     case "SUCCEEDED":
-      return result.summary || `Task completed successfully.`;
+      return isVerifiedTaskSuccess(result)
+        ? result.summary || `Task completed successfully.`
+        : `The action returned a success state, but I couldn't independently verify the outcome. Please check it before retrying.`;
 
     case "PARTIAL":
-      return `The task was partially completed. ${result.summary || "Some objectives were not fully achieved."}`;
+      return `The task was only partially completed. Some effects may have occurred; review them before retrying. ${result.summary || "Some objectives were not fully achieved."}`;
 
     case "FAILED":
-      return `I couldn't complete the task. ${
-        result.error?.message ?? result.summary ?? "The requested operation failed."
-      }`;
+      if (result.verification?.attempted && !result.verification.passed) {
+        return `I couldn't verify completion. Some effects may already have occurred; review them before retrying. ${result.error?.message ?? result.summary ?? "The requested operation needs review."}`;
+      }
+      return `I couldn't complete the task. ${result.error?.message ?? result.summary ?? "The requested operation failed."}`;
 
     case "CANCELLED":
-      return "The task was cancelled.";
+      return `The task was cancelled. Check for partial effects before retrying. ${result.summary || ""}`.trim();
 
     case "RUNNING":
     case "VERIFYING":

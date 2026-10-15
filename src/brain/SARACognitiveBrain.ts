@@ -19,7 +19,7 @@
 
 import type { Goal, Plan, Subgoal, Skill } from '../types/ClosedLoopTask';
 import type { MemoryStore } from '../types/Memory';
-import type { AuthoritativeTaskResult } from '../types/AuthoritativeTaskResult';
+import { isVerifiedTaskSuccess, type AuthoritativeTaskResult } from '../types/AuthoritativeTaskResult';
 import { MemoryService } from '../services/MemoryService';
 import { AgentRegistry, getAgentRegistry } from '../services/AgentRegistry';
 import { SkillLibrary } from '../services/SkillLibraryAndStrategyManager';
@@ -175,44 +175,24 @@ export class SARACognitiveBrain {
   }> {
     console.log(`[Brain] Verifying task result: ${result.taskId}`);
 
-    // Check if the result matches expected outcome
-    let verified = result.verified && result.success;
-    let confidence = 0.5;
-    const reasoning: string[] = [];
+    const verificationPassed = isVerifiedTaskSuccess(result);
+    let confidence = verificationPassed ? 0.95 : result.state === 'PARTIAL' ? 0.3 : 0.1;
+    const reasoning: string[] = [`Expected outcome: ${String(expectedOutcome || 'unspecified')}`];
 
-    if (result.state === 'SUCCEEDED') {
-      verified = true;
-      confidence = 0.95;
-      reasoning.push('Task reached SUCCEEDED state');
+    if (verificationPassed) {
+      reasoning.push(`Task state and independent verification passed with ${result.verification.checks.length} checks`);
     } else if (result.state === 'PARTIAL') {
-      verified = true;
-      confidence = 0.7;
-      reasoning.push('Task partially completed');
+      reasoning.push('Some effects may have occurred, but partial completion is not a verified task success');
+    } else if (result.state === 'SUCCEEDED') {
+      reasoning.push('The reported success state is not backed by a passed, attempted independent verification');
     } else {
-      verified = false;
-      confidence = 0.1;
-      reasoning.push('Task did not complete');
+      reasoning.push('Task did not reach a fully verified success state');
     }
 
-    // Check verification
-    if (result.verification && result.verification.passed) {
-      confidence += 0.05;
-      reasoning.push(`Verification passed with ${result.verification.checks.length} checks`);
-    } else {
-      confidence -= 0.2;
-      reasoning.push('Result not independently verified');
-    }
-
-    // Check execution actions
-    if (result.actions && result.actions.length > 0) {
-      confidence += 0.1;
-      reasoning.push(`Actions executed: ${result.actions.length} items`);
-    }
-
-    confidence = Math.max(0, Math.min(1, confidence));
+    if (result.actions?.length) reasoning.push(`Actions reported: ${result.actions.length}; action output alone is not verification`);
 
     return {
-      verified,
+      verified: verificationPassed,
       confidence,
       reasoning: reasoning.join('; '),
     };
@@ -231,14 +211,16 @@ export class SARACognitiveBrain {
 
     switch (result.state) {
       case 'SUCCEEDED':
-        response = `Done. ${result.summary}`;
-        if (result.verification.checks.length > 0) {
-          response += ` I verified the result with ${result.verification.checks.length} checks.`;
+        if (isVerifiedTaskSuccess(result)) {
+          response = `Done. ${result.summary}`;
+          if (result.verification.checks.length > 0) response += ` I verified the result with ${result.verification.checks.length} checks.`;
+        } else {
+          response = `The action returned a success state, but I couldn't independently verify the outcome. Please check it before retrying. ${result.summary}`;
         }
         break;
 
       case 'PARTIAL':
-        response = `Partially completed. ${result.summary} Some parts didn't complete as expected.`;
+        response = `Partially completed. Some effects may have occurred; please review them before retrying. ${result.summary} Some parts didn't complete as expected.`;
         if (result.error) {
           response += ` The issue was: ${result.error.message}`;
         }

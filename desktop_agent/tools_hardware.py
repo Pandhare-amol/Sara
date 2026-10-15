@@ -152,24 +152,44 @@ def hardware_monitors(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("hardwareMacroReplay")
 def hardware_macro_replay(args: Dict[str, Any]) -> Dict[str, Any]:
-    pyautogui = _pyautogui()
     actions = args.get("actions") or []
     if not isinstance(actions, list):
         raise ToolError("'actions' must be a list.")
+    if len(actions) > 100:
+        raise ToolError("A hardware macro is limited to 100 actions.")
+
+    handlers = {
+        "click": hardware_mouse_click,
+        "type": hardware_keyboard_type,
+        "press": hardware_keyboard_press,
+        "scroll": hardware_mouse_scroll,
+        "move": hardware_mouse_move,
+    }
     executed = 0
-    for action in actions:
-        if not isinstance(action, dict):
-            continue
-        kind = action.get("type")
-        if kind == "click":
-            hardware_mouse_click(action)
-        elif kind == "type":
-            hardware_keyboard_type(action)
-        elif kind == "press":
-            hardware_keyboard_press(action)
-        elif kind == "scroll":
-            hardware_mouse_scroll(action)
-        elif kind == "move":
-            hardware_mouse_move(action)
-        executed += 1
-    return {"result": f"Replayed {executed} macro action(s).", "executed": executed}
+    ignored = 0
+    cleanup: Dict[str, Any] = {"verified": False}
+    try:
+        for action in actions:
+            if not isinstance(action, dict):
+                ignored += 1
+                continue
+            handler = handlers.get(str(action.get("type") or ""))
+            if handler is None:
+                ignored += 1
+                continue
+            handler(action)
+            executed += 1
+    finally:
+        try:
+            cleanup = DESKTOP_INPUT.emergency_release()
+        except Exception as exc:  # noqa: BLE001
+            cleanup = {"verified": False, "error": str(exc)}
+
+    return {
+        "result": f"Replayed {executed} hardware macro action(s); ignored {ignored} unsupported action(s).",
+        "executed": executed,
+        "ignored": ignored,
+        "cleanup": cleanup,
+        "action_sent": executed > 0,
+        "verified": False,
+    }

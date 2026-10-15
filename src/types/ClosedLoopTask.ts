@@ -183,6 +183,7 @@ export interface ExecutionLog {
 
 export type ExecutionEventType =
   | 'TASK_CREATED'
+  | 'TASK_STATE_CHANGED'
   | 'PLAN_CREATED'
   | 'ACTION_STARTED'
   | 'ACTION_COMPLETED'
@@ -284,7 +285,7 @@ export function canTransitionTo(from: TaskExecutionState, to: TaskExecutionState
   // Define valid state transitions
   const validTransitions: Record<TaskExecutionState, Set<TaskExecutionState>> = {
     CREATED: new Set(['PLANNING', 'CANCELLED']),
-    PLANNING: new Set(['EXECUTING', 'WAITING', 'CANCELLED']),
+    PLANNING: new Set(['EXECUTING', 'WAITING', 'FAILED', 'CANCELLED']),
     EXECUTING: new Set(['OBSERVING', 'WAITING', 'VERIFYING', 'RECOVERING', 'REPLANNING', 'PAUSED', 'FAILED', 'CANCELLED']),
     WAITING: new Set(['OBSERVING', 'EXECUTING', 'CANCELLED', 'FAILED']),
     OBSERVING: new Set(['VERIFYING', 'EXECUTING', 'REPLANNING', 'FAILED', 'CANCELLED']),

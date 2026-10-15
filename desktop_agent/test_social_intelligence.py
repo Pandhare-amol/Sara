@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -43,6 +44,12 @@ class SocialIntelligenceTest(unittest.TestCase):
         decision = self.engine.should_respond({"idle_seconds": 1000, "current_task": "SARA"})
         self.assertEqual(decision["action"], "WAIT")
         self.assertEqual(decision["reason"], "proactive_conversation_disabled")
+
+    def test_recent_proactive_checkin_respects_conversation_cooldown(self) -> None:
+        self.engine.update_settings({"proactiveConversation": True})
+        decision = self.engine.should_respond({"idle_seconds": 1000, "current_task": "SARA", "last_sara_spoke_at": time.time() - 10})
+        self.assertEqual(decision["action"], "WAIT")
+        self.assertEqual(decision["reason"], "conversation_cooldown")
 
     def test_settings_accept_ui_camel_case(self) -> None:
         snapshot = self.engine.update_settings({"proactiveConversation": True, "playfulMode": True, "prankMode": True})

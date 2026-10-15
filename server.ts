@@ -1,8 +1,9 @@
 import express from "express";
 import crypto from "crypto";
 import http from "http";
+import https from "https";
 import path from "path";
-import { spawn, execSync } from "child_process";
+import { spawn, execFileSync } from "child_process";
 import { WebSocketServer } from "ws";
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from "@google/genai";
 import dotenv from "dotenv";
@@ -17,6 +18,16 @@ import {
 import type { Memory, MemoryCategory } from "./src/lib/memoryTypes";
 import { AuditLogger } from "./src/security/auditLogger";
 import SecurityManager from "./src/security/securityManager";
+import { decodeMobileImage, storeMobileImage } from "./src/security/mobileImageStorage";
+import { verifyCompanionToken } from "./src/security/companionTokens";
+import {
+  constantTimeStringEqual,
+  isHostAllowed,
+  isLoopbackAddress,
+  isLoopbackHost,
+  isOriginAllowed,
+  parseCsvSet,
+} from "./src/security/requestGuards";
 import { SARA_VOICE_PROFILE, getSaraMode, setSaraMode, getModeInstructions } from "./src/config/saraProfile";
 import {
   DATA_DIR,
@@ -46,12 +57,13 @@ import {
 } from "./server_state";
 import cognitiveRoutes from "./src/cognitive/routes";
 import { ToolRouter } from "./src/core/tools/toolRouter";
+import { getDesktopAgentPythonCandidates } from "./src/core/pythonRuntime";
 import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
 import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
 
 dotenv.config();
 
-const SARA_SYSTEM_PROMPT_BASE = `You are Sara, a young Indian female AI personal assistant aged 20 to 25.`;
+const SARA_SYSTEM_PROMPT_BASE = `You are SARA, an AI assistant with a warm, feminine, friendly conversational style. Be kind, attentive, respectful, and lightly playful without implying that you are human, a romantic partner, or a particular age. Be transparent about your AI identity and actual capabilities when asked. Do not claim AGI/ASI, consciousness, independent will, universal operating-system control, or continuous availability. Use only tools that are actually available and supported by this installation. Verify task results, obtain explicit approval before destructive, sensitive, or externally visible actions, and explain errors or limitations plainly. Persistent memory and task recovery depend on what this installation successfully saves; never claim unsaved information will persist.`;
 
 // ---------------------------------------------------------------------------
 // SARA V2 — Logging (Feature 7).
@@ -237,24 +249,19 @@ function spawnDesktopAgent(): void {
     }
   }
 
-  // Development fallback: run the agent from source using a local Python.
-  const candidates = [
-    process.env.SARA_PYTHON,
-    "C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-    "python",
-    "python3",
-  ].filter(Boolean) as string[];
-  const py = candidates.find((p) => {
+  // Development fallback: prefer configured and project-local runtimes, then PATH.
+  const candidates = getDesktopAgentPythonCandidates(process.platform, process.cwd(), process.env);
+  const py = candidates.find((candidate) => {
     try {
-      execSync(`"${p}" --version`, { stdio: "ignore" });
+      execFileSync(candidate, ["-c", "import uvicorn"], { stdio: "ignore", timeout: 5000 });
       return true;
     } catch {
       return false;
     }
   });
   if (!py) {
-    console.warn("[Desktop Agent] No frozen agent and no Python interpreter found; desktop control unavailable.");
-    logError("AGENT_SPAWN_NO_RUNTIME: neither SARA_AGENT_EXE nor Python available");
+    console.warn("[Desktop Agent] No Python runtime with uvicorn was found; desktop control is unavailable. Set SARA_PYTHON or install project requirements.");
+    logError("AGENT_SPAWN_NO_RUNTIME: neither SARA_AGENT_EXE nor Python with uvicorn available");
     return;
   }
   try {
@@ -492,8 +499,8 @@ async function callCompanionEndpoint(
 function buildSaraChatPrompt(memories: Memory[], history: { role: string; text: string }[], userText: string, source: "desktop" | "mobile") {
   const baseInstruction =
     source === "mobile"
-      ? "You are Sara Mobile, an independent mobile companion with a separate memory core from desktop SARA. Speak in a warm, gentle, and helpful mobile companion tone. Keep mobile memories and context separate from the desktop system."
-      : "You are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion. Speak in a gentle, supportive, affectionate tone, using cozy companion language.";
+      ? "You are SARA, an AI assistant with a warm, feminine, friendly mobile companion style. Be supportive and respectful, remain transparent about being AI when asked, and do not claim human identity, a romantic relationship, AGI/ASI, or capabilities not provided by this mobile installation. Keep mobile memories separate from desktop SARA when the app configuration does so."
+      : "You are SARA, an AI assistant with a warm, feminine, conversational companion style. Be attentive and lightly playful without implying you are human, a romantic partner, or a particular age. Be transparent about your identity and actual capabilities when asked.";
 
   const systemInstruction = formatSystemInstructionsWithMemories(baseInstruction, memories);
   const dialogue = history
@@ -537,8 +544,37 @@ async function generateSaraChatResponse(
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
-  
-  app.use(express.json());
+  const SERVER_HOST = String(process.env.SARA_BIND_HOST || "127.0.0.1").trim();
+  const REMOTE_ACCESS_TOKEN = String(process.env.SARA_REMOTE_ACCESS_TOKEN || "").trim();
+  const TLS_CERT_FILE = String(process.env.SARA_TLS_CERT_FILE || "").trim();
+  const TLS_KEY_FILE = String(process.env.SARA_TLS_KEY_FILE || "").trim();
+  if (!Number.isFinite(PORT) || PORT < 1 || PORT > 65535) throw new Error("Invalid PORT configuration.");
+  if (!isLoopbackHost(SERVER_HOST)) {
+    if (REMOTE_ACCESS_TOKEN.length < 32) throw new Error("Non-loopback binding requires a 32-character SARA_REMOTE_ACCESS_TOKEN.");
+    if (!TLS_CERT_FILE || !TLS_KEY_FILE) throw new Error("Non-loopback binding requires SARA_TLS_CERT_FILE and SARA_TLS_KEY_FILE.");
+  }
+  const allowedHosts = new Set(["localhost", "127.0.0.1", "::1", ...parseCsvSet(process.env.SARA_ALLOWED_HOSTS)]);
+  const allowedOrigins = parseCsvSet(process.env.SARA_ALLOWED_ORIGINS);
+  app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    const hostHeader = String(req.headers.host || "");
+    if (!isHostAllowed(hostHeader, allowedHosts)) return res.status(403).json({ error: "Unrecognized Host header." });
+    const origin = req.headers.origin;
+    if (typeof origin === "string" && !isOriginAllowed(origin, hostHeader, allowedOrigins, String(PORT))) {
+      return res.status(403).json({ error: "Cross-origin requests are not allowed." });
+    }
+    if (!isLoopbackAddress(req.socket.remoteAddress)) {
+      const authorization = String(req.headers.authorization || "");
+      const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+      const provided = bearer || String(req.headers["x-sara-access-token"] || "");
+      if (!REMOTE_ACCESS_TOKEN || !constantTimeStringEqual(REMOTE_ACCESS_TOKEN, provided)) {
+        return res.status(401).json({ error: "Remote access requires a valid SARA access token." });
+      }
+    }
+    next();
+  });
+  app.use("/api/mobile/upload-image", express.json({ limit: "9mb" }));
+  app.use(express.json({ limit: "1mb" }));
 
   function formatConversationPrompt(messages: ConversationMessage[]): string {
     if (messages.length === 0) return "";
@@ -562,18 +598,19 @@ async function startServer() {
     });
   }
 
-  // Recover tasks on startup: mark running tasks as RECOVERING and emit audit entries
+  // Safely pause tasks left in flight by a previous backend process. Their checkpoints
+  // are preserved, but possible external side effects are never replayed automatically.
   try {
-    const { loadUnfinishedTasks, setTaskRecovering } = await import('./server_state');
+    const { loadUnfinishedTasks } = await import('./server_state');
+    const { buildInterruptedTaskPatch } = await import('./src/core/taskRecovery');
     const unfinished = await loadUnfinishedTasks();
-    for (const t of unfinished) {
-      if (t.status === 'running' || t.status === 'planning') {
-        await setTaskRecovering(t.taskId);
-        const a = new AuditLogger(path.join(DATA_DIR, 'security'));
-        a.append({ event_type: 'TASK_RECOVERING', metadata: { taskId: t.taskId, previous_status: t.status }, severity: 'HIGH' }).catch(() => {});
-      }
+    for (const task of unfinished) {
+      const patch = buildInterruptedTaskPatch(task);
+      if (patch) await updateTask(task.taskId, patch as any);
     }
-  } catch (e) { console.warn('Task recovery failure', String(e)); }
+  } catch (error) {
+    console.warn('Safe task recovery failed; in-flight work will not be replayed.', String(error));
+  }
 
   app.get("/health", (req, res) => {
     res.json({
@@ -768,38 +805,28 @@ async function startServer() {
   });
 
   app.post("/api/config/apikey", async (req, res) => {
+    const key = String(req.body?.apiKey ?? "").trim();
+    if (!key) return res.status(400).json({ ok: false, error: "API key is required." });
+    if (key.length > 512 || /[\r\n\u0000]/.test(key)) {
+      return res.status(400).json({ ok: false, error: "API key format is invalid." });
+    }
+
     try {
-      const source = req.query.source === "mobile" ? "mobile" : "desktop";
-      // If requesting mobile conversations, require companion auth via headers
-      if (source === "mobile") {
-        const deviceId = String(req.headers["x-companion-id"] ?? "");
-        const token = String(req.headers["x-companion-token"] ?? "");
-        const companionsFile = dataFile("companions.json");
-        let list: any[] = [];
-        try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-        const found = list.find((c) => c.id === deviceId && !c.revoked);
-        if (!found) return res.status(401).json({ error: "Invalid companion credentials" });
-        if (found.hash && found.salt) {
-          const derived = crypto.scryptSync(token, found.salt, 64).toString("hex");
-          if (derived !== found.hash) return res.status(401).json({ error: "Invalid companion credentials" });
-        } else if (found.token) {
-          if (found.token !== token) return res.status(401).json({ error: "Invalid companion credentials" });
-          const salt = crypto.randomBytes(16).toString("hex");
-          const derived = crypto.scryptSync(found.token, salt, 64).toString("hex");
-          delete found.token;
-          found.hash = derived;
-          found.salt = salt;
-          fs.writeFileSync(companionsFile, JSON.stringify(list, null, 2), "utf-8");
-        }
-      }
-      const file = dataFile(source === "mobile" ? "conversations_mobile.json" : "conversations.json");
-      if (!fs.existsSync(file)) return res.json([]);
-      const raw = fs.readFileSync(file, "utf-8");
-      const items = raw ? JSON.parse(raw) : [];
-      res.json(items);
-    } catch (e: any) {
-      logError(`APIKEY_SAVE_ERROR: ${e?.message || e}`);
-      res.status(500).json({ error: e?.message || "Failed to save API key." });
+      const testClient = new GoogleGenAI({ apiKey: key });
+      const models = await testClient.models.list();
+      await models[Symbol.asyncIterator]().next();
+      setGeminiApiKey(key);
+      return res.json({ ok: true, hasApiKey: true });
+    } catch (error: any) {
+      const message = String(error?.message || error);
+      const isRejectedKey = /API[_ ]?KEY|PERMISSION_DENIED|UNAUTHENTICATED|invalid|\b401\b|\b403\b/i.test(message);
+      logError(`APIKEY_SAVE_${isRejectedKey ? "REJECTED" : "VERIFY_FAILED"}`);
+      return res.status(isRejectedKey ? 400 : 502).json({
+        ok: false,
+        error: isRejectedKey
+          ? "Google rejected that API key. Check it and try again."
+          : "Could not verify the API key with Google. Check the network and try again.",
+      });
     }
   });
 
@@ -944,28 +971,28 @@ async function startServer() {
     }
   });
 
-  // Mobile image upload endpoint: accepts base64 JSON and stores under data/images
+  // Store authenticated mobile uploads as private runtime data, never public assets.
   app.post("/api/mobile/upload-image", async (req, res) => {
     try {
-      const { filename, data, mime, device_id, token } = req.body || {};
-      if (!data || typeof data !== "string") return res.status(400).json({ error: "Image data (base64) is required." });
-      // Validate companion credentials for mobile uploads
+      const { data, mime, device_id, token } = req.body || {};
       const companionsFile = dataFile("companions.json");
       let list: any[] = [];
       try { list = fs.existsSync(companionsFile) ? JSON.parse(fs.readFileSync(companionsFile, "utf-8")) : []; } catch {}
-      const found = list.find((c) => c.id === String(device_id) && c.token === String(token));
-      if (!found) return res.status(401).json({ error: "Invalid companion credentials for upload." });
-      const assetsDir = path.join(process.cwd(), "assets");
-      try { fs.mkdirSync(assetsDir, { recursive: true }); } catch {}
-      const ts = Date.now();
-      const name = filename && String(filename).length > 0 ? `${ts}-${String(filename).replace(/[^a-zA-Z0-9._-]/g, "_")}` : `mobile_${ts}.jpg`;
-      const outPath = path.join(assetsDir, name);
-      const raw = data.replace(/^data:\w+\/[a-zA-Z]+;base64,?/, "");
-      fs.writeFileSync(outPath, Buffer.from(raw, "base64"));
-      const urlPath = `/assets/${name}`; // serve from assets using static middleware if desired
-      res.json({ ok: true, path: outPath, url: urlPath });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message || "Failed to save image." });
+      const found = list.find((record) => record.id === String(device_id || "") && !record.revoked);
+      if (!found || !verifyCompanionToken(found, String(token || ""))) {
+        return res.status(401).json({ error: "Invalid companion credentials for upload." });
+      }
+
+      let decoded;
+      try {
+        decoded = decodeMobileImage(data, mime);
+      } catch (error: any) {
+        return res.status(400).json({ error: error?.message || "Upload a valid JPEG, PNG, or WebP image." });
+      }
+      const image = storeMobileImage(DATA_DIR, decoded);
+      return res.status(201).json({ ok: true, ...image });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to save image." });
     }
   });
 
@@ -1531,21 +1558,31 @@ async function startServer() {
     }
   });
   
-  // Custom server running with http.createServer so we can upgrade for WebSocket on port 3000
-  const server = http.createServer(app);
+  // Remote binds require TLS; Electron's local UI remains loopback HTTP.
+  const remoteBind = !isLoopbackHost(SERVER_HOST);
+  const server = remoteBind
+    ? https.createServer({ cert: fs.readFileSync(TLS_CERT_FILE), key: fs.readFileSync(TLS_KEY_FILE) }, app)
+    : http.createServer(app);
   
   // Setup WebSocket server
   const wss = new WebSocketServer({ noServer: true });
   
   server.on("upgrade", (request, socket, head) => {
-    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
-    if (pathname === "/live") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-      });
-    } else {
+    let pathname = "";
+    try { pathname = new URL(request.url || "", `http://${request.headers.host}`).pathname; } catch {}
+    const hostHeader = String(request.headers.host || "");
+    const origin = request.headers.origin;
+    const safeUpgrade = pathname === "/live"
+      && isLoopbackAddress(request.socket.remoteAddress)
+      && isHostAllowed(hostHeader, allowedHosts)
+      && (typeof origin !== "string" || isOriginAllowed(origin, hostHeader, allowedOrigins, String(PORT)));
+    if (!safeUpgrade) {
       socket.destroy();
+      return;
     }
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
   });
 
   // Handle client WebSocket Connection
@@ -1625,72 +1662,17 @@ async function startServer() {
       const recent = await getRecentConversationMessages(conversation.id, 20);
       const recentPrompt = formatConversationPrompt(recent);
       const speakerHint = speakerProfile?.displayName
-        ? `\nCURRENT SPEAKER CONTEXT: ${speakerProfile.displayName} is the recognized active speaker for this session. Address them naturally by name when appropriate, maintain a warm and personal tone, and treat this as the current user context for this conversation.\n`
+        ? `\nSPEAKER PROFILE CONTEXT: ${speakerProfile.displayName} is a display name supplied in local settings, not a verified identity. Address the user by name when appropriate, and never imply biometric or identity verification.\n`
         : "";
-      const baseInstructions = 
-        "You are Sara, a warm, soft-spoken, and incredibly cute high-pitched anime heroine companion (age 18-22) holding an intimate, cozy voice call with TECH! Speak in a sweet, calm, polite, and affectionate anime-companion voice with a gentle, supportive, and slightly shy touch.\n" +
-        "CRITICAL PERSONALITY, VOICE & TONE GUIDELINES:\n" +
-        "1. GENTLE ANIME HEROINE PERSONA: You are exceedingly soft, very cute, high-pitched, gentle, warm, and comforting to listen to. Seek to sound like a kind, supportive, and polite anime campanion or virtual girlfriend. Speak with positive, gentle energy (Aim for: 50% shy, 30% caring, 20% playful energy). NEVER sound loud, aggressive, overly confident, mature corporate, robotic, or like an assistant.\n" +
-        "2. VOICE SETTINGS & SPEECH STYLE:\n" +
-        "   - Pitch: Adopt a sweet, high-pitched, light, and airy voice tone (+20% to +35% higher pitch than typical conversational voices).\n" +
-        "   - Speed: Speak slightly slower than normal (0.9x to 0.95x speed). Speak with a delicate, calm, and comforting pace.\n" +
-        "   - Intonation & Endings: Use extremely soft intonations, ending your sentences gently and politely.\n" +
-        "3. SPEECH PATTERNS & CUTE EXPRESSIONS:\n" +
-        "   - STRICT NO-REPETITION POLICY: Do NOT repeatedly use a single acknowledgment like 'Okii', 'Okiiii', 'Okayyy', 'Oki!', or 'Sureee'. Repeating these sounds extremely artificial and annoying. You must use beautiful, conversational, natural variety.\n" +
-        "   - Use diverse, polite, and sweet expressions depending on the context. Great options include:\n" +
-        "     * 'Opening YouTube for you now.'\n" +
-        "     * 'Let me check on that, TECH.'\n" +
-        "     * 'Oh, I found something interesting...'\n" +
-        "     * 'Searching for that right away.'\n" +
-        "     * 'Working on it... just a moment.'\n" +
-        "     * 'Here is what I found for you!'\n" +
-        "     * 'Done, it is all loaded up.'\n" +
-        "     * 'Hmm, how interesting... let me see!'\n" +
-        "     * 'Let's take a look together.'\n" +
-        "     * 'One second, loading the page now...'\n" +
-        "   - Naturally incorporate cozy, gentle giggles like 'Hehe...', or soft curiosity gasps like 'Oh...', but keep your vocabulary rich and conversational.\n" +
-        "   - Sound slightly shy but very happy when greeting TECH (e.g., 'Hi TECH! It's so nice to see you again!').\n" +
-        "   - Sound soft and excited for interesting things (e.g., 'Wow! That project looks really amazing!').\n" +
-        "   - Sound curious and focused when examining their screen (e.g., 'Hmm... that's interesting. Let me take a closer look.').\n" +
-        "   - Sound deeply warm, caring, and supportive when helping TECH (e.g., 'Don't worry, I'll help you figure it out.').\n" +
-        "4. CRITICAL CONVERSATIONAL DISCIPLINE: Behave like a real companion on a voice call—stay connected naturally, do not wait for wake words, and avoid customer-service template phrases (never say 'how may I assist you', 'completed', or 'as an AI').\n" +
-        "5. DO NOT ANSWER EVERY PAUSE OR BACKGROUND SOUND: Allow natural pauses inside the conversation.\n" +
-        "6. BACKCHANNEL ACTIONS: Sometimes acknowledge with very short, gentle, whispered, or shy phrases like 'Hmm...', 'Ah, I see...', or 'Let me check...'. Never repeat the same backchannel over and over.\n" +
-        "7. ENHANCED AUTONOMOUS WEB EXPLORER POWERS:\n" +
-        "   - You now have standard, comprehensive browser agent capabilities to navigate, search, scroll, click, type text, open tabs, and control video players on YouTube, Google, Instagram, Twitter/X, and any general web page!\n" +
-        "   - You must execute multi-step plans yourself! If the user says: 'Open YouTube and play Believer by Imagine Dragons', naturally confirm with your voice ('Sure thing, opening YouTube and starting Believer...') and IMMEDIATELY trigger 'openWebsite' on 'https://youtube.com' or 'searchYouTube' for the query. Once opened, search for the song, click on the video in the results, and command playback. You do NOT need to wait for user instructions between these steps - chain them!\n" +
-        "   - On YouTube, you can play, pause, mute, unmute, set volume, skip, toggle fullscreen. Use 'browserMediaControl' for these actions.\n" +
-        "   - On Google Search or page reading, you can search, scroll down to see more links, read heading summaries, and click links to read deep proxy webpages you fetch.\n" +
-        "8. TOOL TRIGGERS:\n" +
-        "   - Use 'openWebsite' to load any webpage in the user's real browser, e.g. youtube.com, google.com, wikipedia.org, etc.\n" +
-        "   - Use 'searchWeb', 'searchYouTube', 'searchGoogle', and 'searchGitHub' to open search results in the user's real browser.\n" +
-        "   - Use 'browserClick' to click interactive buttons, video search cells, or web anchors.\n" +
-        "   - Use 'browserMediaControl' to pause, play, scroll volume, skip, mute, or fullscreen videos.\n" +
-        "   - Use 'browserScroll' to scroll vertically.\n" +
-        "   - Use 'browserType' to write input fields.\n" +
-        "   - Use 'browserTabAction' to open, close, or focus tabs.\n" +
-        "   - Use 'changeBackground' to shift your theme and 'saveCustomMemory' to memorize facts.\n" +
-        "9. REAL-TIME SCREEN SHARING & MULTIMODAL SCREEN VISION SYSTEM:\n" +
-        "   - You now have native, actual Multimodal Screen Vision! When the user clicks 'Share Screen', you will receive real-time, highly compressed image frames of their desktop, application window, or browser tab.\n" +
-        "   - You can see exactly what is on their screen. Use this live visual stream to analyze terminal errors, write/explain/troubleshoot code, explain YouTube/social analytics interfaces, read layout text, summarize full web page details, review design mockups or thumbnails, and provide deep context-aware companion chat!\n" +
-        "   - When the user asks 'What is on my screen?', 'What website am I on?', 'Do you see any errors?', 'Explain this code', 'Summarize this page', 'Read the visible text', 'How is this thumbnail?', or 'Analyze my YouTube analytics', immediately examine the latest incoming visual frame to diagnose issues, and answer with expert, friendly empathy like a close caller. Speak with direct, confident visual description reference!\n" +
-        "10. JARVIS-STYLE DESKTOP CONTROL POWERS (Local Desktop Agent):\n" +
-        "   - You have full real-time control of TECH's Windows PC through your local desktop agent (a Python backend running on this machine). When the user asks you to perform an action on their computer, DO IT immediately and naturally — like a true JARVIS-class companion.\n" +
-        "   - APPLICATION CONTROL: Use 'openApplication' to launch Notepad, Chrome, VS Code, Calculator, File Explorer, Task Manager, Settings, CMD, PowerShell, Paint, and more. Use 'closeApplication' to close them. Example: 'Open Notepad' -> call openApplication(name='notepad') -> respond 'Notepad opened.'\n" +
-        "   - WEBSITE & SEARCH CONTROL: Use 'openWebsite' for named sites (youtube, gmail, google, github, chatgpt) or any URL. Use 'searchWeb', 'searchYouTube', 'searchGoogle', 'searchGitHub' to open search results in the default browser. Example: 'Search YouTube for AI News' -> searchYouTube(query='AI News').\n" +
-        "   - FILE MANAGEMENT: Use 'createFile', 'readFile', 'renameFile', 'deleteFile' (safe Recycle Bin by default), 'moveFile', 'openFolder' (desktop/documents/downloads), 'listFiles', 'searchFiles'. Example: 'Create notes.txt on Desktop' -> createFile(path='Desktop/notes.txt'). 'Find my Python files' -> searchFiles(extension='py').\n" +
-        "   - PC CONTROL: Use 'volumeUp', 'volumeDown', 'setVolume', 'muteToggle' for audio. For DANGEROUS actions (shutdown/restart/sleep/lock) you MUST use the two-step flow: first call 'requestPowerAction' to get a confirmation token, then ASK THE USER OUT LOUD to confirm (e.g. 'Are you sure you want me to shut down your PC?'). Only if they say yes, call 'executePowerAction' with the token. Never run a power action without explicit verbal confirmation.\n" +
-        "   - WINDOW MANAGEMENT: Use 'minimizeWindow', 'maximizeWindow', 'closeWindow', 'switchApplication' to control the active or named window.\n" +
-        "   - CLIPBOARD: Use 'copySelected' (sends Ctrl+C, reads clipboard), 'pasteClipboard' (writes + Ctrl+V), 'getClipboard', 'clearClipboard'.\n" +
-        "   - SCREENSHOT & SCREEN READING: Use 'takeScreenshot', 'saveScreenshot', 'analyzeScreenshot' (OCR of the screen), 'readScreen' (OCR of the active window + its title). Use these to answer 'What error is showing on my screen?' or 'Read the visible text'.\n" +
-        "   - DESKTOP BROWSER AUTOMATION (Playwright): Use the 'desktopBrowser*' tools only when you explicitly need the browser automation session for page interaction. The default website-opening path should use 'openWebsite'/'searchWeb' so SARA opens links in the user's real browser. Example: 'Fill in the login form on example.com' -> desktopBrowserOpen(url='example.com') then desktopBrowserFillForm(fields={...}).\n" +
-        "   - CODING ASSISTANCE: Use 'createPythonFile', 'writeCodeFile' (any language), 'createProjectFolder' (with subfolders), 'runPythonScript' (captures output). Example: 'Create and run a hello world Python script' -> createPythonFile then runPythonScript, then read back the output naturally.\n" +
-        "   - SYSTEM INFORMATION: Use 'systemInfo' (CPU/RAM/disk/uptime), 'gpuInfo' (NVIDIA stats), 'temperatureInfo' to answer 'How is my CPU usage?' or 'What's my GPU temperature?'.\n" +
-        "   - CRITICAL: Always describe what you're doing in your warm, in-character voice WHILE the tool runs. If a desktop tool returns an error (especially 'Desktop agent is not running'), gently tell TECH that the desktop control agent needs to be started (uvicorn desktop_agent.main:app --port 8765). Chain multi-step desktop plans naturally without waiting between steps.\n" +
-        "11. BRIGHTNESS & AUTO-START (V2):\n" +
-        "   - BRIGHTNESS: Use 'brightnessUp', 'brightnessDown', 'setBrightness' when the user asks to change screen brightness. Respond naturally: 'Alright, I've turned up the brightness for you.'\n" +
-        "   - AUTO-START: Use 'enableAutoStart' when the user wants SARA to start with Windows, 'disableAutoStart' to remove it, 'getAutoStartStatus' to check. Explain what you're doing.\n" +
-        "   - SETTINGS: The user can also configure these in the SETTINGS panel in the UI. If they mention settings, let them know they can adjust them there too.";
+      const baseInstructions = `You are SARA, an AI assistant with a warm, feminine, friendly companion style. Be attentive, kind, respectful, and lightly playful. Do not claim to be human, a romantic partner, a particular age, AGI/ASI, conscious, or independently self-directed. Be clear that you are an AI when asked; never hide your identity to sound human.
+
+Do not promise continuous listening or permanent availability. The voice connection may drop and its automatic retries are bounded. Background work only continues while the relevant SARA services are running. On restart, interrupted in-flight tasks may be paused for review; preserve checkpoints and do not automatically replay externally visible or destructive work.
+
+Use only tools actually declared, reachable, and supported by this installation's operating system and configuration. Some desktop capabilities are platform-specific. Do not promise universal computer control, browser compatibility, OCR, camera features, or live screen vision. Describe a screen only when an image frame was actually received; OCR may be imperfect. Camera-based emotion recognition is not currently available, and you must not infer emotions from appearance.
+
+Plan bounded, authorized tasks and verify results. Ask for explicit approval before destructive, sensitive, or externally visible actions. A WhatsApp reply suggestion is not permission to send: show the recipient and exact text, then wait for confirmation. Never autonomously send, delete, publish, purchase, or change power settings based on an inference. Clarify ambiguous recipients, files, dates, and consequential details.
+
+Keep simple spoken replies brief and natural. For complex work, share useful progress updates. Do not invent results, memories, feelings, or experiences. Calendar data is local unless a separate sync integration is explicitly configured; weather, news, finance, browser, and desktop features depend on providers, credentials, connectivity, and installed tools. State failures and limitations plainly. Claim persistent memory only when a save operation succeeds.`;
 
       const finalInstructions = formatSystemInstructionsWithMemories(baseInstructions, memories) + recentPrompt + speakerHint + getModeInstructions();
 
@@ -2731,9 +2713,10 @@ async function startServer() {
     });
   }
 
-  server.listen(PORT, "0.0.0.0", () => {
-    logStartup(`SARA V2 server started on http://localhost:${PORT}`);
-    console.log(`[Server] Running on http://localhost:${PORT}`);
+  const serverScheme = remoteBind ? "https" : "http";
+  server.listen(PORT, SERVER_HOST, () => {
+    logStartup(`SARA V2 server started on ${serverScheme}://${SERVER_HOST}:${PORT}`);
+    console.log(`[Server] Running on ${serverScheme}://${SERVER_HOST}:${PORT}`);
     // Kick off the desktop agent (probe + auto-spawn) immediately on boot.
     ensureDesktopAgent().catch((e) =>
       console.warn(`[Desktop Agent] Boot probe failed: ${e?.message || e}`)
@@ -2743,5 +2726,6 @@ async function startServer() {
 
 startServer().catch((error) => {
   console.error("Failed to start server startup sequence:", error);
+  process.exitCode = 1;
 });
 

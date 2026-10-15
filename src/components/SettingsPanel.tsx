@@ -37,7 +37,6 @@ type StoredSpeakerProfile = {
   userId: string;
   displayName: string;
   fingerprint: number[];
-  confidence: number;
   enrolledAt: string;
 };
 
@@ -141,7 +140,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [voiceProfile, setVoiceProfile] = useState<StoredSpeakerProfile | null>(() => loadStoredSpeakerProfile());
-  const [voiceStatus, setVoiceStatus] = useState<string>("No enrolled speaker yet.");
+  const [voiceStatus, setVoiceStatus] = useState<string>("No local voice sample saved. Voice similarity is experimental and is not admin authentication.");
   const [isRecordingVoice, setIsRecordingVoice] = useState<boolean>(false);
   const [agentHealth, setAgentHealth] = useState<{
     online: boolean;
@@ -200,12 +199,11 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
           userId: "local-user",
           displayName: "Local User",
           fingerprint,
-          confidence: 0.93,
           enrolledAt: new Date().toISOString(),
         };
         saveStoredSpeakerProfile(profile);
         setVoiceProfile(profile);
-        setVoiceStatus("Speaker profile enrolled successfully.");
+        setVoiceStatus("Sample saved locally for experimentation. This cannot verify an admin or unlock sensitive actions.");
         return;
       }
 
@@ -219,8 +217,8 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
       const recognized = matchScore >= 0.8;
       setVoiceStatus(
         recognized
-          ? `Speaker identified as ${existing.displayName} (${matchScore.toFixed(2)} confidence)`
-          : `Speaker not recognized (${matchScore.toFixed(2)} confidence)`
+          ? `Experimental audio similarity only: the sample resembles ${existing.displayName} (${matchScore.toFixed(2)}). This is not identity verification.`
+          : `Experimental audio similarity only: the sample did not resemble the saved sample (${matchScore.toFixed(2)}). This is not identity verification.`
       );
     } catch (error) {
       console.warn("Voice enrollment failed:", error);
@@ -570,6 +568,45 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
 
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-mono tracking-wider text-slate-300 uppercase">
+                      Sara’s Speech Voice
+                    </label>
+                    <select
+                      value={settings.assistantVoiceGender || "female"}
+                      onChange={(e) => !locked && onChange({ assistantVoiceGender: e.target.value === "male" ? "male" : "female" })}
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <option value="female">Feminine voice</option>
+                      <option value="male">Masculine voice</option>
+                    </select>
+                    <span className="text-[8px] text-slate-500 uppercase font-mono">
+                      Changes Sara’s generated speech voice. It does not authenticate the speaker.
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono tracking-wider text-slate-300 uppercase">
+                      Conversation Style
+                    </label>
+                    <select
+                      value={settings.relationshipStyle || "friend"}
+                      onChange={(e) => !locked && onChange({ relationshipStyle: e.target.value as SaraSettings["relationshipStyle"] })}
+                      disabled={locked}
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <option value="friend">Friendly</option>
+                      <option value="parent">Nurturing / parent-like</option>
+                      <option value="teacher">Patient teacher</option>
+                      <option value="colleague">Collaborative colleague</option>
+                      <option value="professional">Professional</option>
+                    </select>
+                    <span className="text-[8px] text-slate-500 uppercase font-mono">
+                      Sets tone only; Sara will not pretend to be a family member or another person.
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono tracking-wider text-slate-300 uppercase">
                       Microphone
                     </label>
                     <select
@@ -617,18 +654,14 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
 
                   <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-3">
                     <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
-                      Speaker Enrollment
+                      Voice Sample (Experimental)
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-[10px] font-mono text-slate-300">
                         {voiceProfile ? `Enrolled: ${voiceProfile.displayName}` : "No participant profile saved"}
                       </div>
-                      {voiceProfile && (
-                        <div className="text-[9px] font-mono text-emerald-300">
-                          {voiceProfile.confidence.toFixed(2)} confidence
-                        </div>
-                      )}
+                      {voiceProfile && <div className="text-[9px] font-mono text-amber-300">sample stored locally only</div>}
                     </div>
 
                     <div className="flex gap-2">
@@ -642,7 +675,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                             : "border-cyan-400/40 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15 cursor-pointer"
                         }`}
                       >
-                        {isRecordingVoice ? "Recording..." : "Enroll Voice"}
+                        {isRecordingVoice ? "Recording..." : "Save Sample"}
                       </button>
 
                       <button
@@ -655,12 +688,15 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                             : "border-violet-400/40 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15 cursor-pointer"
                         }`}
                       >
-                        Identify
+                        Compare
                       </button>
                     </div>
 
                     <div className="text-[9px] font-mono text-slate-400 leading-relaxed">
                       {voiceStatus}
+                    </div>
+                    <div className="text-[8px] font-mono text-amber-200/80 leading-relaxed">
+                      This sample comparison is not biometrics and must never be used to authorize admin access. Use the device passkey in the Owner &amp; Security panel; Windows Hello may use face, fingerprint, or PIN depending on your device.
                     </div>
                   </div>
                 </div>

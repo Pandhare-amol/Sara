@@ -12,9 +12,12 @@ or:
 
 from __future__ import annotations
 
+import hmac
 import inspect
+import ipaddress
 import logging
 import os
+import platform
 import sys
 import time
 import traceback
@@ -22,7 +25,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -31,6 +34,7 @@ from . import __version__
 from .android_companion import ANDROID_COMPANION_MANAGER
 from .agents import MANAGER
 from .platform_core import HEALTH
+from .platform_capabilities import build_platform_capabilities
 from .registry import DESKTOP_TOOL_NAMES, STATE, TOOLS, ToolError, load_all
 
 logging.basicConfig(
@@ -81,8 +85,30 @@ app.add_middleware(
     allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-SARA-Agent-Token", "X-Companion-Token"],
 )
+
+
+@app.middleware("http")
+async def require_remote_agent_token(request: Request, call_next):
+    peer = request.client.host if request.client else ""
+    try:
+        is_local = ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback
+    except ValueError:
+        # Starlette's in-process TestClient uses this non-network sentinel.
+        is_local = peer.lower() in {"localhost", "testclient"}
+
+    if not is_local:
+        expected = os.environ.get("SARA_AGENT_ACCESS_TOKEN") or os.environ.get("SARA_REMOTE_ACCESS_TOKEN") or ""
+        authorization = request.headers.get("authorization", "")
+        bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+        provided = bearer or request.headers.get("x-sara-agent-token", "")
+        if request.url.scheme != "https":
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Remote desktop-agent access requires HTTPS."})
+        if len(expected) < 32 or not provided or not hmac.compare_digest(expected.encode(), provided.encode()):
+            return JSONResponse(status_code=401, content={"ok": False, "error": "Remote desktop-agent access requires a valid token."})
+
+    return await call_next(request)
 
 
 class ExecuteRequest(BaseModel):
@@ -163,6 +189,7 @@ def health() -> Dict[str, Any]:
         "service_version": __version__,
         "name": "SARA Desktop Control Agent",
         "version": __version__,
+        "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
         "tools": sorted(TOOLS.keys()),
         "tool_count": len(TOOLS),
     }
@@ -175,21 +202,16 @@ def health_diagnostics() -> Dict[str, Any]:
 
 @app.get("/capabilities")
 def capabilities() -> Dict[str, Any]:
-    capability_payload = {
+    tool_names = sorted(TOOLS.keys())
+    return {
         "status": "PROCESS_HEALTHY",
         "service": "sara-desktop-agent",
         "service_version": __version__,
-        "tool_names": sorted(TOOLS.keys()),
-        "tool_count": len(TOOLS),
-        "capabilities": {
-            "desktop": True,
-            "browser": True,
-            "screen": True,
-            "power": True,
-            "tools": sorted(TOOLS.keys()),
-        },
+        "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+        "tool_names": tool_names,
+        "tool_count": len(tool_names),
+        **build_platform_capabilities(platform.system(), tool_names),
     }
-    return capability_payload
 
 
 @app.get("/capabilities/diagnostics")
@@ -335,50 +357,62 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
 
 
 @app.post("/companion/pair")
-def companion_pair(payload: Dict[str, Any]) -> Dict[str, Any]:
+def companion_pair(payload: Dict[str, Any]) -> JSONResponse:
     name = str(payload.get("name") or "Android Device")
-    token = str(payload.get("token") or "sara-token")
-    return {"ok": True, "result": ANDROID_COMPANION_MANAGER.register_device(name, token)}
+    device_id = str(payload.get("device_id") or "")
+    token = str(payload.get("token") or "")
+    if not device_id or not token:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Device ID and a strong token are required."})
+    try:
+        device = ANDROID_COMPANION_MANAGER.register_device(name, token, device_id=device_id)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid companion pairing request."})
+    return JSONResponse(status_code=200, content={"ok": True, "result": device})
 
 
 @app.post("/companion/auth")
 def companion_auth(payload: Dict[str, Any]) -> JSONResponse:
-    device_id = str(payload.get("device_id") or payload.get("device") or "")
+    device_id = str(payload.get("device_id") or "")
     token = str(payload.get("token") or "")
     try:
         device = ANDROID_COMPANION_MANAGER.authenticate_device(device_id, token)
-    except PermissionError:
-        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid device token"})
-    except ValueError as exc:
-        return JSONResponse(status_code=404, content={"ok": False, "error": str(exc)})
+    except (PermissionError, ValueError):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid companion credentials."})
     return JSONResponse(status_code=200, content={"ok": True, "result": device})
 
 
 @app.post("/companion/command")
 def companion_command(payload: Dict[str, Any]) -> JSONResponse:
-    device_id = str(payload.get("device_id") or payload.get("device") or "")
+    device_id = str(payload.get("device_id") or "")
     token = str(payload.get("token") or "")
     try:
         ANDROID_COMPANION_MANAGER.authenticate_device(device_id, token)
-    except PermissionError:
-        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid device token"})
-    except ValueError as exc:
-        return JSONResponse(status_code=404, content={"ok": False, "error": str(exc)})
+    except (PermissionError, ValueError):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid companion credentials."})
     command = ANDROID_COMPANION_MANAGER.enqueue_command(device_id, payload)
     return JSONResponse(status_code=200, content={"ok": True, "result": command})
 
 
 @app.get("/companion/pending/{device_id}")
-def companion_pending(device_id: str) -> Dict[str, Any]:
-    return {"ok": True, "result": ANDROID_COMPANION_MANAGER.get_pending_commands(device_id)}
+def companion_pending(device_id: str, token: str = Header(default="", alias="X-Companion-Token")) -> JSONResponse:
+    try:
+        ANDROID_COMPANION_MANAGER.authenticate_device(device_id, token)
+    except (PermissionError, ValueError):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid companion credentials."})
+    return JSONResponse(status_code=200, content={"ok": True, "result": ANDROID_COMPANION_MANAGER.get_pending_commands(device_id)})
 
 
 @app.post("/companion/result")
-def companion_result(payload: Dict[str, Any]) -> Dict[str, Any]:
-    device_id = str(payload.get("device_id") or payload.get("device") or "")
+def companion_result(payload: Dict[str, Any]) -> JSONResponse:
+    device_id = str(payload.get("device_id") or "")
+    token = str(payload.get("token") or "")
     command_id = str(payload.get("command_id") or payload.get("id") or "")
+    try:
+        ANDROID_COMPANION_MANAGER.authenticate_device(device_id, token)
+    except (PermissionError, ValueError):
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Invalid companion credentials."})
     ANDROID_COMPANION_MANAGER.mark_command_done(device_id, command_id)
-    return {"ok": True, "result": {"device_id": device_id, "command_id": command_id}}
+    return JSONResponse(status_code=200, content={"ok": True, "result": {"device_id": device_id, "command_id": command_id}})
 
 
 def _short_args(args: Dict[str, Any]) -> str:
@@ -398,8 +432,24 @@ def main() -> None:
     """Allow `python -m desktop_agent.main` to launch uvicorn."""
     import uvicorn
 
-    host = os.environ.get("SARA_AGENT_HOST", "127.0.0.1")
+    host = os.environ.get("SARA_AGENT_HOST", "127.0.0.1").strip()
     port = int(os.environ.get("SARA_AGENT_PORT", "8765"))
+    try:
+        remote_bind = not ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        remote_bind = host.lower() != "localhost"
+
+    tls_options: Dict[str, str] = {}
+    if remote_bind:
+        token = os.environ.get("SARA_AGENT_ACCESS_TOKEN") or os.environ.get("SARA_REMOTE_ACCESS_TOKEN") or ""
+        cert_file = os.environ.get("SARA_AGENT_TLS_CERT_FILE") or os.environ.get("SARA_TLS_CERT_FILE") or ""
+        key_file = os.environ.get("SARA_AGENT_TLS_KEY_FILE") or os.environ.get("SARA_TLS_KEY_FILE") or ""
+        if len(token) < 32:
+            raise RuntimeError("Non-loopback desktop-agent binding requires a 32-character access token.")
+        if not cert_file or not key_file:
+            raise RuntimeError("Non-loopback desktop-agent binding requires TLS certificate and key files.")
+        tls_options = {"ssl_certfile": cert_file, "ssl_keyfile": key_file}
+
     log.info("Launching uvicorn on %s:%d", host, port)
     uvicorn.run(
         "desktop_agent.main:app",
@@ -407,6 +457,7 @@ def main() -> None:
         port=port,
         reload=False,
         log_level="info",
+        **tls_options,
     )
 
 

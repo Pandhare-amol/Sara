@@ -7,6 +7,7 @@ export type AutomationStatus =
   | "STARTING"
   | "RUNNING"
   | "WAITING"
+  | "PAUSED"
   | "VERIFYING"
   | "COMPLETED"
   | "FAILED"
@@ -22,6 +23,7 @@ export type AutomationEventType =
   | "VERIFICATION_PASSED"
   | "VERIFICATION_FAILED"
   | "RECOVERY_STARTED"
+  | "RECOVERY_PAUSED"
   | "RECOVERY_COMPLETED"
   | "TASK_COMPLETED"
   | "TASK_FAILED";
@@ -59,6 +61,7 @@ export interface AutomationTask {
   goal?: string;
   original_command?: string;
   context?: PersistedTaskContext;
+  checkpoint?: Record<string, unknown>;
 }
 
 export interface RestoredAutomationTask {
@@ -69,8 +72,10 @@ export interface RestoredAutomationTask {
   status?: AutomationStatus;
   progress?: number;
   created_at?: string;
+  started_at?: string;
   sessionId?: string;
   conversationId?: string;
+  checkpoint?: Record<string, unknown>;
 }
 
 export type AutomationEvent = {
@@ -92,6 +97,32 @@ const PRIORITY_WEIGHT: Record<AutomationPriority, number> = {
 function isBrowserTool(tool: string): boolean {
   return tool.startsWith("desktopBrowser") || tool.startsWith("browser") || tool.startsWith("youtube_") ||
     tool === "searchYouTube" || tool === "openWebsite" || tool === "searchWeb";
+}
+
+function resultRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" ? value as Record<string, any> : {};
+}
+
+function resultIsVerifiedSuccess(value: unknown): boolean {
+  const record = resultRecord(value);
+  const verification = resultRecord(record.verification);
+  const explicitlyVerified = record.verified === true || (verification.attempted !== false && verification.passed === true);
+  return (record.success === true || record.ok === true) && explicitlyVerified;
+}
+
+function definiteNoExecution(value: unknown): boolean {
+  const record = resultRecord(value);
+  const execution = resultRecord(record.executionResult);
+  const status = String(record.executionStatus || record.execution_status || "").toLowerCase();
+  return status === "failed" && (record.executed === false || execution.executed === false);
+}
+
+function resultError(value: unknown): string {
+  const record = resultRecord(value);
+  const error = record.error;
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object" && typeof error.message === "string") return error.message;
+  return typeof record.message === "string" && record.message.trim() ? record.message : "No explicit verification evidence was returned.";
 }
 
 function newTaskId(): string {
@@ -157,43 +188,64 @@ export class AutomationOrchestrator {
   }
 
   restore(tasks: RestoredAutomationTask[]): void {
+    const interruptedMessage = "This automation was interrupted by a SARA restart. Its saved checkpoint was preserved; review it before explicitly retrying because an external side effect may already have occurred.";
     for (const restored of tasks) {
-      if (this.tasks.has(restored.task_id) || ["COMPLETED", "FAILED", "CANCELLED"].includes(restored.status || "")) continue;
+      const previousStatus = String(restored.status || "").toLowerCase();
+      if (this.tasks.has(restored.task_id) || ["completed", "succeeded", "failed", "cancelled"].includes(previousStatus)) continue;
+
       const restoredGoal = String((restored as any).goal || restored.tool || "Automation task");
-      const context = createTaskContext({
-        task_id: restored.task_id,
-        conversation_id: restored.conversationId || "automation",
-        goal: restoredGoal,
-        original_command: String((restored as any).original_command || restoredGoal),
-        current_step: String((restored as any).current_step || "resume"),
-        task_state: "RECOVERING",
-      });
+      const savedContext = restored.checkpoint?.automationContext as PersistedTaskContext | undefined;
+      const context: PersistedTaskContext = savedContext?.task_id === restored.task_id
+        ? {
+            ...savedContext,
+            current_step: "recovery_review",
+            task_state: "WAITING_FOR_USER",
+            last_error: interruptedMessage,
+            updated_at: new Date().toISOString(),
+          }
+        : createTaskContext({
+            task_id: restored.task_id,
+            conversation_id: restored.conversationId || "automation",
+            goal: restoredGoal,
+            original_command: String((restored as any).original_command || restoredGoal),
+            current_step: "recovery_review",
+            task_state: "WAITING_FOR_USER",
+          });
+      const recovery = {
+        state: "paused_after_restart",
+        interruptedStatus: restored.status || "unknown",
+        interruptedAt: new Date().toISOString(),
+        checkpointPreserved: true,
+        automaticReplay: false,
+      };
       const task: AutomationTask = {
         task_id: restored.task_id,
         tool: restored.tool,
         args: { ...restored.args },
         priority: restored.priority,
-        status: "QUEUED",
-        task_state: context.task_state,
-        progress: restored.progress || 0,
+        status: "PAUSED",
+        task_state: "WAITING_FOR_USER",
+        progress: restored.progress ?? Number(restored.checkpoint?.task_progress || 0),
         created_at: restored.created_at || new Date().toISOString(),
+        started_at: restored.started_at,
+        updated_at: new Date().toISOString(),
+        error: interruptedMessage,
         sessionId: restored.sessionId,
         conversationId: restored.conversationId,
         goal: restoredGoal,
         original_command: context.original_command,
         context,
+        checkpoint: { ...(restored.checkpoint || {}), recovery },
       };
       this.tasks.set(task.task_id, task);
-      this.queue.push(task);
-      this.emit("RECOVERY_STARTED", task);
-      this.emit("automation:queued", task);
+      // A restored task is reviewable but is deliberately not added to the queue.
+      this.emit("RECOVERY_PAUSED", task);
     }
-    if (tasks.length > 0) queueMicrotask(() => this.drain());
   }
 
   resumeTask(taskId: string, nextStep?: string): AutomationTask | undefined {
     const task = this.tasks.get(taskId);
-    if (!task) return undefined;
+    if (!task || task.status !== "PAUSED") return undefined;
     const restoredContext = task.context ? resumeFromTaskContext(task.context, nextStep) : createTaskContext({
       task_id: taskId,
       conversation_id: task.conversationId || "automation",
@@ -203,20 +255,25 @@ export class AutomationOrchestrator {
       task_state: "RUNNING",
     });
     task.context = restoredContext;
-    task.task_state = restoredContext.task_state;
-    task.status = "RUNNING";
+    task.task_state = "RECOVERING";
+    task.status = "QUEUED";
+    task.error = undefined;
     task.progress = Math.max(task.progress, 25);
     task.updated_at = restoredContext.updated_at;
+    this.queue.push(task);
     this.emit("RECOVERY_COMPLETED", task);
+    this.emit("automation:queued", task);
     void this.persistTaskState(task);
+    queueMicrotask(() => { void this.drain(); });
     return { ...task };
   }
 
   cancelTask(taskId: string): boolean {
     const task = this.tasks.get(taskId);
     if (!task || ["COMPLETED", "FAILED", "CANCELLED"].includes(task.status)) return false;
-    if (task.status === "QUEUED") {
+    if (task.status === "QUEUED" || task.status === "PAUSED") {
       task.status = "CANCELLED";
+      task.task_state = "CANCELLED";
       task.completed_at = new Date().toISOString();
       this.queue = this.queue.filter((item) => item.task_id !== taskId);
       this.emit("automation:failed", task);
@@ -256,7 +313,7 @@ export class AutomationOrchestrator {
       };
       if (existing) {
         await updateTask(task.task_id, {
-          status: (task.task_state || task.status || "queued").toLowerCase(),
+          status: task.status.toLowerCase(),
           checkpoint: {
             current_task: task.tool,
             task_progress: task.progress,
@@ -324,31 +381,85 @@ export class AutomationOrchestrator {
         ...task.args,
         automation_task_id: task.task_id,
       });
-      task.status = "COMPLETED";
-      task.task_state = "COMPLETED";
-      task.progress = 100;
-      task.completed_at = new Date().toISOString();
+      task.status = "VERIFYING";
+      task.task_state = "VERIFYING";
+      task.progress = 90;
+      task.updated_at = new Date().toISOString();
       if (task.context) {
-        task.context.task_state = "COMPLETED";
-        task.context.current_step = "completed";
-        task.context.updated_at = task.completed_at;
+        task.context.task_state = "VERIFYING";
+        task.context.current_step = "verify_postcondition";
+        task.context.updated_at = task.updated_at;
       }
-      this.emit("TASK_COMPLETED", task);
-      this.emit("automation:completed", task);
+      this.emit("VERIFICATION_STARTED", task);
+
+      if (resultIsVerifiedSuccess(task.result)) {
+        task.status = "COMPLETED";
+        task.task_state = "COMPLETED";
+        task.progress = 100;
+        task.completed_at = new Date().toISOString();
+        if (task.context) {
+          task.context.task_state = "COMPLETED";
+          task.context.current_step = "completed_verified";
+          task.context.updated_at = task.completed_at;
+        }
+        this.emit("VERIFICATION_PASSED", task);
+        this.emit("TASK_COMPLETED", task);
+        this.emit("automation:completed", task);
+      } else if (definiteNoExecution(task.result)) {
+        task.status = "FAILED";
+        task.task_state = "FAILED";
+        task.progress = 100;
+        task.completed_at = new Date().toISOString();
+        task.error = resultError(task.result);
+        if (task.context) {
+          task.context.task_state = "FAILED";
+          task.context.last_error = task.error;
+          task.context.updated_at = task.completed_at;
+        }
+        this.emit("VERIFICATION_FAILED", task);
+        this.emit("TASK_FAILED", task);
+        this.emit("automation:failed", task);
+      } else {
+        task.status = "PAUSED";
+        task.task_state = "WAITING_FOR_USER";
+        task.progress = 90;
+        task.updated_at = new Date().toISOString();
+        task.error = `The action may have run, but its final state was not verified. ${resultError(task.result)} Review the external state before explicitly retrying; SARA will not replay it automatically.`;
+        task.checkpoint = {
+          ...(task.checkpoint || {}),
+          verification: { attempted: true, passed: false, status: "review_required" },
+          recovery: { state: "paused_for_review", checkpointPreserved: true, automaticReplay: false },
+        };
+        if (task.context) {
+          task.context.task_state = "WAITING_FOR_USER";
+          task.context.current_step = "verification_review";
+          task.context.last_error = task.error;
+          task.context.updated_at = task.updated_at;
+        }
+        this.emit("VERIFICATION_FAILED", task);
+        this.emit("RECOVERY_PAUSED", task);
+        this.emit("automation:progress", task);
+      }
       void this.persistTaskState(task);
     } catch (error) {
-      task.status = "FAILED";
-      task.task_state = "FAILED";
-      task.progress = 100;
-      task.completed_at = new Date().toISOString();
-      task.error = error instanceof Error ? error.message : String(error);
+      task.status = "PAUSED";
+      task.task_state = "WAITING_FOR_USER";
+      task.progress = 90;
+      task.updated_at = new Date().toISOString();
+      task.error = `Execution outcome is uncertain and needs review before retrying: ${error instanceof Error ? error.message : String(error)}`;
+      task.checkpoint = {
+        ...(task.checkpoint || {}),
+        recovery: { state: "paused_for_review", checkpointPreserved: true, automaticReplay: false },
+      };
       if (task.context) {
-        task.context.task_state = "FAILED";
+        task.context.task_state = "WAITING_FOR_USER";
+        task.context.current_step = "execution_review";
         task.context.last_error = task.error;
-        task.context.updated_at = task.completed_at;
+        task.context.updated_at = task.updated_at;
       }
-      this.emit("TASK_FAILED", task);
-      this.emit("automation:failed", task);
+      this.emit("VERIFICATION_FAILED", task);
+      this.emit("RECOVERY_PAUSED", task);
+      this.emit("automation:progress", task);
       void this.persistTaskState(task);
     } finally {
       if (browserTask) this.browserBusy = false;

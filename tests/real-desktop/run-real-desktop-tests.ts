@@ -71,10 +71,28 @@ async function runPythonScript(script: string): Promise<{ code: number; stdout: 
 async function runMouseTest(): Promise<{ status: 'PASS' | 'FAIL' | 'NOT RUN'; details: string }> {
   const pyScript = `
 import pyautogui, json
-x, y = pyautogui.position()
-pyautogui.moveTo(100, 100, duration=0.2)
-new_x, new_y = pyautogui.position()
-print(json.dumps({"before": {"x": int(x), "y": int(y)}, "after": {"x": int(new_x), "y": int(new_y)}, "changed": new_x != x or new_y != y}))
+before_x, before_y = pyautogui.position()
+width, height = pyautogui.size()
+target_x = min(max(before_x + 25, 0), max(width - 1, 0))
+target_y = min(max(before_y + 25, 0), max(height - 1, 0))
+if (target_x, target_y) == (before_x, before_y):
+    target_x = max(before_x - 25, 0)
+    target_y = max(before_y - 25, 0)
+changed = False
+move_error = None
+try:
+    pyautogui.moveTo(target_x, target_y, duration=0.2)
+    moved_x, moved_y = pyautogui.position()
+    changed = moved_x != before_x or moved_y != before_y
+except Exception as exc:
+    move_error = str(exc)
+finally:
+    try:
+        pyautogui.moveTo(before_x, before_y, duration=0.2)
+    except Exception as exc:
+        move_error = move_error or str(exc)
+restored_x, restored_y = pyautogui.position()
+print(json.dumps({"before": [int(before_x), int(before_y)], "target": [int(target_x), int(target_y)], "changed": changed, "restored": (restored_x, restored_y) == (before_x, before_y), "error": move_error}))
 `;
   const result = await runPythonScript(pyScript);
   if (result.code !== 0) {
@@ -83,10 +101,12 @@ print(json.dumps({"before": {"x": int(x), "y": int(y)}, "after": {"x": int(new_x
 
   try {
     const parsed = JSON.parse(result.stdout.trim());
-    const changed = Boolean(parsed.changed);
+    const passed = Boolean(parsed.changed && parsed.restored && !parsed.error);
     return {
-      status: changed ? 'PASS' : 'FAIL',
-      details: changed ? `Cursor moved from ${JSON.stringify(parsed.before)} to ${JSON.stringify(parsed.after)}` : 'Cursor did not change position.',
+      status: passed ? 'PASS' : 'FAIL',
+      details: passed
+        ? `Cursor moved to ${JSON.stringify(parsed.target)} and was restored to ${JSON.stringify(parsed.before)}.`
+        : `Mouse movement/restoration was not verified: ${JSON.stringify(parsed)}`,
     };
   } catch {
     return { status: 'FAIL', details: result.stdout || 'Mouse test output was not parseable.' };
@@ -95,7 +115,7 @@ print(json.dumps({"before": {"x": int(x), "y": int(y)}, "after": {"x": int(new_x
 
 async function runNotepadTest(): Promise<{ status: 'PASS' | 'FAIL' | 'NOT RUN'; details: string }> {
   const ts = Date.now();
-  const filePath = path.join(process.cwd(), `'_sara_real_desktop_${ts}.txt'`);
+  const filePath = path.join(process.cwd(), `_sara_real_desktop_${ts}.txt`);
   const pyScript = `
 import os, time, pyautogui
 path = r'''${filePath}'''
@@ -122,30 +142,28 @@ if os.path.exists(path):
 else:
     print('FILE_EXISTS=False')
 `;
-  const result = await runPythonScript(pyScript);
-  if (result.code !== 0) {
-    return { status: 'FAIL', details: result.stderr || 'Notepad smoke test failed.' };
-  }
 
-  const stdout = result.stdout.trim();
-  const fileExists = /FILE_EXISTS=True/i.test(stdout);
-  const hasContent = /SARA real desktop acceptance test/i.test(stdout);
-  const finalStatus = fileExists && hasContent ? 'PASS' : 'FAIL';
+  try {
+    const result = await runPythonScript(pyScript);
+    if (result.code !== 0) {
+      return { status: 'FAIL', details: result.stderr || 'Notepad smoke test failed.' };
+    }
 
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch {
-      // best effort cleanup
+    const stdout = result.stdout.trim();
+    const fileExists = /FILE_EXISTS=True/i.test(stdout);
+    const hasContent = /SARA real desktop acceptance test/i.test(stdout);
+    const finalStatus = fileExists && hasContent ? 'PASS' : 'FAIL';
+    return {
+      status: finalStatus,
+      details: finalStatus === 'PASS'
+        ? 'Notepad opened, keyboard input was entered, saved, and verified from disk.'
+        : `Notepad test did not verify a saved file. Output: ${stdout}`,
+    };
+  } finally {
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch { /* best-effort cleanup */ }
     }
   }
-
-  return {
-    status: finalStatus,
-    details: finalStatus === 'PASS'
-      ? 'Notepad opened, text was entered, saved, reopened, and verified.'
-      : `Notepad test did not verify a saved file. Output: ${stdout}`,
-  };
 }
 
 async function runDiagnosticReport(): Promise<void> {
@@ -193,28 +211,28 @@ async function main(): Promise<void> {
     return;
   }
 
-  const mouse = await runMouseTest();
-  logStatus('Mouse movement', mouse.status, mouse.details);
-
   const selectedSuite = suite.toLowerCase();
+  const results: Array<{ label: string; status: 'PASS' | 'FAIL' | 'NOT RUN'; details: string }> = [];
   if (selectedSuite === 'mouse' || selectedSuite === 'all') {
-    // already executed
+    const result = await runMouseTest();
+    results.push({ label: 'Mouse movement', ...result });
   }
-  if (selectedSuite === 'notepad' || selectedSuite === 'all') {
-    const notepad = await runNotepadTest();
-    logStatus('Notepad save', notepad.status, notepad.details);
+  if (selectedSuite === 'keyboard' || selectedSuite === 'notepad' || selectedSuite === 'all') {
+    const result = await runNotepadTest();
+    results.push({ label: selectedSuite === 'keyboard' ? 'Keyboard input' : 'Notepad save', ...result });
   }
-
   if (selectedSuite === 'browser') {
-    logStatus('Firefox search', 'NOT RUN', 'Browser automation requires a live user desktop session and a real browser installation.');
+    results.push({ label: 'Browser automation', status: 'NOT RUN', details: 'Browser automation requires a separate live browser acceptance test.' });
+  }
+  if (results.length === 0) {
+    results.push({ label: 'Requested suite', status: 'NOT RUN', details: `Unknown or unsupported suite: ${selectedSuite}.` });
   }
 
-  if (selectedSuite === 'keyboard') {
-    const notepad = await runNotepadTest();
-    logStatus('Keyboard input', notepad.status, notepad.details);
-  }
-
-  const finalStatus = [mouse.status].every((status) => status === 'PASS') ? 'PASS' : 'FAIL';
+  for (const result of results) logStatus(result.label, result.status, result.details);
+  const statuses = results.map((result) => result.status);
+  const finalStatus = statuses.some((status) => status === 'FAIL')
+    ? 'FAIL'
+    : statuses.every((status) => status === 'PASS') ? 'PASS' : 'NOT RUN';
   console.log(`REAL DESKTOP TEST: ${finalStatus}`);
 }
 

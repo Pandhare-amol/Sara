@@ -8,13 +8,43 @@ import { memoryService } from '../../src/services/MemoryService';
 import { skillLibrary, strategyManager } from '../../src/services/SkillLibraryAndStrategyManager';
 import { screenPerception } from '../../src/services/ScreenPerceptionEngine';
 import type { Goal } from '../../src/types/ClosedLoopTask';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 interface TestResult {
   name: string;
   passed: boolean;
+  status?: 'PASSED' | 'FAILED' | 'SKIPPED';
   duration: number;
   evidence: string[];
   error?: string;
+}
+
+async function callDesktopTool(tool: string, args: Record<string, unknown> = {}, timeoutMs = 15000): Promise<any> {
+  const baseUrl = (process.env.DESKTOP_AGENT_URL || 'http://127.0.0.1:8765').replace(/\/$/, '');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${baseUrl}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool, args }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok !== true) {
+      throw new Error(payload?.error || `Desktop agent ${tool} returned HTTP ${response.status}.`);
+    }
+    return payload.result;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function skipped(name: string, startTime: number, reason: string): TestResult {
+  return { name, passed: false, status: 'SKIPPED', duration: Date.now() - startTime, evidence: [reason] };
 }
 
 export class ClosedLoopAutonomousAcceptanceTests {
@@ -34,6 +64,7 @@ export class ClosedLoopAutonomousAcceptanceTests {
   async testWorldStateObservable(): Promise<TestResult> {
     const startTime = Date.now();
     const evidence: string[] = [];
+    if (!this.requiresRealDesktop) return skipped('World State Observable', startTime, 'Skipped: set REAL_DESKTOP_TEST=1 to inspect the live desktop.');
 
     try {
       const result = await screenPerception.observeWorld();
@@ -52,9 +83,11 @@ export class ClosedLoopAutonomousAcceptanceTests {
         evidence.push('No observations captured');
         return {
           name: 'World State Observable',
-          passed: true,
+          passed: false,
+          status: 'FAILED',
           duration: Date.now() - startTime,
           evidence,
+          error: 'Screen perception returned no observable evidence.',
         };
       }
 
@@ -242,7 +275,7 @@ export class ClosedLoopAutonomousAcceptanceTests {
   }
 
   /**
-   * Test: Closed-Loop Execution (Simulation)
+   * Regression test: unimplemented planning must fail before action dispatch.
    */
   async testClosedLoopExecutionSimulation(): Promise<TestResult> {
     const startTime = Date.now();
@@ -277,16 +310,27 @@ export class ClosedLoopAutonomousAcceptanceTests {
         `Execution duration: ${result.duration}ms`
       );
 
+      const refusedSafely = result.finalState === 'FAILED'
+        && result.success === false
+        && result.totalActions === 0
+        && result.totalObservations === 0
+        && /planning is not implemented/i.test(result.error || '');
+      evidence.push(refusedSafely
+        ? 'PASS: unsupported planning was refused before any desktop action.'
+        : 'FAIL: executor did not fail closed for an unplannable task.');
       return {
-        name: 'Closed-Loop Execution (Simulation)',
-        passed: result.finalState === 'COMPLETED' || result.finalState === 'PARTIAL' || result.finalState === 'PLANNING',
+        name: 'Closed-Loop Execution Guard',
+        passed: refusedSafely,
+        status: refusedSafely ? 'PASSED' : 'FAILED',
         duration: Date.now() - startTime,
         evidence,
+        error: refusedSafely ? undefined : (result.error || `Unexpected terminal state: ${result.finalState}`),
       };
     } catch (error) {
       return {
-        name: 'Closed-Loop Execution (Simulation)',
+        name: 'Closed-Loop Execution Guard',
         passed: false,
+        status: 'FAILED',
         duration: Date.now() - startTime,
         evidence,
         error: String(error),
@@ -303,34 +347,33 @@ export class ClosedLoopAutonomousAcceptanceTests {
     const evidence: string[] = [];
 
     if (!this.requiresRealDesktop) {
-      return {
-        name: 'Real Desktop - Mouse Movement',
-        passed: true,
-        duration: Date.now() - startTime,
-        evidence: ['Skipped: REAL_DESKTOP_TEST not enabled'],
-      };
+      return skipped('Real Desktop - Mouse Movement', startTime, 'Skipped: set REAL_DESKTOP_TEST=1 to move the real mouse.');
     }
 
     try {
-      const screenInfo = await screenPerception.getScreenInfo();
-      if (!screenInfo.success || !screenInfo.screen) {
-        return {
-          name: 'Real Desktop - Mouse Movement',
-          passed: false,
-          duration: Date.now() - startTime,
-          evidence,
-          error: 'Could not get screen info',
-        };
+      const before = await callDesktopTool('hardwareMousePosition');
+      const x = Number(before?.x);
+      const y = Number(before?.y);
+      const width = Number(before?.screen_width);
+      const height = Number(before?.screen_height);
+      if (![x, y, width, height].every(Number.isFinite) || width < 2 || height < 2) {
+        throw new Error('Desktop agent returned invalid cursor/screen coordinates.');
       }
 
+      const targetX = x + 1 < width ? x + 1 : Math.max(0, x - 1);
+      const moved = await callDesktopTool('hardwareMouseMove', { x: targetX, y, duration: 0, mode: 'FAST' });
+      const restored = await callDesktopTool('hardwareMouseMove', { x, y, duration: 0, mode: 'FAST' });
+      const passed = moved?.verified === true && Number(restored?.x) === x && Number(restored?.y) === y;
       evidence.push(
-        `Screen dimensions: ${screenInfo.screen.width}x${screenInfo.screen.height}`,
-        'Real cursor movement would execute here via Desktop Agent'
+        `Screen dimensions: ${width}x${height}`,
+        `Cursor moved from (${x}, ${y}) to (${targetX}, ${y}) and back to (${restored?.x}, ${restored?.y}).`,
       );
+      if (!passed) throw new Error('The desktop agent did not verify the cursor movement and restore.');
 
       return {
         name: 'Real Desktop - Mouse Movement',
         passed: true,
+        status: 'PASSED',
         duration: Date.now() - startTime,
         evidence,
       };
@@ -353,31 +396,19 @@ export class ClosedLoopAutonomousAcceptanceTests {
     const evidence: string[] = [];
 
     if (!this.requiresRealDesktop) {
-      return {
-        name: 'Real Desktop - Application Control',
-        passed: true,
-        duration: Date.now() - startTime,
-        evidence: ['Skipped: REAL_DESKTOP_TEST not enabled'],
-      };
+      return skipped('Real Desktop - Application Control', startTime, 'Skipped: set REAL_DESKTOP_TEST=1 to launch Notepad.');
     }
 
     try {
-      const activeWindow = await screenPerception.getActiveWindow();
-      if (activeWindow.success && activeWindow.window) {
-        evidence.push(
-          `Active window: ${activeWindow.window.title}`,
-          `Process: ${activeWindow.window.processName}`
-        );
+      const result = await callDesktopTool('openApplication', { name: 'notepad' });
+      if (result?.status !== 'SUCCESS' || result?.verified !== true) {
+        throw new Error(result?.result || 'Notepad was not verified as open and focused.');
       }
-
-      const visibleWindows = await screenPerception.getVisibleWindows();
-      if (visibleWindows.success && visibleWindows.windows) {
-        evidence.push(`Total visible windows: ${visibleWindows.windows.length}`);
-      }
-
+      evidence.push(`Notepad launch verified: ${String(result.result || 'focused window confirmed')}`);
       return {
         name: 'Real Desktop - Application Control',
         passed: true,
+        status: 'PASSED',
         duration: Date.now() - startTime,
         evidence,
       };
@@ -400,28 +431,37 @@ export class ClosedLoopAutonomousAcceptanceTests {
     const evidence: string[] = [];
 
     if (!this.requiresRealDesktop) {
-      return {
-        name: 'Real Desktop - Notepad Save and Verify',
-        passed: true,
-        duration: Date.now() - startTime,
-        evidence: ['Skipped: REAL_DESKTOP_TEST not enabled'],
-      };
+      return skipped('Real Desktop - Notepad Save and Verify', startTime, 'Skipped: set REAL_DESKTOP_TEST=1 to perform a real Notepad save.');
     }
 
+    const filePath = path.join(os.tmpdir(), `sara-acceptance-${randomUUID()}.txt`);
+    const content = `SARA real-desktop acceptance ${randomUUID()}`;
     try {
-      evidence.push('Real Notepad automation would execute here:');
-      evidence.push('1. Open Notepad application');
-      evidence.push('2. Type test content');
-      evidence.push('3. Save to file');
-      evidence.push('4. Verify file exists');
-      evidence.push('5. Reopen and verify content');
-      evidence.push('6. Close application');
+      fs.writeFileSync(filePath, '', { flag: 'wx' });
+      const launched = await callDesktopTool('openApplication', { name: 'notepad' });
+      if (launched?.status !== 'SUCCESS' || launched?.verified !== true) {
+        throw new Error(launched?.result || 'Notepad was not verified as open and focused.');
+      }
 
-      // In production, this would be implemented as a full closed-loop task
-      // For now, return NOT RUN status
+      await callDesktopTool('hardwareKeyboardPress', { keys: ['ctrl', 'o'] });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await callDesktopTool('hardwareKeyboardType', { text: filePath });
+      await callDesktopTool('hardwareKeyboardPress', { keys: ['enter'] });
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await callDesktopTool('hardwareKeyboardType', { text: content });
+      await callDesktopTool('hardwareKeyboardPress', { keys: ['ctrl', 's'] });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const saved = fs.readFileSync(filePath, 'utf-8');
+      if (saved !== content) {
+        throw new Error('Saved file content did not match the typed acceptance marker.');
+      }
+      evidence.push(`Created, opened, typed, and saved a unique temporary file: ${path.basename(filePath)}`);
+      evidence.push('Read-back assertion matched the exact typed content.');
       return {
         name: 'Real Desktop - Notepad Save and Verify',
         passed: true,
+        status: 'PASSED',
         duration: Date.now() - startTime,
         evidence,
       };
@@ -429,10 +469,13 @@ export class ClosedLoopAutonomousAcceptanceTests {
       return {
         name: 'Real Desktop - Notepad Save and Verify',
         passed: false,
+        status: 'FAILED',
         duration: Date.now() - startTime,
         evidence,
         error: String(error),
       };
+    } finally {
+      try { fs.unlinkSync(filePath); } catch { /* keep the test result; temp directory cleanup is best-effort */ }
     }
   }
 
@@ -443,6 +486,7 @@ export class ClosedLoopAutonomousAcceptanceTests {
     total: number;
     passed: number;
     failed: number;
+    skipped: number;
     results: TestResult[];
     duration: number;
   }> {
@@ -470,8 +514,9 @@ export class ClosedLoopAutonomousAcceptanceTests {
         const result = await test();
         this.results.push(result);
         
-        const status = result.passed ? '✓ PASS' : '✗ FAIL';
-        console.log(`${status}: ${result.name} (${result.duration}ms)`);
+        const status = result.status || (result.passed ? 'PASSED' : 'FAILED');
+        const marker = status === 'SKIPPED' ? '↷ SKIP' : status === 'PASSED' ? '✓ PASS' : '✗ FAIL';
+        console.log(`${marker}: ${result.name} (${result.duration}ms)`);
         
         if (result.evidence.length > 0) {
           result.evidence.forEach((e) => console.log(`  → ${e}`));
@@ -482,17 +527,27 @@ export class ClosedLoopAutonomousAcceptanceTests {
         }
         console.log();
       } catch (error) {
-        console.log(`✗ ERROR: ${error}`);
+        const failure: TestResult = {
+          name: `Acceptance test ${this.results.length + 1}`,
+          passed: false,
+          status: 'FAILED',
+          duration: 0,
+          evidence: [],
+          error: String(error),
+        };
+        this.results.push(failure);
+        console.log(`✗ ERROR: ${failure.error}`);
         console.log();
       }
     }
 
     const duration = Date.now() - startTime;
-    const passed = this.results.filter((r) => r.passed).length;
-    const failed = this.results.length - passed;
+    const passed = this.results.filter((result) => (result.status || (result.passed ? 'PASSED' : 'FAILED')) === 'PASSED').length;
+    const skippedCount = this.results.filter((result) => result.status === 'SKIPPED').length;
+    const failed = this.results.length - passed - skippedCount;
 
     console.log('═══════════════════════════════════════════════════════════');
-    console.log(`RESULTS: ${passed}/${this.results.length} passed (${failed} failed)`);
+    console.log(`RESULTS: ${passed} passed, ${failed} failed, ${skippedCount} skipped (${this.results.length} total)`);
     console.log(`Total duration: ${duration}ms`);
     console.log('═══════════════════════════════════════════════════════════\n');
 
@@ -500,6 +555,7 @@ export class ClosedLoopAutonomousAcceptanceTests {
       total: this.results.length,
       passed,
       failed,
+      skipped: skippedCount,
       results: this.results,
       duration,
     };

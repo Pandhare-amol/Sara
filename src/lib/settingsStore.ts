@@ -23,6 +23,10 @@ export interface SaraSettings {
   sensitivity: number;
   /** Preferred conversation language (en, hi, mr, gu, bn, ta, te, kn, ml, pa). */
   language: string;
+  /** Selected assistant speech voice; this changes SARA's voice, not speaker authentication. */
+  assistantVoiceGender: "female" | "male";
+  /** Conversational delivery preference; these styles never imply a real family/professional relationship. */
+  relationshipStyle: "friend" | "parent" | "teacher" | "colleague" | "professional";
   /** Auto-enable hand gesture control when SARA starts (false = manual) */
   autoEnableGesture: boolean;
   /** Master toggle for UI animations. */
@@ -46,6 +50,8 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   micDeviceId: "",
   sensitivity: 60,
   language: "en",
+  assistantVoiceGender: "female",
+  relationshipStyle: "friend",
   autoEnableGesture: false,
   animations: true,
   proactiveConversation: false,

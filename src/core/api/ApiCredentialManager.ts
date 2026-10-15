@@ -1,27 +1,27 @@
 export class ApiCredentialManager {
-    
-    /**
-     * Retrieves an API key securely from environment variables.
-     * Never logs or exposes the key directly in standard output.
-     */
-    public getCredential(providerId: string, credentialType: string = 'API_KEY'): string | null {
-        // Construct the expected env var name, e.g. WEATHER_API_KEY
-        const envVarName = `${providerId.toUpperCase()}_${credentialType.toUpperCase()}`;
-        
-        // Use process.env (Server-side ONLY)
-        const credential = process.env[envVarName];
-        
-        if (!credential) {
-            console.warn(`[ApiCredentialManager] Missing credential for ${providerId} (${envVarName})`);
-            return null;
-        }
+  private envVarName(providerId: string, credentialType: string): string {
+    return `${providerId.toUpperCase()}_${credentialType.toUpperCase()}`;
+  }
 
-        return credential;
+  /** Retrieves an API key securely from environment variables; never logs its value. */
+  public getCredential(providerId: string, credentialType = "API_KEY"): string | null {
+    const envVarName = this.envVarName(providerId, credentialType);
+    const credential = process.env[envVarName]?.trim();
+    if (!credential) {
+      console.warn(`[ApiCredentialManager] Missing credential for ${providerId} (${envVarName})`);
+      return null;
     }
+    return credential;
+  }
 
-    public validateCredential(providerId: string): boolean {
-        return this.getCredential(providerId) !== null;
-    }
+  /** Check availability without retrieving or logging a credential. */
+  public hasCredential(providerId: string, credentialType = "API_KEY"): boolean {
+    return Boolean(process.env[this.envVarName(providerId, credentialType)]?.trim());
+  }
+
+  public validateCredential(providerId: string): boolean {
+    return this.hasCredential(providerId);
+  }
 }
 
 export const apiCredentialManager = new ApiCredentialManager();

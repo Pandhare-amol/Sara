@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["server_full.ts"],
+  "exclude": ["node_modules", "mobile_app", "release"]
+}

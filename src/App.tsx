@@ -24,7 +24,10 @@ import {
   Square,
   RefreshCw,
   Settings as SettingsIcon,
-  ShieldCheck
+  ShieldCheck,
+  CalendarDays,
+  Activity,
+  FolderKanban
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Memory, MemoryCategory } from "./lib/memoryTypes";
@@ -35,8 +38,12 @@ import { CameraPanel } from "./components/CameraPanel";
 import { GestureMappingEditor } from "./components/GestureMappingEditor";
 import { ConfirmationPanel } from "./components/ConfirmationPanel";
 import { AdminSecurityDashboard } from "./components/AdminSecurityDashboard";
+import { CalendarPanel } from "./components/CalendarPanel";
+import { SystemMonitorPanel } from "./components/SystemMonitorPanel";
+import { ProjectManagerPanel } from "./components/ProjectManagerPanel";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./lib/settingsStore";
 import { SaraWakeWordDetector } from "./lib/wakeWord";
+import { SecurityAlertPollingCursor } from "./services/securityAlertPolling";
 
 export default function App() {
   const [state, setState] = useState<LiveState>("disconnected");
@@ -48,7 +55,35 @@ export default function App() {
   const [screenPreviewUrl, setScreenPreviewUrl] = useState<string | null>(null);
   const [muted, setMuted] = useState<boolean>(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [securityAlert, setSecurityAlert] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+  const securityAlertCursorRef = useRef(new SecurityAlertPollingCursor());
+
+  useEffect(() => {
+    let active = true;
+    const handleSecurityAlert = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: unknown }>).detail;
+      setSecurityAlert(typeof detail?.message === "string" ? detail.message : "Repeated invalid admin authentication attempts detected.");
+    };
+    const pollSecurityAlerts = async () => {
+      try {
+        const response = await fetch(`/api/security/alerts?since=${securityAlertCursorRef.current.since()}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!active) return;
+        const newest = securityAlertCursorRef.current.consume(payload.alerts);
+        if (typeof newest?.message === "string") setSecurityAlert(newest.message);
+      } catch { /* security alerts also arrive over the live channel when connected */ }
+    };
+    window.addEventListener("sara.securityAlert", handleSecurityAlert);
+    void pollSecurityAlerts();
+    const timer = window.setInterval(() => { void pollSecurityAlerts(); }, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("sara.securityAlert", handleSecurityAlert);
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -439,6 +474,9 @@ export default function App() {
   const [memoriesLoading, setMemoriesLoading] = useState<boolean>(false);
   const [memoriesError, setMemoriesError] = useState<string | null>(null);
   const [showMemoryDashboard, setShowMemoryDashboard] = useState<boolean>(false);
+  const [showCalendarPanel, setShowCalendarPanel] = useState<boolean>(false);
+  const [showSystemMonitor, setShowSystemMonitor] = useState<boolean>(false);
+  const [showProjectManager, setShowProjectManager] = useState<boolean>(false);
   const [showQuickChat, setShowQuickChat] = useState<boolean>(false);
   const voiceConversationIdRef = useRef<string | null>(null);
   const voiceResponseDraftRef = useRef("");
@@ -473,8 +511,16 @@ export default function App() {
   useEffect(() => {
     try {
       if (settings.autoEnableGesture) {
-        // call server endpoint to enable vision (Desktop Agent)
-        fetch('/api/vision/enable', { method: 'POST' }).catch(() => {});
+        // Enable only through the active backend, and surface HTTP-level agent
+        // failures instead of treating any resolved fetch as success.
+        fetch('/api/vision/enable', { method: 'POST' })
+          .then(async (response) => {
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result?.ok === false) {
+              console.warn('[Vision] Gesture control was not enabled:', result?.error || response.statusText);
+            }
+          })
+          .catch((error) => console.warn('[Vision] Gesture control request failed:', error));
       }
     } catch (e) { /* ignore */ }
   }, [settings.autoEnableGesture]);
@@ -710,8 +756,9 @@ export default function App() {
         if (!task) return;
         const label = task.tool === "youtube_play" ? "YouTube" : task.tool;
         const status = String(task.status || "").toLowerCase();
-        if (status === "completed") showToast(`${label}: completed`);
+        if (status === "completed") showToast(`${label}: verified and completed`);
         else if (status === "failed") showToast(`${label}: automation failed`);
+        else if (status === "paused") showToast(`${label}: outcome needs review before retrying`);
         else if (status === "running") showToast(`${label}: working in background`);
       },
       onDesktopEvent: (event) => {
@@ -968,6 +1015,42 @@ export default function App() {
           </button>
 
           {/* Real-time screen sharing toggler button inside Sara glass style header */}
+          <button
+            onClick={() => setShowCalendarPanel((value) => !value)}
+            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showCalendarPanel ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="Local calendar"
+            aria-label="Open local calendar"
+          >
+            <CalendarDays size={14} />
+            <span className="hidden sm:inline">CALENDAR</span>
+          </button>
+
+          <button
+            onClick={() => setShowSystemMonitor(true)}
+            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showSystemMonitor ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="System resource monitor"
+            aria-label="Open system resource monitor"
+          >
+            <Activity size={14} />
+            <span className="hidden sm:inline">SYSTEM</span>
+          </button>
+
+          <button
+            onClick={() => setShowProjectManager(true)}
+            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
+              showProjectManager ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
+            }`}
+            title="General project and task manager"
+            aria-label="Open project manager"
+          >
+            <FolderKanban size={14} />
+            <span className="hidden sm:inline">PROJECTS</span>
+          </button>
+
           <button 
             onClick={isScreenSharing ? stopScreenSharing : startScreenSharing}
             className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
@@ -1036,8 +1119,37 @@ export default function App() {
 
       {showGesturePanel && <GestureControlPanel onClose={() => setShowGesturePanel(false)} />}
       {showCameraPanel && <CameraPanel onClose={() => setShowCameraPanel(false)} />}
+      <CalendarPanel isOpen={showCalendarPanel} onClose={() => setShowCalendarPanel(false)} />
+      <SystemMonitorPanel
+        isOpen={showSystemMonitor}
+        onClose={() => setShowSystemMonitor(false)}
+        onOpenMonitor={() => setShowSystemMonitor(true)}
+      />
+      <ProjectManagerPanel isOpen={showProjectManager} onClose={() => setShowProjectManager(false)} />
       {showMappingEditor && <GestureMappingEditor onClose={() => setShowMappingEditor(false)} />}
       {showConfirmPanel && <ConfirmationPanel onClose={() => setShowConfirmPanel(false)} />}
+
+      {/* Persistent security warning delivered by the local live connection */}
+      <AnimatePresence>
+        {securityAlert && (
+          <motion.div
+            role="alert"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="fixed right-6 top-6 z-[60] flex max-w-sm items-start gap-3 rounded-xl border border-amber-400/40 bg-amber-950/95 p-4 text-left text-amber-100 shadow-2xl"
+          >
+            <CircleAlert size={18} className="mt-0.5 shrink-0 text-amber-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Security warning</p>
+              <p className="mt-1 text-xs leading-relaxed">{securityAlert}</p>
+            </div>
+            <button type="button" onClick={() => setSecurityAlert(null)} className="shrink-0 text-amber-200 hover:text-white" aria-label="Dismiss security warning">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast notifications */}
       <AnimatePresence>
@@ -1046,7 +1158,7 @@ export default function App() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="fixed right-6 top-6 z-50"
+            className={`fixed right-6 ${securityAlert ? "top-24" : "top-6"} z-50`}
           >
             <div className="px-3 py-2 rounded-lg bg-slate-900/90 border border-white/8 text-sm text-white shadow-lg">
               {toast}
