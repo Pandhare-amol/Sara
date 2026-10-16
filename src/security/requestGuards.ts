@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 
 export function normalizeHostName(hostname: string): string {
   return hostname.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
@@ -23,6 +24,46 @@ export function isLoopbackAddress(address?: string | null): boolean {
 export function isLoopbackHost(hostname: string): boolean {
   const normalized = normalizeHostName(hostname);
   return normalized === "localhost" || normalized === "::1" || normalized === "127.0.0.1" || normalized.startsWith("127.");
+}
+
+export interface WebAuthnRequestContext {
+  rpID: string;
+  origin: string;
+}
+
+/**
+ * Resolves the relying-party context for a browser WebAuthn ceremony.
+ * Local HTTP is permitted only on loopback; WebAuthn RP IDs must be DNS names,
+ * so local clients should use `localhost` rather than a numeric loopback URL.
+ */
+export function getWebAuthnRequestContext(rawOrigin: string, configuredRpID?: string): WebAuthnRequestContext {
+  if (!rawOrigin) {
+    throw new Error("Passkey ceremonies require a browser Origin. Open SARA using http://localhost:3000.");
+  }
+
+  let originUrl: URL;
+  try {
+    originUrl = new URL(rawOrigin);
+  } catch {
+    throw new Error("Invalid passkey origin.");
+  }
+
+  if (originUrl.username || originUrl.password || originUrl.pathname !== "/" || originUrl.search || originUrl.hash) {
+    throw new Error("Invalid passkey origin.");
+  }
+  if (originUrl.protocol !== "https:" && !isLoopbackHost(originUrl.hostname)) {
+    throw new Error("Passkeys require HTTPS, except for the local loopback address.");
+  }
+
+  const rpID = normalizeHostName(String(configuredRpID || originUrl.hostname));
+  if (isIP(rpID) !== 0) {
+    throw new Error("Use http://localhost:3000 for local passkeys, or configure a DNS RP ID and HTTPS origin.");
+  }
+  const originHostname = normalizeHostName(originUrl.hostname);
+  if (originHostname !== rpID && !originHostname.endsWith(`.${rpID}`)) {
+    throw new Error("Passkey RP ID must match the browser origin hostname.");
+  }
+  return { rpID, origin: originUrl.origin };
 }
 
 export function isHostAllowed(hostHeader: string, allowedHosts: ReadonlySet<string>): boolean {

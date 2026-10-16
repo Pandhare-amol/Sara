@@ -79,6 +79,8 @@ function toStoredMemory(memory: MemoryRecord): StoredMemory {
     key: memory.key,
     source: memory.source === "explicit_user_instruction" ? "user_provided" : "uncertain",
     approvedByUser: memory.source === "explicit_user_instruction" && memory.metadata?.userConfirmed === true,
+    verificationStatus: memory.source === "explicit_user_instruction" && memory.metadata?.userConfirmed === true ? "verified" : "unverified",
+    lastVerified: memory.source === "explicit_user_instruction" && memory.metadata?.userConfirmed === true ? memory.updatedAt : undefined,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     lastReferencedAt: memory.lastAccessed,

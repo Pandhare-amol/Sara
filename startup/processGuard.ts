@@ -18,6 +18,8 @@ export interface ProcessLaunchOptions {
   env?: NodeJS.ProcessEnv;
   stdio?: "inherit" | "pipe" | [any, any, any];
   healthPath?: string;
+  healthHeaders?: Record<string, string>;
+  requiredProtocol?: { field: string; version: number };
   expectedServiceId?: string;
   port?: number;
   waitMs?: number;
@@ -496,7 +498,9 @@ export function terminateSaraOwnedProcesses(): void {
 
 export async function isPortHealthy(
   port: number,
-  path_ = "/health"
+  path_ = "/health",
+  headers?: Record<string, string>,
+  requiredProtocol?: { field: string; version: number },
 ): Promise<{
   healthy: boolean;
   data?: any;
@@ -552,6 +556,7 @@ export async function isPortHealthy(
           Accept: "application/json",
           Connection: "close",
           "Cache-Control": "no-cache",
+          ...headers,
         },
 
         agent: false,
@@ -609,7 +614,7 @@ export async function isPortHealthy(
 
             if (!body.trim()) {
               finish({
-                healthy: true,
+                healthy: !requiredProtocol,
               });
 
               return;
@@ -618,17 +623,19 @@ export async function isPortHealthy(
             try {
               const data =
                 JSON.parse(body);
+              const hasRequiredProtocol = !requiredProtocol || (
+                data && typeof data === "object" &&
+                Number(data[requiredProtocol.field]) === requiredProtocol.version
+              );
 
               finish({
-                healthy: true,
+                healthy: hasRequiredProtocol,
                 data,
               });
             } catch {
-              // A 200 response is still considered
-              // healthy even if the endpoint returns
-              // plain text instead of JSON.
+              // A plain-text response cannot satisfy an explicit protocol contract.
               finish({
-                healthy: true,
+                healthy: !requiredProtocol,
               });
             }
           }
@@ -728,7 +735,9 @@ export async function waitForPort(
   port: number,
   healthPath = "/health",
   maxWaitMs = 30_000,
-  intervalMs = 1000
+  intervalMs = 1000,
+  headers?: Record<string, string>,
+  requiredProtocol?: { field: string; version: number },
 ): Promise<boolean> {
   const deadline =
     Date.now() + maxWaitMs;
@@ -739,7 +748,9 @@ export async function waitForPort(
     const result =
       await isPortHealthy(
         port,
-        healthPath
+        healthPath,
+        headers,
+        requiredProtocol,
       );
 
     if (result.healthy) {
@@ -981,7 +992,7 @@ export function spawnManagedProcess(
       );
 
       console.log(
-        `[SARA]   args: ${JSON.stringify(args)}`
+        `[SARA]   argument_count: ${args.length}`
       );
 
       console.log(
@@ -1042,6 +1053,8 @@ export async function startService(
     name: string;
     port: number;
     healthPath?: string;
+    healthHeaders?: Record<string, string>;
+    requiredProtocol?: { field: string; version: number };
     command: string;
     args: string[];
     cwd: string;
@@ -1054,6 +1067,8 @@ export async function startService(
     name,
     port,
     healthPath = "/health",
+    healthHeaders,
+    requiredProtocol,
     command,
     args,
     cwd,
@@ -1093,7 +1108,9 @@ export async function startService(
   const healthRes =
     await isPortHealthy(
       port,
-      healthPath
+      healthPath,
+      healthHeaders,
+      requiredProtocol,
     );
 
   // ----------------------------------------------------------
@@ -1521,7 +1538,10 @@ export async function startService(
     await waitForPort(
       port,
       healthPath,
-      waitMs
+      waitMs,
+      1000,
+      healthHeaders,
+      requiredProtocol,
     );
 
   // The process might have exited
@@ -2104,9 +2124,9 @@ export function startSupervisorLoop(
               const res =
                 await isPortHealthy(
                   handle.port,
-                  handle.opts
-                    ?.healthPath ||
-                    "/health"
+                  handle.opts?.healthPath || "/health",
+                  handle.opts?.healthHeaders,
+                  handle.opts?.requiredProtocol,
                 );
 
               if (

@@ -124,16 +124,28 @@ class AndroidCompanionEndpointTest(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
         self.previous_data_dir = os.environ.get("SARA_DATA_DIR")
+        self.previous_agent_token = os.environ.get("SARA_AGENT_INTERNAL_TOKEN")
         os.environ["SARA_DATA_DIR"] = self.temp_dir.name
+        os.environ["SARA_AGENT_INTERNAL_TOKEN"] = "unit-test-agent-internal-token-0123456789abcdef"
         self.addCleanup(self._restore_data_dir)
+        self.addCleanup(self._restore_agent_token)
 
         import desktop_agent.android_companion as companion_module
         import desktop_agent.main as main_module
 
         importlib.reload(companion_module)
         self.module = importlib.reload(main_module)
-        self.client = TestClient(self.module.app)
+        self.client = TestClient(
+            self.module.app,
+            headers={"X-SARA-Agent-Token": "unit-test-agent-internal-token-0123456789abcdef"},
+        )
         self.manager = self.module.ANDROID_COMPANION_MANAGER
+
+    def _restore_agent_token(self) -> None:
+        if self.previous_agent_token is None:
+            os.environ.pop("SARA_AGENT_INTERNAL_TOKEN", None)
+        else:
+            os.environ["SARA_AGENT_INTERNAL_TOKEN"] = self.previous_agent_token
 
     def _restore_data_dir(self) -> None:
         if self.previous_data_dir is None:

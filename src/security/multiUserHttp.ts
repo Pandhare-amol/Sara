@@ -20,7 +20,7 @@ export function protectedApiGate(store: MultiUserStore): RequestHandler {
     if (route === "/users" || route.startsWith("/users/")) return next();
     let required: UserCapability | null = null;
     if (route === "/chat" && req.method === "POST") required = "chat";
-    if (route === "/memories" || /^\/memories\/[^/]+$/.test(route)) required = "memory";
+    if (route === "/memories" || /^\/memories\/[^/]+(?:\/confirm)?$/.test(route)) required = "memory";
     if (route === "/conversations" || route === "/conversations/search" || /^\/conversations\/[^/]+(?:\/restore)?$/.test(route)) required = "chat";
     if ((route === "/config" || route === "/models/status") && req.method === "GET") required = "chat";
     if (!required) return res.status(403).json({ error: "This API is not scoped for multiple users yet." });
@@ -28,7 +28,8 @@ export function protectedApiGate(store: MultiUserStore): RequestHandler {
       return res.status(403).json({ error: "Companion-device identity is not bound to a named user yet." });
     }
     const allowedMethods = route === "/chat" ? ["POST"] : route === "/config" || route === "/models/status" || route.endsWith("/restore") || route.endsWith("/search")
-      ? ["GET"] : route === "/memories" ? ["GET", "POST"] : route.startsWith("/memories/") ? ["PATCH", "DELETE"] : route === "/conversations" ? ["GET", "POST"] : ["DELETE"];
+      ? ["GET"] : route === "/memories" ? ["GET", "POST"] : /^\/memories\/[^/]+\/confirm$/.test(route) ? ["POST"]
+      : route.startsWith("/memories/") ? ["PUT", "PATCH", "DELETE"] : route === "/conversations" ? ["GET", "POST"] : ["DELETE"];
     if (!allowedMethods.includes(req.method)) return res.status(403).json({ error: "Method is not available in protected mode." });
     try {
       const session = sessionFromRequest(store, req);

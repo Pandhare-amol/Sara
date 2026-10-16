@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { WindowVerifier } from "../src/core/tools/verification/windowVerifier";
 
+// The verification fixture must use the same authenticated agent protocol as production.
+process.env.SARA_AGENT_INTERNAL_TOKEN ||= "window-background-fixture-internal-token-0123456789";
+
 test("a queued app launch is not verified by an unrelated empty-name window or a browser tab title", async () => {
   let windows: { title: string; application_name?: string; process_name?: string }[] = [];
   const server = createServer((_, res) => {

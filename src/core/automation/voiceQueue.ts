@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { AutomationOrchestrator, AutomationQueueFullError, type AutomationTaskInput } from "./automationOrchestrator";
 
 const ACTIVE = new Set(["QUEUED", "STARTING", "RUNNING", "VERIFYING", "CANCELLING", "RETRYING"]);
@@ -8,11 +9,18 @@ export function queueVoiceAutomation(orchestrator: AutomationOrchestrator, input
   const tasks = orchestrator.listTasks();
   const operationId = input.args.operation_id;
   if (typeof operationId === "string" && input.sessionId) {
-    const existing = tasks.find((task) => task.sessionId === input.sessionId && task.tool === input.tool && task.args.operation_id === operationId);
-    if (existing) return {
-      ok: true, status: existing.status, task_id: existing.task_id, operation_id: operationId,
-      verified: existing.status === "COMPLETED", result: "This tool call was already accepted; no second execution was scheduled.",
-    };
+    const existing = tasks.find((task) => task.sessionId === input.sessionId && task.conversationId === input.conversationId &&
+      task.tool === input.tool && task.args.operation_id === operationId);
+    if (existing) {
+      if (!isDeepStrictEqual(existing.args, input.args)) return {
+        ok: false, status: "CONFLICT", verified: false,
+        error: "The operation ID was previously used with different arguments; nothing new was queued.",
+      };
+      return {
+        ok: true, status: existing.status, task_id: existing.task_id, operation_id: operationId,
+        verified: existing.status === "COMPLETED", result: "This tool call was already accepted; no second execution was scheduled.",
+      };
+    }
   }
   if (tasks.filter((task) => task.sessionId === input.sessionId && ACTIVE.has(task.status)).length >= MAX_ACTIVE_PER_SESSION) {
     return { ok: false, status: "BUSY", verified: false,

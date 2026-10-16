@@ -11,6 +11,8 @@ export type VerifierName =
   | "browser"
   | "screen"
   | "clipboard"
+  | "application"
+  | "safety"
   | "none";
 
 export interface VerificationCheck {

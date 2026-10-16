@@ -14,7 +14,8 @@ import {
   Sparkles, 
   Globe, 
   Maximize2, 
-  MessageSquareOff, 
+  MessageSquare,
+  ListChecks,
   Compass, 
   CircleAlert,
   MicOff,
@@ -24,6 +25,7 @@ import {
   BookOpen,
   ListTodo,
   Monitor,
+  Video,
   Play,
   Pause,
   Square,
@@ -38,6 +40,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { Memory, MemoryCategory } from "./lib/memoryTypes";
 import { MemoryDashboard } from "./components/MemoryDashboard";
 import { TaskManagerPanel } from "../TaskManagerPanel";
+import { TaskOutcomeFeedback, type TaskFeedbackRating } from "./components/TaskOutcomeFeedback";
+import { isVerifiedTaskSuccess } from "./types/AuthoritativeTaskResult";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { GestureControlPanel } from "./components/GestureControlPanel";
 import { CameraPanel } from "./components/CameraPanel";
@@ -56,6 +60,7 @@ import { ApiKeyGate } from "./components/ApiKeyGate";
 
 const ResearchLearningPanel = lazy(() => import("./components/ResearchLearningPanel").then((module) => ({ default: module.ResearchLearningPanel })));
 const StudioWorkspace = lazy(() => import("./components/StudioWorkspace").then((module) => ({ default: module.StudioWorkspace })));
+import { presentGlobalNotification, type GlobalNotificationPayload } from "./services/globalNotifications";
 
 export default function App() {
   return <UserAccess legacyWorkspace={<ApiKeyGate><SaraWorkspace /></ApiKeyGate>} />;
@@ -75,6 +80,8 @@ function SaraWorkspace() {
   const [toast, setToast] = useState<string | null>(null);
   const [securityAlert, setSecurityAlert] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+  const globalNotificationCursorRef = useRef(0);
+  const seenGlobalNotificationsRef = useRef(new Set<string>());
   const securityAlertCursorRef = useRef(new SecurityAlertPollingCursor());
 
   useEffect(() => {
@@ -414,6 +421,7 @@ function SaraWorkspace() {
   const [showTaskManager, setShowTaskManager] = useState(false);
   const [showResearchLearning, setShowResearchLearning] = useState(false);
   const [showStudio, setShowStudio] = useState(false);
+  const [outcomeFeedbackTask, setOutcomeFeedbackTask] = useState<{ taskId: string } | null>(null);
   const [showCalendarPanel, setShowCalendarPanel] = useState<boolean>(false);
   const [showSystemMonitor, setShowSystemMonitor] = useState<boolean>(false);
   const [showProjectManager, setShowProjectManager] = useState<boolean>(false);
@@ -449,6 +457,85 @@ function SaraWorkspace() {
   const [showAdminSecurity, setShowAdminSecurity] = useState<boolean>(false);
   const showSettingsRef = useRef<boolean>(false);
   useEffect(() => { showSettingsRef.current = showSettings; }, [showSettings]);
+
+  useEffect(() => {
+    const setTransientToast = (message: string, durationMs = 5000) => {
+      setToast(message);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = window.setTimeout(() => setToast(null), durationMs);
+    };
+    const setNotificationCursor = (cursor: number) => {
+      globalNotificationCursorRef.current = cursor;
+      try { window.localStorage.setItem("sara.globalNotificationCursor", String(cursor)); } catch { /* storage is optional */ }
+    };
+    try {
+      const savedCursor = Number(window.localStorage.getItem("sara.globalNotificationCursor") || 0);
+      if (Number.isFinite(savedCursor) && savedCursor >= 0) globalNotificationCursorRef.current = savedCursor;
+    } catch { /* storage is optional */ }
+
+    const presentNotification = (detail: GlobalNotificationPayload) => {
+      if (!detail?.message) return;
+      const key = typeof detail.id === "number"
+        ? `id:${detail.id}:${Number(detail.createdAt) || 0}`
+        : detail.tag
+          ? `tag:${detail.source || "unknown"}:${detail.tag}`
+          : `${detail.source || "unknown"}:${detail.title}:${detail.message}`;
+      if (seenGlobalNotificationsRef.current.has(key)) return;
+      seenGlobalNotificationsRef.current.add(key);
+      if (seenGlobalNotificationsRef.current.size > 250) {
+        seenGlobalNotificationsRef.current = new Set(Array.from(seenGlobalNotificationsRef.current).slice(-125));
+      }
+      if (typeof detail.id === "number" && Number.isFinite(detail.id) && detail.id > globalNotificationCursorRef.current) {
+        setNotificationCursor(detail.id);
+      }
+      presentGlobalNotification(detail, { allowVoice: stateRef.current === "disconnected" });
+      if (detail.source !== "system-monitor") setTransientToast(`${detail.title}: ${detail.message}`, 7000);
+    };
+
+    let active = true;
+    let polling = false;
+    const pollGlobalNotifications = async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const response = await apiFetch(`/api/notifications?since=${encodeURIComponent(globalNotificationCursorRef.current)}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => ({}));
+        if (!active || payload?.ok !== true) return;
+        const latestId = Number(payload.latestId);
+        if (Number.isFinite(latestId) && latestId < globalNotificationCursorRef.current) {
+          seenGlobalNotificationsRef.current.clear();
+          setNotificationCursor(0);
+        }
+        const notifications = Array.isArray(payload.notifications) ? payload.notifications : [];
+        for (const notification of notifications) presentNotification(notification as GlobalNotificationPayload);
+        if (Number.isFinite(latestId) && latestId > globalNotificationCursorRef.current) setNotificationCursor(latestId);
+      } catch { /* the live channel remains a best-effort fallback */ }
+      finally { polling = false; }
+    };
+
+    const handleConfirmationRequired = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: unknown }>).detail;
+      const action = String(detail?.action || "external action");
+      setShowConfirmPanel(true);
+      setTransientToast(`${action === "whatsapp_send" ? "WhatsApp message" : action === "email_send" ? "Email" : "Action"} needs your approval. Review the exact details before approving.`);
+    };
+    const handleGlobalNotification = (event: Event) => {
+      const detail = (event as CustomEvent<GlobalNotificationPayload>).detail;
+      if (detail) presentNotification(detail);
+    };
+
+    window.addEventListener("sara.confirmationRequired", handleConfirmationRequired);
+    window.addEventListener("sara.globalNotification", handleGlobalNotification);
+    void pollGlobalNotifications();
+    const pollTimer = window.setInterval(() => { void pollGlobalNotifications(); }, 4000);
+    return () => {
+      active = false;
+      window.clearInterval(pollTimer);
+      window.removeEventListener("sara.confirmationRequired", handleConfirmationRequired);
+      window.removeEventListener("sara.globalNotification", handleGlobalNotification);
+    };
+  }, []);
 
   // V2: Wake word detector instance (Web Speech API, lives for the app lifetime)
   const wakeDetectorRef = useRef<SaraWakeWordDetector | null>(null);
@@ -531,38 +618,78 @@ function SaraWorkspace() {
   useEffect(() => { void loadMemories(); }, []);
 
   const handleAddManualMemory = async (category: MemoryCategory, text: string, expiresAt?: string) => {
-    const resp = await apiFetch("/api/memories", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category, text, expiresAt }),
-    });
-    const saved = await resp.json();
-    if (!resp.ok || !saved?.id) throw new Error(saved?.error || "Could not save memory.");
-    setMemories((prev) => [...prev, saved]);
+    try {
+      const resp = await apiFetch("/api/memories", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, text, expiresAt }),
+      });
+      const saved = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(saved?.error || `Memory service returned ${resp.status}.`);
+      if (!saved || typeof saved.id !== "string") throw new Error("Memory service returned an invalid record.");
+      setMemories((prev) => prev.some((memory) => memory.id === saved.id)
+        ? prev.map((memory) => memory.id === saved.id ? saved : memory)
+        : [...prev, saved]);
+    } catch (error) {
+      console.error("Manual memory add failed:", error);
+      throw error;
+    }
   };
 
   const handleUpdateMemory = async (id: string, category: MemoryCategory, text: string, expiresAt?: string) => {
-    const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category, text, expiresAt }),
-    });
-    const saved = await resp.json();
-    if (!resp.ok || !saved?.id) throw new Error(saved?.error || "Could not update memory.");
-    setMemories((prev) => prev.map((memory) => memory.id === id ? saved : memory));
+    try {
+      const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, text, expiresAt }),
+      });
+      const corrected = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(corrected?.error || `Memory service returned ${resp.status}.`);
+      if (!corrected || corrected.id !== id) throw new Error("Memory service returned an invalid record.");
+      setMemories((prev) => prev.map((memory) => memory.id === id ? corrected : memory));
+    } catch (error) {
+      console.error("Manual memory correction failed:", error);
+      throw error;
+    }
+  };
+
+  const handleConfirmMemory = async (id: string) => {
+    try {
+      const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}/confirm`, { method: "POST" });
+      const confirmed = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(confirmed?.error || `Memory service returned ${resp.status}.`);
+      if (!confirmed || confirmed.id !== id) throw new Error("Memory service returned an invalid record.");
+      setMemories((prev) => prev.map((memory) => memory.id === id ? confirmed : memory));
+    } catch (error) {
+      console.error("Manual memory confirmation failed:", error);
+      throw error;
+    }
   };
 
   const handleDeleteMemory = async (id: string) => {
     try {
-      const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, {
-        method: "DELETE"
-      });
-      const resObj = await resp.json();
-      if (!resp.ok || !resObj?.success) throw new Error(resObj?.error || "Could not delete memory.");
-      if (resObj && resObj.success) {
-        setMemories((prev) => prev.filter(m => m.id !== id));
-      }
+      const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(result?.error || `Memory service returned ${resp.status}.`);
+      if (!result?.success) throw new Error("Memory service did not confirm deletion.");
+      setMemories((prev) => prev.filter((memory) => memory.id !== id));
     } catch (err) {
-      console.error("Manual memory delete execution failed:", err);
+      console.error("Manual memory delete failed:", err);
+      throw err;
     }
+  };
+
+  const handleTaskOutcomeFeedback = async (
+    taskId: string,
+    feedback: { rating: TaskFeedbackRating; note?: string },
+  ) => {
+    const response = await apiFetch(`/api/learning/tasks/${encodeURIComponent(taskId)}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...feedback, consentToLearn: true }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.error || `Feedback service returned ${response.status}.`);
+    setOutcomeFeedbackTask((current) => current?.taskId === taskId ? null : current);
+    showToast("Feedback saved locally for future evaluation.");
   };
 
   // Initialize the audio session handlers once on mount
@@ -710,16 +837,39 @@ function SaraWorkspace() {
         const task = event?.task;
         if (!task) return;
         window.dispatchEvent(new CustomEvent("sara.automationEvent", { detail: {
-          task_id: task.task_id, status: task.status, conversationId: task.conversationId,
+          task_id: task.task_id || task.taskId, status: task.status, conversationId: task.conversationId,
         } }));
-        const label = task.tool === "youtube_play" ? "YouTube" : String(task.tool || "Task");
-        // Only one toast per meaningful transition; progress remains in the
-        // task panel rather than piling up over the user's next voice turn.
-        if (event.type === "automation:completed") showToast(`${label}: verified and completed`);
-        else if (event.type === "automation:failed") showToast(`${label}: stopped or failed; check task status`);
-        else if (event.type === "RECOVERY_PAUSED") showToast(`${label}: outcome needs review`);
+        const tool = task.tool || task.metadata?.tool;
+        const label = tool === "youtube_play" ? "YouTube" :
+          ["saraAppExecuteGoal", "saraVoiceExecuteCommand"].includes(tool) ? "App task" :
+            tool || task.description || "Task";
+        const status = String(task.status || "").toLowerCase();
+        let taskResult = task.result;
+        if (typeof taskResult === "string") {
+          try { taskResult = JSON.parse(taskResult); } catch { taskResult = undefined; }
+        }
+        const authoritativeResult = task.metadata?.taskExecutionResult || taskResult;
+        const hasVerifiedAuthoritativeSuccess = task.metadata?.authoritative === true &&
+          authoritativeResult && typeof authoritativeResult === "object" &&
+          isVerifiedTaskSuccess(authoritativeResult);
+        const autoClose = taskResult?.autoClose || taskResult?.metadata?.taskExecutionResult?.autoClose ||
+          task.metadata?.taskExecutionResult?.autoClose || task.auto_close_result;
+        if (status === "completed") {
+          if (hasVerifiedAuthoritativeSuccess && typeof task.taskId === "string" && task.taskId) {
+            setOutcomeFeedbackTask({ taskId: task.taskId });
+          }
+          if (autoClose && autoClose.verified !== true) {
+            showToast(`${label}: completed; SARA left the app open because a graceful close could not be verified`);
+          } else if (autoClose && Array.isArray(autoClose.closed) && autoClose.closed.length > 0) {
+            showToast(`${label}: verified and completed; SARA closed ${autoClose.closed.length} temporary app window(s)`);
+          } else {
+            showToast(`${label}: verified and completed`);
+          }
+        } else if (status === "failed") showToast(`${label}: automation failed`);
+        else if (status === "paused") showToast(`${label}: outcome needs review before retrying`);
         else if (event.type === "automation:cancel_requested") showToast(`${label}: stop requested; result pending`);
-        else if (event.type === "automation:started") showToast(`${label}: working in background`);
+        else if (event.type === "automation:cancelled" || status === "cancelled") showToast(`${label}: cancelled before execution`);
+        else if (status === "running" && event.type === "automation:started") showToast(`${label}: working in background`);
       },
       onDesktopEvent: (event) => {
         if (event?.event === "application_opened") {
@@ -922,10 +1072,13 @@ function SaraWorkspace() {
     }
   };
 
+  const toolbarButtonClass = "sara-nav-button";
+  const toolbarActiveClass = "is-active";
+
   return (
     <div
       id="sara-holographic-desktop"
-      className={`relative w-full h-screen overflow-hidden bg-[#020205] text-white ${getAmbientStyles()} theme-transition flex flex-col justify-between p-6 sm:p-10 select-none`}
+      className={`sara-app-shell relative isolate w-full h-screen overflow-hidden bg-[#020205] text-white ${getAmbientStyles()} theme-transition flex flex-col justify-between px-4 pt-4 pb-5 sm:px-6 sm:pt-5 sm:pb-6 xl:px-8 select-none`}
     >
       {/* Ambient Background Gradients matching Frosted Glass theme */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/15 rounded-full blur-[120px] pointer-events-none" />
@@ -946,162 +1099,88 @@ function SaraWorkspace() {
         />
       </div>
 
-      {/* HEADER SECTION - Minimalist typography */}
-      <header className="relative z-30 flex items-center justify-between w-full max-w-5xl mx-auto select-none">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold tracking-[0.4em] text-white/50 uppercase font-sans">
-            Sara
+      {/* Premium companion-console header. Every control keeps its existing action. */}
+      <header className="sara-header relative z-30 mx-auto w-full max-w-[1320px] select-none">
+        <div className="sara-brand" aria-label="SARA companion system">
+          <span className="sara-brand-mark" aria-hidden="true"><Sparkles size={17} /></span>
+          <span className="sara-brand-copy">
+            <span className="sara-wordmark">SARA</span>
+            <span className="sara-brand-caption">COMPANION SYSTEM</span>
           </span>
-          <div className={`w-1.5 h-1.5 rounded-full ${
-            state === "listening" || state === "speaking" 
-              ? "bg-cyan-400" 
-              : "bg-white/10"
-          }`} />
         </div>
 
-        <div className="flex items-center gap-5">
-          {/* Faint utilities hidden in margin */}
-          <button
-            onClick={() => setShowGuide(!showGuide)}
-            className="flex items-center gap-1 opacity-25 hover:opacity-100 text-white transition text-xs font-mono tracking-widest cursor-pointer"
-            title="Sway Themes and Info"
-          >
-            <Compass size={14} />
-            <span className="hidden sm:inline">TOPICS</span>
-          </button>
-          
-          <button 
-            onClick={() => setShowMemoryDashboard(!showMemoryDashboard)}
-            className="flex items-center gap-1 opacity-25 hover:opacity-100 text-white transition text-xs font-mono tracking-widest cursor-pointer"
-            title="Recollections Database"
-          >
-            <Brain size={14} />
-            <span className="hidden sm:inline">RECALLS</span>
-          </button>
+        <nav className="sara-nav-shell" aria-label="SARA features">
+          <div className="sara-nav-scroll">
+            <div className="sara-nav-group" role="group" aria-label="Personal">
+              <button type="button" onClick={() => setShowGuide((value) => !value)} className={`${toolbarButtonClass} ${showGuide ? toolbarActiveClass : ""}`} title="Sway themes and topics" aria-label="Open themes and topics" aria-pressed={showGuide}>
+                <Compass size={15} /><span className="sara-nav-label">TOPICS</span>
+              </button>
+              <button type="button" onClick={() => setShowMemoryDashboard((value) => !value)} className={`${toolbarButtonClass} ${showMemoryDashboard ? toolbarActiveClass : ""}`} title="Memory and recollections" aria-label="Open memory dashboard" aria-pressed={showMemoryDashboard}>
+                <Brain size={15} /><span className="sara-nav-label">MEMORY</span>
+              </button>
+              <button type="button" onClick={() => setShowCalendarPanel((value) => !value)} className={`${toolbarButtonClass} ${showCalendarPanel ? toolbarActiveClass : ""}`} title="Local calendar" aria-label="Open local calendar" aria-pressed={showCalendarPanel}>
+                <CalendarDays size={15} /><span className="sara-nav-label">CALENDAR</span>
+              </button>
+            </div>
 
-          <VisualAccessIndicator onOpen={() => setShowTaskManager(true)} browserSharing={isScreenSharing}
-            browserPaused={isScreenSharingPaused} onStopBrowserSharing={stopScreenSharing} />
-          <button
-            onClick={() => setShowTaskManager((value) => !value)}
-            aria-label="Open task workflows"
-            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${showTaskManager ? "text-cyan-400 opacity-100" : "opacity-25 hover:opacity-100 text-white"}`}
-            title="Reviewed tasks and browser workflows"
-          >
-            <ListTodo size={14} />
-            <span className="hidden sm:inline">TASKS</span>
-          </button>
+            <span className="sara-nav-divider" aria-hidden="true" />
 
-          <button onClick={() => { setShowResearchLearning(true); setShowStudio(false); }}
-            className="flex items-center gap-1 text-xs font-mono tracking-widest text-white/55 hover:text-cyan-300"
-            aria-label="Open research and learning dashboard" title="Source-grounded learning (local owner only)">
-            <BookOpen size={14} /><span className="hidden sm:inline">LEARN</span>
-          </button>
-          <button onClick={() => { setShowStudio(true); setShowResearchLearning(false); }}
-            className="flex items-center gap-1 text-xs font-mono tracking-widest text-white/55 hover:text-fuchsia-300"
-            aria-label="Open creative studio" title="Validated private artifact workspace (local owner only)">
-            <Sparkles size={14} /><span className="hidden sm:inline">CREATE</span>
-          </button>
+            <div className="sara-nav-group" role="group" aria-label="Workspace">
+              <button type="button" onClick={() => setShowSystemMonitor(true)} className={`${toolbarButtonClass} ${showSystemMonitor ? toolbarActiveClass : ""}`} title="System resource monitor" aria-label="Open system resource monitor" aria-pressed={showSystemMonitor}>
+                <Activity size={15} /><span className="sara-nav-label">SYSTEM</span>
+              </button>
+              <button type="button" onClick={() => setShowProjectManager(true)} className={`${toolbarButtonClass} ${showProjectManager ? toolbarActiveClass : ""}`} title="Projects and tasks" aria-label="Open project manager" aria-pressed={showProjectManager}>
+                <FolderKanban size={15} /><span className="sara-nav-label">PROJECTS</span>
+              </button>
+              <button type="button" onClick={isScreenSharing ? stopScreenSharing : startScreenSharing} className={`${toolbarButtonClass} ${isScreenSharing ? toolbarActiveClass : ""}`} title={isScreenSharing ? "Stop screen sharing" : "Share screen with SARA"} aria-label={isScreenSharing ? "Stop screen sharing" : "Share screen with SARA"} aria-pressed={isScreenSharing}>
+                <Monitor size={15} className={isScreenSharing && !isScreenSharingPaused ? "animate-pulse text-cyan-300" : ""} /><span className="sara-nav-label">{isScreenSharing ? "SHARING" : "SHARE"}</span>
+              </button>
+              <button type="button" onClick={() => setShowTaskManager((value) => !value)} className={`${toolbarButtonClass} ${showTaskManager ? toolbarActiveClass : ""}`} title="Reviewed tasks and browser workflows" aria-label="Open task workflows" aria-pressed={showTaskManager}>
+                <ListTodo size={15} /><span className="sara-nav-label">TASKS</span>
+              </button>
+              <button type="button" onClick={() => { setShowResearchLearning(true); setShowStudio(false); }} className={`${toolbarButtonClass} ${showResearchLearning ? toolbarActiveClass : ""}`} title="Source-grounded learning (local owner only)" aria-label="Open research and learning dashboard" aria-pressed={showResearchLearning}>
+                <BookOpen size={15} /><span className="sara-nav-label">LEARN</span>
+              </button>
+              <button type="button" onClick={() => { setShowStudio(true); setShowResearchLearning(false); }} className={`${toolbarButtonClass} ${showStudio ? toolbarActiveClass : ""}`} title="Validated private artifact workspace (local owner only)" aria-label="Open creative studio" aria-pressed={showStudio}>
+                <Sparkles size={15} /><span className="sara-nav-label">CREATE</span>
+              </button>
+            </div>
+            <VisualAccessIndicator onOpen={() => setShowTaskManager(true)} browserSharing={isScreenSharing}
+              browserPaused={isScreenSharingPaused} onStopBrowserSharing={stopScreenSharing} />
 
-          {/* Real-time screen sharing toggler button inside Sara glass style header */}
-          <button
-            onClick={() => setShowCalendarPanel((value) => !value)}
-            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showCalendarPanel ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Local calendar"
-            aria-label="Open local calendar"
-          >
-            <CalendarDays size={14} />
-            <span className="hidden sm:inline">CALENDAR</span>
-          </button>
+            <span className="sara-nav-divider" aria-hidden="true" />
 
-          <button
-            onClick={() => setShowSystemMonitor(true)}
-            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showSystemMonitor ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="System resource monitor"
-            aria-label="Open system resource monitor"
-          >
-            <Activity size={14} />
-            <span className="hidden sm:inline">SYSTEM</span>
-          </button>
+            <div className="sara-nav-group" role="group" aria-label="Conversation and approvals">
+              <button type="button" onClick={() => setShowQuickChat((value) => !value)} className={`sara-nav-button sara-nav-button-icon ${showQuickChat ? toolbarActiveClass : ""}`} title="Quick chat with SARA" aria-label={showQuickChat ? "Close quick chat" : "Open quick chat"} aria-expanded={showQuickChat}>
+                <MessageSquare size={15} />
+              </button>
+              <button type="button" onClick={() => setShowConfirmPanel((value) => !value)} className={`sara-nav-button sara-nav-button-icon ${showConfirmPanel ? "is-warning-active" : ""}`} title="Review pending approvals" aria-label="Open pending action approvals" aria-expanded={showConfirmPanel}>
+                <ListChecks size={15} />
+              </button>
+            </div>
 
-          <button
-            onClick={() => setShowProjectManager(true)}
-            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showProjectManager ? "text-cyan-400 opacity-100 font-semibold" : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="General project and task manager"
-            aria-label="Open project manager"
-          >
-            <FolderKanban size={14} />
-            <span className="hidden sm:inline">PROJECTS</span>
-          </button>
+            <span className="sara-nav-divider" aria-hidden="true" />
 
-          <button 
-            onClick={isScreenSharing ? stopScreenSharing : startScreenSharing}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              isScreenSharing 
-                ? "text-cyan-400 opacity-100 font-semibold" 
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Share Screen with Sara"
-          >
-            <Monitor size={14} className={isScreenSharing && !isScreenSharingPaused ? "animate-pulse text-cyan-400" : ""} />
-            <span>{isScreenSharing ? "SHARING" : "SHARE SCREEN"}</span>
-          </button>
+            <div className="sara-nav-group" role="group" aria-label="System settings">
+              <button type="button" onClick={() => setShowAdminSecurity((value) => !value)} className={`${toolbarButtonClass} ${showAdminSecurity ? toolbarActiveClass : ""}`} title="Owner and security dashboard" aria-label="Open security dashboard" aria-pressed={showAdminSecurity}>
+                <ShieldCheck size={15} /><span className="sara-nav-label">SECURITY</span>
+              </button>
+              <button type="button" onClick={() => setShowSettings((value) => !value)} className={`${toolbarButtonClass} ${showSettings ? toolbarActiveClass : ""}`} title="SARA settings" aria-label="Open SARA settings" aria-pressed={showSettings}>
+                <SettingsIcon size={15} /><span className="sara-nav-label">SETTINGS</span>
+              </button>
+              <button type="button" onClick={() => setShowCameraPanel((value) => !value)} className={`${toolbarButtonClass} ${showCameraPanel ? toolbarActiveClass : ""}`} title="Camera controls" aria-label="Open camera controls" aria-pressed={showCameraPanel}>
+                <Video size={15} /><span className="sara-nav-label">CAMERA</span>
+              </button>
+            </div>
+          </div>
+        </nav>
 
-          <button
-            onClick={() => setShowQuickChat((v) => !v)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showQuickChat
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Quick chat with Sara"
-          >
-            <MessageSquareOff size={14} className={showQuickChat ? "text-cyan-300" : ""} />
-            <span>QUICK CHAT</span>
-          </button>
-
-          <button
-            onClick={() => setShowAdminSecurity(!showAdminSecurity)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showAdminSecurity
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Owner & Security Dashboard"
-          >
-            <ShieldCheck size={14} className={showAdminSecurity ? "text-cyan-300 animate-pulse" : ""} />
-            <span className="hidden sm:inline">SECURITY</span>
-          </button>
-
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showSettings
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Sara Configuration"
-          >
-            <SettingsIcon size={14} className={showSettings ? "animate-spin [animation-duration:6s]" : ""} />
-            <span>SETTINGS</span>
-          </button>
-          <button
-            onClick={() => setShowCameraPanel((v) => !v)}
-            className={`flex items-center gap-1.5 transition text-xs font-mono tracking-widest cursor-pointer ${
-              showCameraPanel
-                ? "text-cyan-400 opacity-100 font-semibold"
-                : "opacity-25 hover:opacity-100 text-white"
-            }`}
-            title="Camera"
-          >
-            <Play size={14} />
-            <span>CAMERA</span>
-          </button>
+        <div className="sara-connection-status" data-state={state} role="status" aria-live="polite">
+          <span className="sara-status-light" aria-hidden="true" />
+          <span className="sara-status-copy">
+            <span className="sara-status-caption">VOICE CORE</span>
+            <span className="sara-status-value">{state === "disconnected" ? "OFFLINE" : state.toUpperCase()}</span>
+          </span>
         </div>
       </header>
 
@@ -1165,7 +1244,7 @@ function SaraWorkspace() {
       </AnimatePresence>
 
       {/* CORE AVATAR AND VISUALS */}
-      <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-between py-6">
+      <main className="sara-stage relative z-10 flex-1 min-h-0 w-full mx-auto">
         
         {/* Holographic Projection Screen Widget (if website opened) */}
         <AnimatePresence>
@@ -1206,61 +1285,54 @@ function SaraWorkspace() {
           )}
         </AnimatePresence>
 
-        {/* Space Spacer to avoid head area */}
-        <div className="h-10 sm:h-20" />
-
-        {/* Cinematic dialogue layer overlay - Smooth, delicate text transitions with soft focus blur */}
-        <div id="cinematic-subtitles" className="w-full max-w-3xl flex flex-col items-center justify-center text-center px-6 relative z-25 mt-auto mb-6 pointer-events-none min-h-[6rem]">
+        {/* Live dialogue is kept in the negative space so SARA remains unobstructed. */}
+        <section id="cinematic-subtitles" className="sara-dialogue-card" aria-live="polite" aria-atomic="true">
+          <div className="sara-dialogue-topline">
+            <span className="sara-dialogue-eyebrow">
+              <span className="sara-dialogue-signal" data-state={state} aria-hidden="true" />
+              <span>VOICE CHANNEL</span>
+            </span>
+            <span className="sara-dialogue-mode">{state === "disconnected" ? "READY" : state.toUpperCase()}</span>
+          </div>
           <AnimatePresence mode="wait">
             {(() => {
-              const textType = modelCaption 
-                ? "model" 
-                : userCaption 
-                  ? "user" 
+              const textType = modelCaption
+                ? "model"
+                : userCaption
+                  ? "user"
                   : "status";
 
-              const activeText = modelCaption 
-                ? modelCaption 
-                : userCaption 
-                  ? userCaption 
-                  : state === "listening" 
-                    ? "I am listening. Speak freely..." 
-                    : state === "connecting" 
-                      ? "Materializing presence links..." 
-                      : "Connect memory core to awaken my voice.";
+              const activeText = modelCaption
+                ? modelCaption
+                : userCaption
+                  ? userCaption
+                  : state === "listening"
+                    ? "I'm listening. Speak naturally."
+                    : state === "connecting"
+                      ? "Connecting to your voice session…"
+                      : "Connect with SARA to start a conversation.";
 
               return (
                 <motion.div
                   key={textType}
-                  initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                  initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={{ opacity: 0, y: -15, filter: "blur(6px)" }}
-                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex flex-col items-center justify-center w-full"
+                  exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+                  transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+                  className="sara-dialogue-copy"
                 >
-                  {textType === "model" && (
-                    <h2 className="text-xl sm:text-2xl font-light text-white leading-relaxed tracking-wide font-display max-w-2xl drop-shadow-[0_2px_20px_rgba(0,0,0,0.9)]">
-                      {activeText}
-                    </h2>
-                  )}
-
+                  {textType === "model" && <p className="sara-dialogue-text is-assistant">{activeText}</p>}
                   {textType === "user" && (
-                    <p className="text-cyan-300 font-mono text-sm sm:text-base tracking-wider flex items-center justify-center gap-2 drop-shadow-[0_1px_10px_rgba(0,0,0,0.85)] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                      <span>&ldquo;{activeText}&rdquo;</span>
+                    <p className="sara-dialogue-text is-user">
+                      <span aria-hidden="true">“</span>{activeText}<span aria-hidden="true">”</span>
                     </p>
                   )}
-
-                  {textType === "status" && (
-                    <span className="text-xs sm:text-sm uppercase tracking-[0.3em] font-medium text-white/30 font-sans tracking-widest drop-shadow-[0_1px_4px_rgba(0, 0, 0, 0.5)]">
-                      {activeText}
-                    </span>
-                  )}
+                  {textType === "status" && <p className="sara-dialogue-text is-status">{activeText}</p>}
                 </motion.div>
               );
             })()}
           </AnimatePresence>
-        </div>
+        </section>
 
         {/* Interactive suggestions prompt guide */}
         <AnimatePresence>
@@ -1269,7 +1341,7 @@ function SaraWorkspace() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="mt-6 p-5 rounded-2xl border border-white/10 bg-slate-900/85 backdrop-blur-2xl max-w-md text-left w-full absolute z-40 shadow-2xl"
+              className="sara-guide-panel mt-6 p-5 rounded-2xl border border-white/10 bg-slate-900/85 backdrop-blur-2xl max-w-md text-left w-full absolute z-40 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-3 text-white">
                 <div className="flex items-center gap-1.5 font-display text-sm font-bold tracking-wide">
@@ -1308,7 +1380,7 @@ function SaraWorkspace() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="mt-6 flex items-start gap-3 p-4 rounded-2xl border border-rose-500/20 bg-rose-950/40 backdrop-blur-xl max-w-md w-full text-left"
+              className="sara-error-banner mt-6 flex items-start gap-3 p-4 rounded-2xl border border-rose-500/20 bg-rose-950/40 backdrop-blur-xl max-w-md w-full text-left"
             >
               <CircleAlert className="text-rose-400 shrink-0 mt-0.5" size={18} />
               <div>
@@ -1327,70 +1399,67 @@ function SaraWorkspace() {
 
       </main>
 
-      {/* FOOTER INTERFACE WITH WAVEFORM AND CONTROLS */}
-      <footer className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center gap-5 mt-auto">
-        
-        {/* Dynamic Minimalist Waveform Visualizer */}
-        <div className="flex items-center justify-center gap-1 h-8 w-44">
-          {[12, 28, 16, 32, 20, 8].map((baseHeight, idx) => {
-            let heightFactor = 0.35;
-            if (state === "speaking") {
-              heightFactor = 0.35 + Math.sin(Date.now() * 0.02 + idx * 0.9) * 0.65;
-            } else if (state === "listening") {
-              heightFactor = 0.2 + Math.sin(Date.now() * 0.01 + idx * 0.5) * 0.4;
-            } else {
-              heightFactor = idx % 2 === 0 ? 0.25 : 0.12;
-            }
-            const calculatedHeight = Math.max(3, baseHeight * heightFactor);
+      {/* Compact voice control dock, positioned away from the central avatar. */}
+      <footer className="sara-footer" aria-label="Voice controls">
+        <div className="sara-voice-dock">
+          <div className={`sara-audio-meter ${state === "speaking" ? "is-speaking" : state === "listening" ? "is-listening" : ""}`} aria-hidden="true">
+            {[12, 28, 16, 32, 20, 8].map((baseHeight, idx) => {
+              let heightFactor = 0.35;
+              if (state === "speaking") {
+                heightFactor = 0.35 + Math.sin(Date.now() * 0.02 + idx * 0.9) * 0.65;
+              } else if (state === "listening") {
+                heightFactor = 0.2 + Math.sin(Date.now() * 0.01 + idx * 0.5) * 0.4;
+              } else {
+                heightFactor = idx % 2 === 0 ? 0.25 : 0.12;
+              }
+              const calculatedHeight = Math.max(3, baseHeight * heightFactor);
 
-            return (
-              <div
-                key={idx}
-                className={`w-0.5 rounded-full transition-all duration-300 ${
-                  state === "speaking" ? "bg-purple-400" : state === "listening" ? "bg-cyan-400" : "bg-white/10"
-                }`}
-                style={{ height: `${calculatedHeight}px` }}
-              />
-            );
-          })}
-        </div>
-
-        {/* Glossy Beautiful Primary Connector Core Node */}
-          <div className="flex items-center justify-center relative mb-4">
-          <button 
+              return <span key={idx} className="sara-audio-bar" style={{ height: `${calculatedHeight}px` }} />;
+            })}
+          </div>
+          <span className="sara-voice-divider" aria-hidden="true" />
+          <div className="sara-voice-copy" aria-live="polite">
+            <span className="sara-voice-kicker">VOICE CONTROL</span>
+            <span className="sara-voice-state">
+              {state === "disconnected"
+                ? "Tap to connect"
+                : state === "connecting"
+                  ? "Opening voice link"
+                  : state === "listening"
+                    ? muted ? "Microphone muted" : "Listening now"
+                    : "SARA is speaking"}
+            </span>
+          </div>
+          <button
             type="button"
             onClick={handleToggleConnection}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer ${
-              state === "disconnected"
-                ? "bg-white/10 hover:bg-white/15 border border-white/15 text-white shadow-[0_0_20px_rgba(255,255,255,0.02)] hover:scale-105 active:scale-95"
-                : state === "listening"
-                ? "bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/80 text-cyan-200 shadow-[0_0_35px_rgba(34,211,238,0.3)] animate-pulse scale-105"
-                : state === "speaking"
-                ? "bg-purple-500/90 hover:bg-purple-600 border border-purple-400/95 text-white shadow-[0_0_35px_rgba(168,85,247,0.4)] scale-105"
-                : "bg-amber-600 border border-amber-300 text-white animate-spin"
-            }`}
+            className={`sara-voice-button ${state === "listening" ? "is-listening" : state === "speaking" ? "is-speaking" : state === "connecting" ? "is-connecting" : ""}`}
             title={state === "disconnected" ? "Awake Sara" : (muted ? "Unmute microphone" : "Mute microphone")}
+            aria-label={state === "disconnected" ? "Connect voice with SARA" : (muted ? "Unmute microphone" : "Mute microphone")}
+            aria-busy={state === "connecting"}
           >
             {state === "disconnected" ? (
-              <Power className="opacity-80" size={24} />
+              <Power size={20} />
             ) : state === "connecting" ? (
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="sara-voice-spinner" aria-hidden="true" />
             ) : state === "listening" ? (
-              (muted ? <MicOff size={24} className="text-cyan-200" /> : <Mic size={24} className="text-cyan-200" />)
+              muted ? <MicOff size={20} /> : <Mic size={20} />
             ) : (
-              <Volume2 size={24} className="text-white" />
+              <Volume2 size={20} />
             )}
           </button>
 
           {/* Quiet Reset Projection Anchor */}
           {(activeProjectorUrl || errorText) && (
-            <button 
+            <button
+              type="button"
               onClick={() => {
                 if (activeProjectorUrl) setActiveProjectorUrl(null);
                 setErrorText(null);
               }}
-              className="absolute right-[-60px] p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition duration-150 cursor-pointer"
+              className="sara-reset-button"
               title="Reset Screen Broadcasts"
+              aria-label="Reset screen broadcasts and dismiss the error"
             >
               <X size={16} />
             </button>
@@ -1408,7 +1477,6 @@ function SaraWorkspace() {
               aria-label="Stop SARA speech without cancelling any task">Stop speaking</button>
           )}
         </div>
-
       </footer>
 
       {/* Holographic Website frame projections */}
@@ -1572,6 +1640,15 @@ function SaraWorkspace() {
 
       {/* Reviewed workflow panel uses the existing task store; legacy task UI remains available. */}
       <TaskManagerPanel isOpen={showTaskManager} onClose={() => setShowTaskManager(false)} activeConversationId={desktopConversationId} />
+      <AnimatePresence>
+        {outcomeFeedbackTask && (
+          <TaskOutcomeFeedback
+            taskId={outcomeFeedbackTask.taskId}
+            onDismiss={() => setOutcomeFeedbackTask(null)}
+            onSubmit={handleTaskOutcomeFeedback}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Recollections sliding core panel */}
       <MemoryDashboard
@@ -1583,6 +1660,7 @@ function SaraWorkspace() {
         onRetry={() => { void loadMemories(); }}
         onAddMemory={handleAddManualMemory}
         onUpdateMemory={handleUpdateMemory}
+        onConfirmMemory={handleConfirmMemory}
         onDeleteMemory={handleDeleteMemory}
         themeColor={themeColor}
       />
@@ -1596,6 +1674,7 @@ function SaraWorkspace() {
             setShowQuickChat(false);
           }}
           initialConversationId={desktopConversationId}
+          variant="quick"
         />
       )}
 

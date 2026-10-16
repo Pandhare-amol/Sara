@@ -14,9 +14,13 @@ import {
   Flame, 
   Sparkles,
   RefreshCw,
-  CircleAlert
+  CircleAlert,
+  Download,
+  Save,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { serializeMemoryExport } from "../services/memoryExport";
 
 interface MemoryDashboardProps {
   isOpen: boolean;
@@ -27,6 +31,7 @@ interface MemoryDashboardProps {
   onRetry?: () => void;
   onAddMemory: (category: MemoryCategory, text: string, expiresAt?: string) => Promise<void>;
   onUpdateMemory: (id: string, category: MemoryCategory, text: string, expiresAt?: string) => Promise<void>;
+  onConfirmMemory: (id: string) => Promise<void>;
   onDeleteMemory: (id: string) => Promise<void>;
   themeColor: string;
 }
@@ -40,6 +45,7 @@ export function MemoryDashboard({
   onRetry,
   onAddMemory,
   onUpdateMemory,
+  onConfirmMemory,
   onDeleteMemory,
   themeColor
 }: MemoryDashboardProps) {
@@ -48,12 +54,17 @@ export function MemoryDashboard({
   const [newCategory, setNewCategory] = useState<MemoryCategory>("identity");
   const [isAdding, setIsAdding] = useState(false);
   const [newExpiry, setNewExpiry] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
-  const [editCategory, setEditCategory] = useState<MemoryCategory>("identity");
-  const [editExpiry, setEditExpiry] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [editedText, setEditedText] = useState("");
+  const [editedCategory, setEditedCategory] = useState<MemoryCategory>("identity");
+  const [editedExpiry, setEditedExpiry] = useState("");
+  const [savingMemoryId, setSavingMemoryId] = useState<string | null>(null);
+  const [confirmingMemoryId, setConfirmingMemoryId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingMemoryId, setDeletingMemoryId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Category Configuration
   const categoryConfig: Record<MemoryCategory, { label: string; icon: any; color: string; bg: string }> = {
@@ -133,41 +144,100 @@ export function MemoryDashboard({
     : safeMemories.filter(m => m.category === activeTab);
 
   const expiryIso = (date: string) => date ? new Date(`${date}T23:59:59`).toISOString() : undefined;
+  const errorMessage = (error: unknown) => error instanceof Error ? error.message : "The memory operation failed.";
+
+  const beginEditing = (memory: Memory) => {
+    setActionError(null);
+    setConfirmDeleteId(null);
+    setEditingMemoryId(memory.id);
+    setEditedText(String(memory.text || ""));
+    setEditedCategory(memory.category);
+    setEditedExpiry(memory.expiresAt?.slice(0, 10) || "");
+  };
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newText.trim()) return;
     setFormError(null);
     setSubmitting(true);
+    setActionError(null);
     try {
       await onAddMemory(newCategory, newText.trim(), expiryIso(newExpiry));
       setNewText("");
       setNewExpiry("");
       setIsAdding(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Could not save memory.");
+      setFormError(errorMessage(error));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingId || !editText.trim()) return;
-    setFormError(null);
-    setSubmitting(true);
+  const handleCorrection = async (id: string) => {
+    setSavingMemoryId(id);
+    setActionError(null);
     try {
-      await onUpdateMemory(editingId, editCategory, editText.trim(), expiryIso(editExpiry));
-      setEditingId(null);
+      await onUpdateMemory(id, editedCategory, editedText.trim(), expiryIso(editedExpiry));
+      setEditingMemoryId(null);
+      setConfirmDeleteId(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Could not update memory.");
+      console.error(error);
+      setActionError(errorMessage(error));
     } finally {
-      setSubmitting(false);
+      setSavingMemoryId(null);
+    }
+  };
+
+  const handleConfirmMemory = async (id: string) => {
+    setConfirmingMemoryId(id);
+    setActionError(null);
+    try {
+      await onConfirmMemory(id);
+    } catch (error) {
+      console.error(error);
+      setActionError(errorMessage(error));
+    } finally {
+      setConfirmingMemoryId(null);
+    }
+  };
+
+  const handleConfirmedDelete = async (id: string) => {
+    setDeletingMemoryId(id);
+    setActionError(null);
+    try {
+      await onDeleteMemory(id);
+      setConfirmDeleteId(null);
+      if (editingMemoryId === id) setEditingMemoryId(null);
+    } catch (error) {
+      console.error(error);
+      setActionError(errorMessage(error));
+    } finally {
+      setDeletingMemoryId(null);
+    }
+  };
+
+  const handleExport = () => {
+    setActionError(null);
+    try {
+      const blob = new Blob([serializeMemoryExport(safeMemories)], { type: "application/json;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `sara-personal-memories-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    } catch (error) {
+      console.error("Memory export failed:", error);
+      setActionError("Unable to export memories in this browser.");
     }
   };
 
   const formatDate = (isoStr: string) => {
     try {
       const d = new Date(isoStr);
+      if (Number.isNaN(d.getTime())) return "Durable Record";
       return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
     } catch (e) {
       return "Durable Record";
@@ -225,16 +295,35 @@ export function MemoryDashboard({
               <span className="text-[10px] text-slate-400 font-mono">
                 Only memories you explicitly save or approve are used in chat. Older inferred entries need review.
               </span>
-              {!isAdding && (
+              <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => setIsAdding(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-mono tracking-wider text-cyan-300 transition shrink-0 cursor-pointer"
+                  type="button"
+                  onClick={handleExport}
+                  disabled={loading || safeMemories.length === 0}
+                  title="Download a JSON copy. The file contains personal memory text; store it securely."
+                  aria-label="Export personal memories as JSON"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-300 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  <Plus size={12} />
-                  <span>MANUAL SEED</span>
+                  <Download size={12} />
+                  <span>EXPORT</span>
                 </button>
-              )}
+                {!isAdding && (
+                  <button
+                    type="button"
+                    onClick={() => { setActionError(null); setIsAdding(true); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-mono tracking-wider text-cyan-300 transition shrink-0 cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    <span>MANUAL SEED</span>
+                  </button>
+                )}
+              </div>
             </div>
+            {actionError && (
+              <div role="alert" className="mx-6 mt-3 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs font-mono text-rose-200">
+                {actionError}
+              </div>
+            )}
 
             {/* Manual entry card drawer inside dashboard */}
             <AnimatePresence>
@@ -281,6 +370,7 @@ export function MemoryDashboard({
                         value={newText}
                         onChange={(e) => setNewText(e.target.value)}
                         placeholder="e.g. The user's startup is called Sara, a voice AI platform."
+                        maxLength={1000}
                         required
                         className="w-full h-18 text-xs p-3 rounded-lg border border-white/10 bg-black/40 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none font-sans"
                       />
@@ -392,66 +482,164 @@ export function MemoryDashboard({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className={`flex items-start justify-between gap-4 p-4 rounded-xl border border-white/5 backdrop-blur-md bg-white/[0.02] ${cfg.bg} transition-colors group relative`}
+                        className={`p-4 rounded-xl border border-white/5 backdrop-blur-md bg-white/[0.02] ${cfg.bg} transition-colors group relative`}
                       >
-                        <div className="flex gap-3.5 overflow-hidden">
-                          <div className={`p-2 rounded-lg border mt-0.5 shrink-0 bg-black/40 ${cfg.color}`}>
-                            <Icon size={14} />
-                          </div>
-                          <div className="overflow-hidden">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[9px] font-mono uppercase tracking-wider block ${cfg.color}`}>
-                                {cfg.label}
-                              </span>
-                              {m.tier && (
-                                <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-cyan-300">
-                                  {String(m.tier).replace("_", " ")}
-                                </span>
-                              )}
+                        {editingMemoryId === m.id ? (
+                          <div className="w-full space-y-3">
+                            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-cyan-300">
+                              <Pencil size={13} /> Correct personal memory
                             </div>
-                            <p className="text-xs text-slate-200 mt-1 font-sans leading-relaxed break-words font-medium">
-                              {String(m.text || "No memory text available.")}
-                            </p>
-                            <span className="text-[9px] font-mono text-slate-500 mt-2 block">
-                              Saved: {formatDate(m.createdAt || m.updatedAt || "")}
-                              {m.expiresAt && ` · Expires ${formatDate(m.expiresAt)}`}
-                            </span>
-                            <span className={`text-[9px] font-mono ${approved && !expired ? "text-emerald-300" : "text-amber-300"}`}>
-                              {expired ? "Expired · not used in chat" : approved ? "User-approved · available for relevant chat" : "Legacy/inferred · review before use"}
-                            </span>
-                            {editingId === m.id && (
-                              <form onSubmit={handleEdit} className="mt-3 space-y-2" aria-label="Edit memory">
-                                <select value={editCategory} onChange={(e) => setEditCategory(e.target.value as MemoryCategory)}
-                                  className="w-full p-2 rounded bg-black/50 text-white border border-white/10">
-                                  {(Object.keys(categoryConfig) as MemoryCategory[]).map((category) => <option key={category} value={category}>{categoryConfig[category].label}</option>)}
-                                </select>
-                                <textarea value={editText} maxLength={1000} required onChange={(e) => setEditText(e.target.value)}
-                                  aria-label="Memory text" className="w-full p-2 rounded bg-black/50 text-white border border-white/10" />
-                                <label className="block text-xs text-slate-300">Expires on (optional)
-                                  <input type="date" value={editExpiry} onChange={(e) => setEditExpiry(e.target.value)}
-                                    className="block mt-1 p-2 rounded bg-black/50 text-white border border-white/10" />
-                                </label>
-                                {formError && <p role="alert" className="text-xs text-red-300">{formError}</p>}
-                                <div className="flex gap-2">
-                                  <button disabled={submitting} type="submit" className="text-xs px-2 py-1 rounded bg-cyan-600 text-white">Save & approve</button>
-                                  <button type="button" onClick={() => { setEditingId(null); setFormError(null); }} className="text-xs px-2 py-1 rounded border border-white/20 text-white">Cancel</button>
-                                </div>
-                              </form>
-                            )}
+                            <div>
+                              <label htmlFor={`memory-category-${m.id}`} className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                                Category
+                              </label>
+                              <select
+                                id={`memory-category-${m.id}`}
+                                value={editedCategory}
+                                onChange={(event) => setEditedCategory(event.target.value as MemoryCategory)}
+                                className="w-full rounded-lg border border-white/10 bg-[#0b0b14] px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/60"
+                              >
+                                {(Object.keys(categoryConfig) as MemoryCategory[]).map((category) => (
+                                  <option key={category} value={category}>{categoryConfig[category].label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label htmlFor={`memory-text-${m.id}`} className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                                Corrected text
+                              </label>
+                              <textarea
+                                id={`memory-text-${m.id}`}
+                                value={editedText}
+                                onChange={(event) => setEditedText(event.target.value)}
+                                maxLength={1000}
+                                required
+                                className="w-full min-h-24 rounded-lg border border-white/10 bg-black/40 p-3 text-xs leading-relaxed text-white focus:outline-none focus:border-cyan-500/60 resize-y"
+                              />
+                              <p className="mt-1 text-[9px] font-mono text-slate-500">Do not enter passwords, API keys, or tokens.</p>
+                            </div>
+                            <label className="block text-xs text-slate-300">Expires on (optional)
+                              <input type="date" value={editedExpiry} min={new Date().toISOString().slice(0, 10)}
+                                onChange={(event) => setEditedExpiry(event.target.value)}
+                                className="block mt-1 p-2 rounded-lg bg-black/40 border border-white/10 text-white" />
+                            </label>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingMemoryId(null); setActionError(null); }}
+                                disabled={savingMemoryId === m.id}
+                                className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-mono text-slate-300 hover:bg-white/5 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { void handleCorrection(m.id); }}
+                                disabled={savingMemoryId === m.id || !editedText.trim()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-mono font-bold hover:bg-cyan-400 disabled:opacity-50"
+                              >
+                                <Save size={12} /> {savingMemoryId === m.id ? "Saving..." : "Save correction"}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 shrink-0">
-                          <button type="button" aria-label="Edit and approve this memory"
-                            onClick={() => { setEditingId(m.id); setEditText(m.text); setEditCategory(m.category); setEditExpiry(m.expiresAt?.slice(0, 10) || ""); setFormError(null); }}
-                            className="p-2 rounded-lg border border-cyan-500/25 text-cyan-300 cursor-pointer" title="Edit and approve">
-                            <Pencil size={13} />
-                          </button>
-                          <button type="button" onClick={() => onDeleteMemory(m.id)} aria-label="Forget this memory"
-                            className="p-2 rounded-lg border border-red-500/25 text-red-400 cursor-pointer" title="Forget this memory">
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-3 w-full">
+                              <div className="flex gap-3.5 overflow-hidden min-w-0">
+                                <div className={`p-2 rounded-lg border mt-0.5 shrink-0 bg-black/40 ${cfg.color}`}>
+                                  <Icon size={14} />
+                                </div>
+                                <div className="overflow-hidden min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`text-[9px] font-mono uppercase tracking-wider block ${cfg.color}`}>
+                                      {cfg.label}
+                                    </span>
+                                    {m.tier && (
+                                      <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-cyan-300">
+                                        {String(m.tier).replace("_", " ")}
+                                      </span>
+                                    )}
+                                    {m.source && (
+                                      <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-white/10 bg-black/20 text-slate-400">
+                                        {String(m.source).replace(/_/g, " ")}
+                                      </span>
+                                    )}
+                                    {(!approved || m.verificationStatus !== "verified") && (
+                                      <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-amber-500/20 bg-amber-500/10 text-amber-300">
+                                        Review: {m.verificationStatus ? String(m.verificationStatus).replace(/_/g, " ") : "unclassified"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-200 mt-1 font-sans leading-relaxed break-words font-medium">
+                                    {String(m.text || "No memory text available.")}
+                                  </p>
+                                  <span className="text-[9px] font-mono text-slate-500 mt-2 block">
+                                    Saved: {formatDate(m.createdAt || m.updatedAt || "")}
+                                    {m.expiresAt && ` · Expires ${formatDate(m.expiresAt)}`}
+                                  </span>
+                                  <span className={`text-[9px] font-mono ${approved && !expired && m.verificationStatus !== "unverified" ? "text-emerald-300" : "text-amber-300"}`}>
+                                    {expired ? "Expired · not used in chat" : approved && m.verificationStatus !== "unverified" ? "User-approved · available for relevant chat" : "Legacy/inferred · review before use"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {(!approved || m.verificationStatus !== "verified") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { void handleConfirmMemory(m.id); }}
+                                    disabled={confirmingMemoryId === m.id}
+                                    aria-label="Confirm this memory is accurate and allow SARA to use it"
+                                    title="Confirm this memory is accurate and allow SARA to use it"
+                                    className="p-2 rounded-lg border border-emerald-500/25 bg-emerald-950/15 text-emerald-300 hover:bg-emerald-500 hover:text-white transition disabled:opacity-50 cursor-pointer"
+                                  >
+                                    <Check size={13} />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => beginEditing(m)}
+                                  aria-label="Correct this memory"
+                                  title="Correct this memory"
+                                  className="p-2 rounded-lg border border-white/10 bg-black/20 text-slate-300 hover:border-cyan-400/40 hover:text-cyan-200 transition cursor-pointer"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setActionError(null); setConfirmDeleteId(m.id); }}
+                                  aria-label="Ask to forget this memory"
+                                  title="Forget this memory"
+                                  className="p-2 rounded-lg border border-red-500/25 bg-red-950/15 text-red-400 hover:bg-red-500 hover:text-white transition cursor-pointer"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                            {confirmDeleteId === m.id && (
+                              <div role="group" aria-label="Confirm memory deletion" className="w-full rounded-lg border border-red-500/25 bg-red-950/20 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[10px] font-mono text-red-100">Forget this memory permanently? This cannot be undone.</span>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    disabled={deletingMemoryId === m.id}
+                                    className="px-2.5 py-1 rounded-md border border-white/10 text-[10px] font-mono text-slate-300 hover:bg-white/5 disabled:opacity-50"
+                                  >
+                                    Keep
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { void handleConfirmedDelete(m.id); }}
+                                    disabled={deletingMemoryId === m.id}
+                                    className="px-2.5 py-1 rounded-md bg-red-500 text-white text-[10px] font-mono font-bold hover:bg-red-400 disabled:opacity-50"
+                                  >
+                                    {deletingMemoryId === m.id ? "Forgetting..." : "Confirm forget"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </motion.div>
                     );
                   })

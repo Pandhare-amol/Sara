@@ -204,11 +204,30 @@ test("opt-in HTTP mode binds user sessions to scoped chat/memories, denies unint
     assert.equal(memoryA.status, 201, JSON.stringify(memoryA.body)); assert.equal(memoryB.status, 201);
     assert.equal((await call("/api/memories", "GET", alice)).body.length, 1);
     assert.equal((await call("/api/memories", "GET", bob)).body[0].text, "Bob enjoys mahogany red");
+    const repeated = await call("/api/memories", "POST", alice, { category: "preference", text: "Alice enjoys sea-glass green" });
+    assert.equal(repeated.status, 201);
+    assert.equal(repeated.body.id, memoryA.body.id, "retrying an identical manual save must not duplicate memory");
+    const putOwn = await call(`/api/memories/${memoryA.body.id}`, "PUT", alice,
+      { category: "preference", text: "Alice enjoys sea-glass green" });
+    assert.equal(putOwn.status, 200);
+    assert.equal(putOwn.body.approvedByUser, true);
+    const confirmOwn = await call(`/api/memories/${memoryA.body.id}/confirm`, "POST", alice);
+    assert.equal(confirmOwn.status, 200);
+    assert.equal(confirmOwn.body.approvedByUser, true);
+    assert.equal((await call(`/api/memories/${memoryA.body.id}`, "PUT", bob,
+      { category: "preference", text: "Overwrite Alice" })).status, 404);
+    assert.equal((await call(`/api/memories/${memoryA.body.id}/confirm`, "POST", bob)).status, 404);
+    assert.equal((await call(`/api/memories/${memoryA.body.id}/confirm`, "POST", "")).status, 401);
     const concurrent = await Promise.all(Array.from({ length: 6 }, (_, n) => call("/api/memories", "POST", alice,
       { category: "goal", text: `Alice concurrent approved fact ${n}` })));
     assert.ok(concurrent.every((item) => item.status === 201));
     assert.equal((await call("/api/memories", "GET", alice)).body.length, 7,
       "parallel approved writes must not silently erase each other's memory");
+    const correctedGoal = await call(`/api/memories/${concurrent[0].body.id}`, "PUT", alice,
+      { category: "goal", text: "Alice concurrent approved fact 0 corrected" });
+    assert.equal(correctedGoal.status, 200);
+    assert.equal(correctedGoal.body.approvedByUser, true);
+    assert.equal(correctedGoal.body.text, "Alice concurrent approved fact 0 corrected");
     assert.equal((await call(`/api/memories/${memoryA.body.id}`, "PATCH", bob, { category: "goal", text: "overwrite" })).status, 404);
     assert.equal((await call(`/api/memories/${memoryA.body.id}`, "DELETE", bob)).status, 404);
     assert.deepEqual((await call("/api/memories", "GET", owner)).body, []);
@@ -304,6 +323,9 @@ test("opt-in HTTP mode binds user sessions to scoped chat/memories, denies unint
     const guestAuth = await call("/api/users/auth/invitation", "POST", "", { userId: guestInvite.body.account.id, code: guestInvite.body.invitation });
     const guest = guestAuth.body.token as string;
     assert.equal((await call("/api/memories", "GET", guest)).status, 403);
+    assert.equal((await call(`/api/memories/${memoryA.body.id}/confirm`, "POST", guest)).status, 403);
+    assert.equal((await call(`/api/memories/${memoryA.body.id}?source=mobile`, "PUT", alice,
+      { category: "goal", text: "device cannot claim Alice's session" })).status, 403);
     assert.equal((await call("/api/conversations", "GET", guest)).status, 403);
     assert.equal((await call("/api/users/me/export", "GET", guest)).status, 403);
     assert.equal((await call("/api/users/me/activity", "GET", guest)).status, 403);

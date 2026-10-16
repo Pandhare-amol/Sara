@@ -8,19 +8,44 @@ export async function sendEmail(to: string[], subject: string, text: string, smt
     let nodemailer: any;
     try { const mod = await import('nodemailer'); nodemailer = (mod && (mod as any).default) ? (mod as any).default : mod; } catch (e) { return { ok: false, reason: 'nodemailer_not_installed' }; }
 
-    // smtpConfig can be a URL/string or an object transporter config
+    // Accept SMTP URLs, nodemailer transport objects, and the app's {url, from,
+    // auth} wrapper. Parse URL transports so the keytar-backed auth and sender
+    // settings are not silently discarded.
     let transporter: any;
-    if (typeof smtpConfig === 'string' && smtpConfig.length) {
-      transporter = nodemailer.createTransport(smtpConfig);
+    const configObject = smtpConfig && typeof smtpConfig === 'object' ? smtpConfig : {};
+    const smtpUrl = typeof smtpConfig === 'string' ? smtpConfig : String(configObject.url || '');
+    const envUrl = !smtpUrl && !(smtpConfig && typeof smtpConfig === 'object')
+      ? process.env.SARA_SMTP_URL || process.env.SMTP_URL || ''
+      : '';
+    const transportUrl = smtpUrl || envUrl;
+    let authenticatedUser = "";
+    if (transportUrl) {
+      const parsed = new URL(transportUrl);
+      if (!["smtp:", "smtps:"].includes(parsed.protocol) || !parsed.hostname) {
+        return { ok: false, reason: 'invalid_smtp_url' };
+      }
+      const configuredAuth = configObject.auth && typeof configObject.auth === 'object' ? configObject.auth : {};
+      const urlUser = parsed.username ? decodeURIComponent(parsed.username) : '';
+      const urlPass = parsed.password ? decodeURIComponent(parsed.password) : '';
+      const user = String(configuredAuth.user || urlUser || '');
+      const pass = String(configuredAuth.pass || urlPass || '');
+      authenticatedUser = user;
+      const port = Number(parsed.port || (parsed.protocol === 'smtps:' ? 465 : 587));
+      transporter = nodemailer.createTransport({
+        host: parsed.hostname,
+        port: Number.isInteger(port) && port > 0 ? port : 587,
+        secure: parsed.protocol === 'smtps:' || port === 465,
+        ...(user || pass ? { auth: { user: user || undefined, pass: pass || undefined } } : {}),
+        connectionTimeout: Number(configObject.connectionTimeout) || 10_000,
+        socketTimeout: Number(configObject.socketTimeout) || 20_000,
+      });
     } else if (smtpConfig && typeof smtpConfig === 'object') {
       transporter = nodemailer.createTransport(smtpConfig);
     } else {
-      const envUrl = process.env.SARA_SMTP_URL || process.env.SMTP_URL || '';
-      if (!envUrl) return { ok: false, reason: 'smtp_not_configured' };
-      transporter = nodemailer.createTransport(envUrl);
+      return { ok: false, reason: 'smtp_not_configured' };
     }
 
-    const from = smtpConfig?.from || process.env.SARA_SMTP_FROM || 'sara@example.local';
+    const from = configObject.from || process.env.SARA_SMTP_FROM || configObject.auth?.user || authenticatedUser || 'sara@example.local';
     const res = await transporter.sendMail({ from, to: to.join(','), subject, text });
     return { ok: true, info: res };
   } catch (e:any) { return { ok: false, error: String(e) }; }

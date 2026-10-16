@@ -4,6 +4,7 @@
  */
 
 import type { ToolVerifier, VerificationOutcome } from "./verificationRegistry";
+import { getDesktopAgentAuthHeaders } from "../../../security/desktopAgentAuth";
 
 function normalizeQuery(value: unknown): string {
   return String(value || "").normalize("NFKC").toLowerCase().replace(/\+/g, " ").replace(/\s+/g, " ").trim();
@@ -180,6 +181,7 @@ export class ScreenVerifier implements ToolVerifier {
     try {
       do {
         const response = await this.fetcher(`${this.desktopAgentUrl}/browser/state`, {
+          headers: getDesktopAgentAuthHeaders(this.desktopAgentUrl, process.env),
           signal: AbortSignal.timeout(this.timeout),
         });
         httpStatus = response.status;
@@ -229,7 +231,7 @@ export class ScreenVerifier implements ToolVerifier {
     try {
       const response = await this.fetcher(`${this.desktopAgentUrl}/execute`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getDesktopAgentAuthHeaders(this.desktopAgentUrl, process.env, "application/json"),
         body: JSON.stringify({ tool: "desktopBrowserMediaState", args: {} }),
         signal: AbortSignal.timeout(this.timeout),
       });

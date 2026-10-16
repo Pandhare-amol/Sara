@@ -11,6 +11,8 @@ import {
   getPlanningEngine,
   getStrategyManager,
 } from "./index";
+import { requestCognitiveEmergencyStop, requestCognitiveTaskCancellation } from "./taskCancellation";
+export { requestCognitiveEmergencyStop };
 
 const router = Router();
 const orchestrator = getCognitiveOrchestrator();
@@ -189,12 +191,35 @@ router.post("/cognitive/memory/consolidate", (_req: Request, res: Response) => {
   });
 });
 
+/** Request a cooperative stop for one active cognitive workflow. */
+router.post(
+  "/cognitive/task/:taskId/cancel",
+  async (req: Request, res: Response) => {
+    const taskId = String(req.params.taskId || "").trim();
+    if (!taskId) {
+      return res.status(400).json({ ok: false, error: "taskId is required." });
+    }
+    const accepted = requestCognitiveTaskCancellation(taskId);
+    if (!accepted) {
+      return res.status(404).json({ ok: false, error: "No active cognitive task was found." });
+    }
+    return res.json({
+      ok: true,
+      status: "stop_requested",
+      taskId,
+      message: "A cooperative stop was requested. The current tool call may finish; later plan steps will not start.",
+    });
+  }
+);
+
 /**
  * The old cognitive executor accepted a plan's arbitrary tool name/arguments
  * without an independent approval or tool-argument policy. Keep the read-only
  * cognitive views, but do not route this legacy entry point to the desktop.
  * Browser work goes through the reviewed, bounded task workflow instead.
  */
+// Do not restore the legacy arbitrary-tool executor: cancellation alone cannot
+// authorize a model-generated tool name or prove a consequential action.
 router.post("/cognitive/task/execute", (_req: Request, res: Response) => {
   return res.status(410).json({
     ok: false,

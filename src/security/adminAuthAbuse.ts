@@ -41,6 +41,20 @@ export class AdminAuthAbuseTracker {
     return { attempts, warn, shouldLock };
   }
 
+  getRetryAfterSeconds(source: string, now = Date.now()): number {
+    const key = String(source || "unknown").slice(0, 128);
+    this.prune(now);
+    const timestamps = this.attempts.get(key)?.timestamps || [];
+    if (timestamps.length < this.lockThreshold) return 0;
+    const sorted = [...timestamps].sort((left, right) => left - right);
+    const oldestToExpire = sorted[Math.max(0, sorted.length - this.lockThreshold)];
+    return Math.max(1, Math.ceil((oldestToExpire + this.windowMs - now) / 1000));
+  }
+
+  isBlocked(source: string, now = Date.now()): boolean {
+    return this.getRetryAfterSeconds(source, now) > 0;
+  }
+
   clear(source: string): void {
     this.attempts.delete(String(source || "unknown").slice(0, 128));
   }

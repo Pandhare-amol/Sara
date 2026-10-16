@@ -86,7 +86,7 @@ const DEFAULT_RETRYABLE_ERRORS = ["TIMEOUT", "NETWORK", "UNAVAILABLE", "BROWSER_
 
 function inferRiskLevel(name: string): ToolRiskLevel {
   const value = name.toLowerCase();
-  if (/(shutdown|restart|power|delete|closeall|permanent|credentialremove)/.test(value)) return "DESTRUCTIVE_SYSTEM";
+  if (/(shutdown|restart|power|delete|closeall|permanent|credential|runpython|stopprocess|saravoiceexecutecommand)/.test(value)) return "DESTRUCTIVE_SYSTEM";
   if (/(send|reply|upload|submit|publish|purchase|payment|email|whatsapp)/.test(value)) return "EXTERNAL_SIDE_EFFECT";
   if (/(create|write|copy|move|rename|save|fill|type|click|press|volume|brightness|open|launch)/.test(value)) return "REVERSIBLE_WRITE";
   return "READ_ONLY";

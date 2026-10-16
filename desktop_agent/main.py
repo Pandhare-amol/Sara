@@ -2,7 +2,9 @@
 SARA Desktop Control Agent â€” FastAPI entrypoint.
 
 Single dispatch endpoint POST /execute { tool, args } -> { result } | { error }.
-SARA's Node bridge (server.ts) calls this over HTTP on 127.0.0.1:8765.
+SARA's Node bridge (server.ts) calls this over HTTP on 127.0.0.1:8765. The
+backend and agent must share SARA_AGENT_INTERNAL_TOKEN for control routes;
+without it, only local /health liveness is available.
 
 Run:
     uvicorn desktop_agent.main:app --host 127.0.0.1 --port 8765
@@ -21,7 +23,6 @@ import os
 import platform
 import sys
 import time
-import traceback
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict
@@ -30,6 +31,7 @@ from fastapi import FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from . import __version__
 from .identity_guard import agent_route_allowed, protected_mode_active
@@ -93,20 +95,25 @@ app.add_middleware(
 )
 
 
+AGENT_AUTH_PROTOCOL_VERSION = 1
+
+
 @app.middleware("http")
-async def require_remote_agent_token(request: Request, call_next):
-    # A companion device token or loopback client does not identify a person.
-    # Until signed per-user capabilities reach this dispatch boundary, lock ALL
-    # agent actions and data (including direct /execute) while multi-user mode
-    # is active. Health is the only intentionally public route.
+async def require_agent_token(request: Request, call_next):
+
+    # A companion token or loopback connection does not authenticate a person.
+    # Until per-user permissions reach this dispatch boundary, deny all agent
+    # action/data routes in protected mode. Stop visual access even on health.
     if protected_mode_active():
-        # Even /health triggers stop after account protection activates.
         from .visual_access import VISUAL_ACCESS
         from .screen_monitor import SCREEN_MONITOR
         from .visual_actions import VISUAL_ACTIONS
         VISUAL_ACCESS.force_revoke()
         SCREEN_MONITOR.stop()
         VISUAL_ACTIONS.cancel_all()
+    # Preflights cannot execute tools; let CORSMiddleware answer them.
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if not agent_route_allowed(request.url.path):
         return JSONResponse(status_code=403, content={"ok": False, "error": "Desktop agent is locked in multi-user mode until per-user authorization is integrated."})
     peer = request.client.host if request.client else ""
@@ -116,15 +123,26 @@ async def require_remote_agent_token(request: Request, call_next):
         # Starlette's in-process TestClient uses this non-network sentinel.
         is_local = peer.lower() in {"localhost", "testclient"}
 
-    if not is_local:
+    # Keep a minimal local liveness probe available to the supervisor. All
+    # control, diagnostics, tool-list, browser, and companion routes are gated.
+    if is_local and request.method in {"GET", "HEAD"} and request.url.path == "/health":
+        return await call_next(request)
+
+    authorization = request.headers.get("authorization", "")
+    bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    provided = bearer or request.headers.get("x-sara-agent-token", "")
+
+    if is_local:
+        expected = os.environ.get("SARA_AGENT_INTERNAL_TOKEN", "")
+        error = "Local desktop-agent access requires a valid internal token."
+    else:
         expected = os.environ.get("SARA_AGENT_ACCESS_TOKEN") or os.environ.get("SARA_REMOTE_ACCESS_TOKEN") or ""
-        authorization = request.headers.get("authorization", "")
-        bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
-        provided = bearer or request.headers.get("x-sara-agent-token", "")
+        error = "Remote desktop-agent access requires a valid token."
         if request.url.scheme != "https":
             return JSONResponse(status_code=403, content={"ok": False, "error": "Remote desktop-agent access requires HTTPS."})
-        if len(expected) < 32 or not provided or not hmac.compare_digest(expected.encode(), provided.encode()):
-            return JSONResponse(status_code=401, content={"ok": False, "error": "Remote desktop-agent access requires a valid token."})
+
+    if len(expected.encode("utf-8")) < 32 or not provided or not hmac.compare_digest(expected.encode("utf-8"), provided.encode("utf-8")):
+        return JSONResponse(status_code=401, content={"ok": False, "error": error})
 
     return await call_next(request)
 
@@ -165,7 +183,7 @@ def _canonical_result(
     status = "FAILED" if failed else "SUCCESS" if verified else "UNCERTAIN"
     operation_id = str(payload.get("operation_id") or payload.get("operationId") or args.get("operation_id") or f"{tool}-{uuid.uuid4().hex[:12]}")
     request_id = payload.get("request_id") or payload.get("requestId") or args.get("request_id") or args.get("requestId")
-    task_id = payload.get("task_id") or payload.get("taskId") or args.get("task_id") or args.get("taskId")
+    task_id = payload.get("task_id") or payload.get("taskId") or args.get("task_id") or args.get("taskId") or args.get("automation_task_id")
     correlation_id = payload.get("correlation_id") or payload.get("correlationId") or args.get("correlation_id") or args.get("correlationId")
     error_details = None
     if failed:
@@ -205,11 +223,24 @@ def health() -> Dict[str, Any]:
         "status": "ok",
         "service": "sara-desktop-agent",
         "service_version": __version__,
+        "agent_auth_required": True,
+        "agent_auth_protocol_version": AGENT_AUTH_PROTOCOL_VERSION,
         "name": "SARA Desktop Control Agent",
         "version": __version__,
         "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
         "tools": sorted(TOOLS.keys()),
         "tool_count": len(TOOLS),
+    }
+
+
+@app.get("/auth/check")
+def authenticated_agent_check() -> Dict[str, Any]:
+    """Prove the caller possesses the configured agent token."""
+    return {
+        "ok": True,
+        "service": "sara-desktop-agent",
+        "agent_auth_required": True,
+        "agent_auth_protocol_version": AGENT_AUTH_PROTOCOL_VERSION,
     }
 
 
@@ -273,7 +304,9 @@ def orchestrator_status() -> Dict[str, Any]:
 
 @app.post("/orchestrator/emergency-stop")
 def orchestrator_emergency_stop() -> Dict[str, Any]:
-    return {"status": "ok", "result": MANAGER.emergency_stop()}
+    from .tools_multi_agent import request_emergency_stop
+
+    return {"status": "ok", "result": request_emergency_stop()}
 
 
 @app.post("/orchestrator/unload-idle")
@@ -337,7 +370,7 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
             tool=tool,
         )
 
-    log.info("EXEC tool=%s arg_keys=%s", tool, sorted(args.keys()))
+    log.info("EXEC tool=%s arg_keys=%s", tool, ",".join(sorted(str(key) for key in args.keys())))
 
     if tool not in TOOLS:
         known = ", ".join(sorted(TOOLS.keys()))
@@ -352,26 +385,24 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
     handler = TOOLS[tool]
     started_at = time.perf_counter()
     try:
-        # Office COM and file read-back can be slow. Do not block the FastAPI
-        # event loop (and therefore unrelated conversation/status requests).
-        if tool in {"saraDocumentCreate", "saraDocumentEdit", "saraDocumentInspect", "saraDocumentOpen",
-                    "saraVisualObserve", "saraVisualClick", "saraVisualDisplays",
-                    "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen", "detectUiElements"}:
-            out = await asyncio.to_thread(handler, args)
+        # Blocking desktop, Office COM and capture handlers must never stall
+        # unrelated conversation/status requests on the FastAPI event loop.
+        if inspect.iscoroutinefunction(handler):
+            out = await handler(args)
         else:
-            out = handler(args)
+            out = await run_in_threadpool(handler, args)
             if inspect.isawaitable(out):
                 out = await out
     except ToolError as e:
-        log.warning("ToolError in %s (details withheld from logs)", tool)
+        log.warning("ToolError in %s (type=%s; details withheld)", tool, type(e).__name__)
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=e.message, tool=tool)
-    except Exception:  # noqa: BLE001
-        log.error("Unhandled error in %s (details withheld from logs)", tool)
+    except Exception as e:  # noqa: BLE001
+        log.error("Unhandled error in %s (type=%s; details withheld)", tool, type(e).__name__)
         message = f"Internal error in {tool}."
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=message, tool=tool)
 
-    # Never print handler output; page text, clipboard data or model replies can
-    # contain secrets. A returned payload is not itself verified success.
+    # Neither arguments nor handler output should be copied into runtime logs.
+    # A returned payload alone is not independently verified completion.
     log.info("DONE tool=%s status=returned", tool)
     canonical = _canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000))
     return ExecuteResponse(ok=not (isinstance(out, dict) and out.get("ok") is False), result=out, canonical=canonical, tool=tool)
@@ -435,18 +466,6 @@ def companion_result(payload: Dict[str, Any]) -> JSONResponse:
     ANDROID_COMPANION_MANAGER.mark_command_done(device_id, command_id)
     return JSONResponse(status_code=200, content={"ok": True, "result": {"device_id": device_id, "command_id": command_id}})
 
-
-def _short_args(args: Dict[str, Any]) -> str:
-    """Compact, log-safe representation of args (truncate long values)."""
-    parts = []
-    for k, v in args.items():
-        if any(secret in str(k).lower() for secret in ("password", "token", "secret", "clipboard", "text")):
-            v = "[SENSITIVE CONTENT REDACTED]"
-        s = repr(v)
-        if len(s) > 60:
-            s = s[:60] + "â€¦"
-        parts.append(f"{k}={s}")
-    return "{" + ", ".join(parts) + "}"
 
 
 def main() -> None:

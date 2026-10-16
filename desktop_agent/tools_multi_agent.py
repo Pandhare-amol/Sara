@@ -33,6 +33,16 @@ def sara_agent_unload_idle(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": MANAGER.unload_idle_agents(force=force)}
 
 
+def request_emergency_stop() -> Dict[str, Any]:
+    from .tools_background import BACKGROUND_TASKS
+
+    return {
+        "agent_orchestrator": MANAGER.emergency_stop(),
+        "background_tasks": BACKGROUND_TASKS.emergency_stop(),
+        "message": "Queued work was cancelled. Multi-step workflows and background tasks received stop requests between tool calls; an already-running one-shot action may still finish. Inspect external state before retrying.",
+    }
+
+
 @register("saraAgentEmergencyStop")
 def sara_agent_emergency_stop(args: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": MANAGER.emergency_stop()}
+    return {"result": request_emergency_stop()}

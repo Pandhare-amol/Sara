@@ -1,4 +1,4 @@
-﻿"""Background task execution for SARA desktop tools.
+"""Background task execution for SARA desktop tools.
 
 This keeps the voice path responsive: long-running app/browser/agent work can run
 in a daemon worker while SARA accepts the next command.
@@ -30,6 +30,7 @@ class BackgroundTask:
     finished_at: Optional[float] = None
     label: str = ""
     cancel_requested: bool = False
+    auto_close_result: Any = None
 
 
 class BackgroundTaskManager:
@@ -69,7 +70,12 @@ class BackgroundTaskManager:
     def submit(self, tool: str, args: Dict[str, Any], label: str = "") -> Dict[str, Any]:
         if tool not in TOOLS:
             raise ToolError(f"Cannot run unknown tool in background: {tool}")
-        task = BackgroundTask(id=uuid.uuid4().hex, tool=tool, args=dict(args or {}), label=label or tool)
+        task_id = uuid.uuid4().hex
+        task_args = dict(args or {})
+        if tool in {"saraAppExecuteGoal", "saraVoiceExecuteCommand"}:
+            task_args.setdefault("automation_task_id", task_id)
+            task_args.setdefault("taskId", task_id)
+        task = BackgroundTask(id=task_id, tool=tool, args=task_args, label=label or tool)
         with self._lock:
             self._tasks[task.id] = task
             self._cancel_events[task.id] = threading.Event()
@@ -99,13 +105,48 @@ class BackgroundTaskManager:
             if task.status in {"completed", "failed", "cancelled"}:
                 return asdict(task)
             task.cancel_requested = True
-            task.status = "cancelled"
-            task.finished_at = time.time()
             event = self._cancel_events.get(task_id)
             if event:
                 event.set()
+            if task.status in {"running", "cancelling"}:
+                task.status = "cancelling"
+                task.error = "Cancellation requested; the current tool call may finish before it can stop."
+            else:
+                task.status = "cancelled"
+                task.finished_at = time.time()
             self._persist()
             return asdict(task)
+
+    def emergency_stop(self) -> Dict[str, Any]:
+        with self._lock:
+            targets = [
+                task.id for task in self._tasks.values()
+                if task.status in {"queued", "running", "cancelling"}
+            ]
+            queued: List[str] = []
+            running: List[str] = []
+            for task_id in targets:
+                task = self._tasks[task_id]
+                was_running = task.status in {"running", "cancelling"}
+                self.cancel(task_id)
+                (running if was_running else queued).append(task_id)
+            return {
+                "cancelled_queued_task_ids": queued,
+                "cancellation_requested_running_task_ids": running,
+                "active_tool_calls_may_finish": bool(running),
+            }
+
+    @staticmethod
+    def _has_verified_auto_close_request(value: Any, depth: int = 0) -> bool:
+        if depth > 5 or not isinstance(value, dict):
+            return False
+        if value.get("ok") is True and value.get("verified") is True and value.get("auto_close_after_task") is True:
+            return True
+        return any(
+            BackgroundTaskManager._has_verified_auto_close_request(child, depth + 1)
+            for child in value.values()
+            if isinstance(child, dict)
+        )
 
     def _run(self, task_id: str) -> None:
         with self._lock:
@@ -120,17 +161,55 @@ class BackgroundTaskManager:
                 raise ToolError("Background task cancelled before execution.")
             result = TOOLS[task.tool](task.args)
             with self._lock:
+                may_cleanup = not task.cancel_requested and not self._cancel_events[task_id].is_set()
+            auto_close_result = None
+            if self._has_verified_auto_close_request(result) and not may_cleanup:
+                auto_close_result = {
+                    "ok": False,
+                    "verified": False,
+                    "status": "left_open",
+                    "result": "Stop was requested before cleanup; the app was left open.",
+                }
+            elif may_cleanup and self._has_verified_auto_close_request(result):
+                close_tool = TOOLS.get("closeLaunchedApplications")
+                task_ref = str(task.args.get("automation_task_id") or task.args.get("taskId") or task_id)
+                try:
+                    if self._cancel_events[task_id].is_set():
+                        auto_close_result = {
+                            "ok": False,
+                            "verified": False,
+                            "status": "left_open",
+                            "result": "Stop was requested before cleanup; the app was left open.",
+                        }
+                    else:
+                        auto_close_result = close_tool({"automation_task_id": task_ref}) if close_tool else {
+                            "ok": False,
+                            "verified": False,
+                            "status": "left_open",
+                            "result": "Task-owned app cleanup is unavailable; the app was left open.",
+                        }
+                except Exception as exc:  # noqa: BLE001
+                    auto_close_result = {
+                        "ok": False,
+                        "verified": False,
+                        "status": "left_open",
+                        "result": f"Could not verify graceful app cleanup; the app was left open. {exc}",
+                    }
+            with self._lock:
                 if task.cancel_requested:
                     task.status = "cancelled"
+                    task.error = "Cancellation was requested while the tool was running. The tool returned; inspect any external effects before retrying."
                 else:
                     task.status = "completed"
                 task.result = result
+                task.auto_close_result = auto_close_result
                 task.finished_at = time.time()
                 self._persist()
         except Exception as exc:  # noqa: BLE001
             with self._lock:
                 if task.cancel_requested:
                     task.status = "cancelled"
+                    task.error = f"Cancellation was requested. Tool outcome may be incomplete or uncertain; review before retrying. {exc}"
                 else:
                     task.error = str(exc)
                     task.status = "failed"

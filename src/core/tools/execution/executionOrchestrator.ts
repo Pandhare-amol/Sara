@@ -61,9 +61,9 @@ export class ExecutionOrchestrator {
 
     this.toolRouter.ensureToolRegistered(tool);
 
-    // Tool arguments are untrusted model output. Only a server-side approval
-    // flow may populate options.policy; argument flags must never grant access.
-    const policy = this.policyEngine.evaluate(tool, args, this.toolRouter.registry, options.policy);
+    // Tool arguments are untrusted model/client input and cannot authorize themselves.
+    const policyContext = options.policy ?? {};
+    const policy = this.policyEngine.evaluate(tool, args, this.toolRouter.registry, policyContext);
     if (policy.decision !== "ALLOW") {
       const policyResult: UnifiedToolExecutionResult = {
         tool,
@@ -106,7 +106,7 @@ export class ExecutionOrchestrator {
           ...args,
           correlation_id: correlationId,
           tool_call_id: toolCallId,
-        }, options.policy),
+        }, policyContext),
         new Promise((_, reject) =>
           executionTimeout = setTimeout(
             () => reject(new Error(`Tool execution timeout after ${timeout}ms`)),

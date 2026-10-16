@@ -17,7 +17,13 @@
 import { spawn, execSync, ChildProcess } from "child_process";
 import path from "path";
 import http from "http";
+import net from "net";
 import fs from "fs";
+import {
+  ensureDesktopAgentInternalToken,
+  getDesktopAgentAuthHeaders,
+  hasAuthenticatedDesktopAgentProtocol,
+} from "../src/security/desktopAgentAuth.js";
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -50,7 +56,11 @@ export interface DesktopAgentStatus {
 
 interface HealthResponse {
   status: string;
-  tools_count?: number;
+  service?: string;
+  agent_auth_required?: boolean;
+  agent_auth_protocol_version?: number;
+  tools?: string[];
+  tool_count?: number;
   registered?: number;
   failed?: number;
   capabilities?: string[];
@@ -72,14 +82,6 @@ const CRITICAL_TOOLS = [
   "openApplication",
   "openWebsite",
   "desktopAgentDiagnostic",
-];
-
-const EXPECTED_CAPABILITIES = [
-  "python_runtime",
-  "fastapi_running",
-  "tool_registry_loaded",
-  "os_input_available",
-  "screenshot_available",
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -105,6 +107,7 @@ export class DesktopAgentController {
     this.port = port;
     this.pythonExePath = pythonExePath;
     this.projectRoot = projectRoot;
+    ensureDesktopAgentInternalToken(process.env);
     this.agentDir = path.join(projectRoot, "desktop_agent");
 
     this.status = {
@@ -134,128 +137,118 @@ export class DesktopAgentController {
     }
   }
 
-  /**
-   * Fetch health data from Desktop Agent
-   */
-  private async getHealthData(): Promise<HealthResponse | null> {
+  /** Read health and prove the shared token through a protected endpoint. */
+  private async requestJson(url: string, headers?: Record<string, string>): Promise<any | null> {
     return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        req.destroy();
-        resolve(null);
-      }, 5000);
-
-      const req = http.get(
-        `http://127.0.0.1:${this.port}/health`,
-        { timeout: 5000 },
-        (res) => {
-          clearTimeout(timeout);
-          let body = "";
-          res.on("data", (chunk) => {
-            body += chunk;
-          });
-          res.on("end", () => {
-            if (res.statusCode === 200) {
-              try {
-                const data = JSON.parse(body) as HealthResponse;
-                resolve(data);
-              } catch {
-                resolve(null);
-              }
-            } else {
-              resolve(null);
-            }
-          });
-        }
-      );
-
-      req.on("error", () => {
-        clearTimeout(timeout);
-        resolve(null);
+      let settled = false;
+      let body = "";
+      const finish = (value: any | null) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      const req = http.get(url, { headers, timeout: 5000 }, (res) => {
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => {
+          body += chunk;
+          if (body.length > 64 * 1024) {
+            req.destroy();
+            finish(null);
+          }
+        });
+        res.on("end", () => {
+          if (res.statusCode !== 200) return finish(null);
+          try { finish(JSON.parse(body)); } catch { finish(null); }
+        });
+        res.on("error", () => finish(null));
       });
-
+      req.on("error", () => finish(null));
       req.on("timeout", () => {
-        clearTimeout(timeout);
         req.destroy();
-        resolve(null);
+        finish(null);
       });
     });
   }
 
-  /**
-   * Verify Desktop Agent capabilities and tool registry
-   */
+  private async getHealthData(): Promise<HealthResponse | null> {
+    try {
+      const baseUrl = `http://127.0.0.1:${this.port}`;
+      const headers = getDesktopAgentAuthHeaders(baseUrl, process.env);
+      const health = await this.requestJson(`${baseUrl}/health`, headers) as HealthResponse | null;
+      if (health?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(health)) return null;
+      const auth = await this.requestJson(`${baseUrl}/auth/check`, headers);
+      if (auth?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(auth)) return null;
+      return health;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Verify the authenticated agent exposes the controller's required tools. */
   async verifyCapabilities(): Promise<boolean> {
     try {
       const health = await this.getHealthData();
       if (!health) {
-        this.status.lastError = "Health endpoint not responding";
+        this.status.lastError = "Authenticated agent health check did not verify";
         return false;
       }
 
-      // Check tool count
-      const toolsCount = health.tools_count || 0;
-      const registered = health.registered || 0;
-      const failed = health.failed || 0;
-
+      const tools = Array.isArray(health.tools) ? health.tools : [];
+      const toolsCount = Number(health.tool_count ?? tools.length);
+      const missing = CRITICAL_TOOLS.filter((tool) => !tools.includes(tool));
       this.status.toolsCount = toolsCount;
-      this.status.toolsRegistered = registered;
-      this.status.toolsFailed = failed;
-
-      if (toolsCount === 0) {
-        this.status.lastError = "No tools loaded";
-        return false;
-      }
-
-      if (failed > 0) {
-        this.status.lastError = `${failed} tool registration(s) failed`;
-        return false;
-      }
-
-      // Check capabilities
-      const caps = health.capabilities || [];
-      const hasCriticalCaps = EXPECTED_CAPABILITIES.every((cap) =>
-        caps.includes(cap)
-      );
-
-      if (!hasCriticalCaps) {
-        const missing = EXPECTED_CAPABILITIES.filter(
-          (cap) => !caps.includes(cap)
-        );
-        this.status.lastError = `Missing capabilities: ${missing.join(", ")}`;
-        return false;
-      }
-
-      this.status.capabilities = caps;
+      this.status.toolsRegistered = Number(health.registered ?? toolsCount);
+      this.status.toolsFailed = Number.isFinite(health.failed) ? Number(health.failed) : undefined;
+      this.status.capabilities = Array.isArray(health.capabilities) ? health.capabilities : [];
       this.status.pythonVersion = health.python_version;
-      this.status.criticalToolsPresent = true;
+      this.status.criticalToolsPresent = toolsCount > 0 && missing.length === 0;
 
-      // Check for critical tools (may not always be queryable)
-      // This is a heuristic check based on tool count
-      if (toolsCount >= CRITICAL_TOOLS.length) {
-        this.status.lastError = undefined;
-        return true;
-      } else {
-        this.status.lastError = `Insufficient tools: have ${toolsCount}, need at least ${CRITICAL_TOOLS.length}`;
+      if (!toolsCount) {
+        this.status.lastError = "No tools were reported by the authenticated agent health response";
         return false;
       }
+      if (missing.length > 0) {
+        this.status.lastError = `Missing critical tools: ${missing.join(", ")}`;
+        return false;
+      }
+      if ((this.status.toolsFailed || 0) > 0) {
+        this.status.lastError = `${this.status.toolsFailed} tool registration(s) failed`;
+        return false;
+      }
+
+      this.status.lastError = undefined;
+      return true;
     } catch (e) {
       this.status.lastError = `Capability check failed: ${e}`;
       return false;
     }
   }
 
-  /**
-   * Start the Desktop Agent
-   */
+  /** Start or adopt the agent only after authenticated protocol verification. */
   async start(): Promise<boolean> {
     console.log("[DesktopAgent] Starting...");
     this.status.state = "STARTING";
 
-    // Check if Python is available
-    if (!this.pythonExePath) {
-      this.pythonExePath = "python.exe";
+    const existing = await this.getHealthData();
+    if (existing) {
+      const verified = await this.verifyCapabilities();
+      if (verified) {
+        this.status.state = "HEALTHY";
+        console.log("[DesktopAgent] Adopted an authenticated agent channel.");
+        this.startHealthMonitoring();
+        return true;
+      }
+      this.status.state = "UNHEALTHY";
+      return false;
+    }
+    if (await this.isPortOccupied()) {
+      this.status.state = "FAILED";
+      this.status.lastError = "Agent port is occupied by a listener that failed authentication; it was left untouched.";
+      console.warn(`[DesktopAgent] ${this.status.lastError}`);
+      return false;
     }
 
+    if (!this.pythonExePath) this.pythonExePath = "python.exe";
     try {
       execSync(`where ${this.pythonExePath}`, { stdio: "ignore" });
     } catch {
@@ -265,7 +258,6 @@ export class DesktopAgentController {
       return false;
     }
 
-    // Check if agent directory exists
     if (!fs.existsSync(this.agentDir)) {
       this.status.state = "FAILED";
       this.status.lastError = `Agent directory not found: ${this.agentDir}`;
@@ -273,54 +265,49 @@ export class DesktopAgentController {
       return false;
     }
 
-    // Kill any existing process on port
-    this.killExistingProcess();
-
-    // Spawn the agent
     try {
-      this.process = spawn(this.pythonExePath, ["-m", "uvicorn", "desktop_agent.main:app", `--port`, String(this.port), "--host", "127.0.0.1"], {
+      this.process = spawn(this.pythonExePath, ["-m", "uvicorn", "desktop_agent.main:app", "--port", String(this.port), "--host", "127.0.0.1"], {
         cwd: this.projectRoot,
         stdio: "inherit",
         shell: false,
+        env: {
+          ...process.env,
+          SARA_AGENT_INTERNAL_TOKEN: process.env.SARA_AGENT_INTERNAL_TOKEN,
+          SARA_AGENT_PORT: String(this.port),
+        },
       });
 
       this.status.pid = this.process.pid;
       this.status.startedAt = new Date();
-
-      // Handle process events
       this.process.on("exit", (code) => {
         this.status.lastExitCode = code;
         this.handleCrash();
       });
-
       this.process.on("error", (err) => {
         this.status.lastError = err.message;
         this.handleCrash();
       });
 
-      // Wait for health
       const healthy = await this.waitForHealth(30000);
-
-      if (healthy) {
-        // Verify capabilities
-        const verified = await this.verifyCapabilities();
-        if (verified) {
-          this.status.state = "HEALTHY";
-          console.log(`[DesktopAgent] Started successfully (PID ${this.status.pid})`);
-          this.startHealthMonitoring();
-          return true;
-        } else {
-          this.status.state = "UNHEALTHY";
-          console.warn(`[DesktopAgent] Started but capabilities check failed`);
-          this.startHealthMonitoring(); // Still monitor
-          return false;
-        }
-      } else {
+      if (!healthy) {
         this.status.state = "FAILED";
-        this.status.lastError = "Health check timeout";
-        console.error(`[DesktopAgent] Health check timeout`);
+        this.status.lastError = "Authenticated health handshake timed out";
+        console.error(`[DesktopAgent] ${this.status.lastError}`);
         return false;
       }
+
+      const verified = await this.verifyCapabilities();
+      if (!verified) {
+        this.status.state = "UNHEALTHY";
+        console.warn("[DesktopAgent] Started but critical tool verification failed");
+        this.startHealthMonitoring();
+        return false;
+      }
+
+      this.status.state = "HEALTHY";
+      console.log(`[DesktopAgent] Started successfully (PID ${this.status.pid})`);
+      this.startHealthMonitoring();
+      return true;
     } catch (e) {
       this.status.state = "FAILED";
       this.status.lastError = String(e);
@@ -355,23 +342,19 @@ export class DesktopAgentController {
       this.status.lastHealthCheck = new Date();
 
       if (health) {
-        // Update tool info
-        this.status.toolsCount = health.tools_count;
-        this.status.toolsRegistered = health.registered;
-        this.status.toolsFailed = health.failed;
-
-        // Check if still healthy
-        if (this.status.state !== "HEALTHY" && this.status.toolsFailed === 0) {
+        const verified = await this.verifyCapabilities();
+        if (verified && this.status.state !== "HEALTHY") {
           this.status.state = "HEALTHY";
           this.status.lastError = undefined;
           console.log("[DesktopAgent] Recovered to HEALTHY");
-        }
-      } else {
-        if (this.status.state === "HEALTHY") {
+        } else if (!verified && this.status.state === "HEALTHY") {
           this.status.state = "UNHEALTHY";
-          this.status.lastError = "Health check failed";
-          console.warn("[DesktopAgent] Degraded to UNHEALTHY");
+          console.warn("[DesktopAgent] Critical tool verification failed");
         }
+      } else if (this.status.state === "HEALTHY") {
+        this.status.state = "UNHEALTHY";
+        this.status.lastError = "Authenticated health check failed";
+        console.warn("[DesktopAgent] Degraded to UNHEALTHY");
       }
     }, 10000); // Check every 10 seconds
   }
@@ -440,26 +423,21 @@ export class DesktopAgentController {
     return this.start();
   }
 
-  /**
-   * Kill any existing process on the Desktop Agent port
-   */
-  private killExistingProcess(): void {
-    try {
-      const output = execSync(`netstat -ano -p TCP`, {
-        stdio: ["ignore", "pipe", "ignore"],
-      }).toString();
-
-      for (const line of output.split("\n")) {
-        const match = line.match(/:(\d+)\s+\S+\s+LISTEN\s+(\d+)/);
-        if (match && parseInt(match[1], 10) === this.port) {
-          const pid = parseInt(match[2], 10);
-          try {
-            execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
-            console.log(`[DesktopAgent] Killed existing process PID ${pid}`);
-          } catch {}
-        }
-      }
-    } catch {}
+  /** Never terminate an unverified listener; only report whether the port is occupied. */
+  private isPortOccupied(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host: "127.0.0.1", port: this.port });
+      let settled = false;
+      const finish = (occupied: boolean) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolve(occupied);
+      };
+      socket.once("connect", () => finish(true));
+      socket.once("error", () => finish(false));
+      socket.setTimeout(1000, () => finish(false));
+    });
   }
 
   /**

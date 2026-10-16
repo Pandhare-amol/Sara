@@ -27,6 +27,7 @@ test("approved memory validation, SQLite migration, retrieval, expiry, edits and
     await store.saveMemories([legacy]);
     assert.equal((await store.loadMemories())[0].approvedByUser, false);
     assert.equal(retrieveApprovedMemories(await store.loadMemories(), "private project").length, 0);
+    assert.equal((await store.searchMemories("private project")).length, 0, "conversational search cannot expose migrated records");
 
     const approved = createApprovedMemory({ category: "project", text: "Work on the orchard project", approvedByUser: false, source: "external_research" });
     assert.equal(approved.approvedByUser, true);
@@ -35,6 +36,7 @@ test("approved memory validation, SQLite migration, retrieval, expiry, edits and
     const loaded = await store.loadMemories();
     assert.equal(loaded.length, 2);
     assert.deepEqual(retrieveApprovedMemories(loaded, "orchard project").map((m) => m.id), [approved.id]);
+    assert.deepEqual((await store.searchMemories("orchard project")).map((m) => m.id), [approved.id]);
     assert.equal(retrieveApprovedMemories(loaded, "weather forecast").length, 0);
     assert.match(store.formatSystemInstructionsWithMemories("Instructions", loaded), /orchard project/);
     assert.doesNotMatch(store.formatSystemInstructionsWithMemories("Instructions", loaded), /old private project/);
@@ -74,6 +76,15 @@ test("explicit memory command requires remember, does not store secrets, and for
   assert.equal(result.forgotten, true);
   assert.deepEqual((await store.loadMemories()).map((m) => m.key), ["city"]);
   await store.saveMemories([]);
+});
+
+test("explicit forget reaches unapproved legacy records without exposing them to conversational search", async () => {
+  const now = new Date().toISOString();
+  await store.saveMemories([{ id: "legacy-name", category: "identity", key: "name", text: "old name", createdAt: now, updatedAt: now,
+    source: "historical_memory", verificationStatus: "verified", approvedByUser: false }]);
+  assert.equal((await store.searchMemories("name")).length, 0);
+  assert.equal((await handleLocalMemoryCommand("Forget my name")).forgotten, true);
+  assert.equal((await store.loadMemories()).length, 0);
 });
 
 test("truth context never elevates unapproved, expired, or contradicted legacy memory", () => {

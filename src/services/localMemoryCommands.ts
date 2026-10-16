@@ -1,5 +1,6 @@
 import { getMemoryRepository, type MemoryRecord } from "./MemoryRepository";
 import { createApprovedMemory } from "../core/memory/approvedMemory";
+import { loadMemories } from "../../server_memory";
 
 export interface LocalMemoryCommandResult {
   handled: boolean;
@@ -32,8 +33,11 @@ export async function handleLocalMemoryCommand(text: string): Promise<LocalMemor
   const forgetMatch = normalized.match(/^forget\s+(?:that\s+)?(?:my\s+)?(name|age|city|preference|project)\b/i);
   if (forgetMatch) {
     const key = forgetMatch[1].toLowerCase();
-    const matches = await getMemoryRepository().searchMemory(key, 20);
-    const candidates = matches.filter((memory) => memory.key === key || (!memory.key && memory.category === key));
+    // Explicit forget must also reach older, unapproved records that are
+    // deliberately excluded from conversational search results.
+    const candidates = (await loadMemories()).filter((memory) =>
+      memory.source !== "external_research" &&
+      (memory.key === key || (!memory.key && memory.category === key)));
     await Promise.all(candidates.map((memory) => getMemoryRepository().deleteMemory(memory.id)));
     return {
       handled: true,

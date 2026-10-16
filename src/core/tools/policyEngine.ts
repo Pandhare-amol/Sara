@@ -3,6 +3,7 @@ import type { ToolMetadata, ToolRegistry, ToolRiskLevel } from "./toolRegistry";
 export type PolicyDecision = "ALLOW" | "ASK_USER" | "DENY";
 
 export interface PolicyContext {
+  /** Internal server context only; never derive these fields from tool arguments. */
   context?: string;
   confirmed?: boolean;
   authorized?: boolean;

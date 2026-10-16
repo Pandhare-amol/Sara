@@ -365,6 +365,16 @@ export class SaraAudioSession {
             return;
           }
 
+          if (data.type === "confirmation_required") {
+            window.dispatchEvent(new CustomEvent("sara.confirmationRequired", { detail: data }));
+            return;
+          }
+
+          if (data.type === "global_notification") {
+            window.dispatchEvent(new CustomEvent("sara.globalNotification", { detail: { ...data, source: data.source || "automation" } }));
+            return;
+          }
+
           // Root Error Handler message
           if (data.type === "error") {
             this.onError(data.error);
@@ -451,6 +461,9 @@ export class SaraAudioSession {
           if (typeof data.type === "string" &&
               (data.type.startsWith("automation:") || data.type === "RECOVERY_PAUSED") && this.onAutomationEvent) {
             this.onAutomationEvent(data);
+          }
+          if (data.type === "task:completed" && this.onAutomationEvent) {
+            this.onAutomationEvent({ type: "automation:completed", task: data.task });
           }
 
           if (data.type === "vision_action") {

@@ -23,6 +23,17 @@ Emotion = Literal["happy", "sad", "angry", "frustrated", "confused", "excited", 
 ConversationState = Literal["IDLE", "LISTENING", "THINKING", "RESPONDING", "CASUAL_CHAT", "HELPING", "EMOTIONAL_SUPPORT", "PLAYFUL", "PRANK", "QUIET", "INTERRUPTED"]
 
 
+def _normalize_clock(value: Any, default: str) -> str:
+    try:
+        hour_text, minute_text = str(value).split(":", 1)
+        hour, minute = int(hour_text), int(minute_text)
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return f"{hour:02d}:{minute:02d}"
+    except (TypeError, ValueError):
+        pass
+    return default
+
+
 @dataclass
 class Personality:
     friendliness: float = 0.85
@@ -39,6 +50,7 @@ class Personality:
 @dataclass
 class SocialSettings:
     proactive_conversation: bool = False
+    voice_initiation_enabled: bool = False
     smart_interruption: bool = False
     humor: bool = True
     playful_mode: bool = False
@@ -48,8 +60,32 @@ class SocialSettings:
     ai_perspective: bool = True
     quiet_mode: bool = False
     interruption_permission: bool = False
-    conversation_cooldown: int = 1800
+    conversation_cooldown: int = 2700
+    max_proactive_conversations_per_day: int = 3
+    quiet_hours_enabled: bool = True
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "08:00"
     personality: Personality = field(default_factory=Personality)
+
+    def __post_init__(self) -> None:
+        try:
+            self.conversation_cooldown = max(0, int(self.conversation_cooldown))
+        except (TypeError, ValueError):
+            self.conversation_cooldown = 2700
+        try:
+            self.max_proactive_conversations_per_day = max(0, int(self.max_proactive_conversations_per_day))
+        except (TypeError, ValueError):
+            self.max_proactive_conversations_per_day = 3
+        if isinstance(self.voice_initiation_enabled, str):
+            self.voice_initiation_enabled = self.voice_initiation_enabled.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            self.voice_initiation_enabled = bool(self.voice_initiation_enabled)
+        if isinstance(self.quiet_hours_enabled, str):
+            self.quiet_hours_enabled = self.quiet_hours_enabled.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            self.quiet_hours_enabled = bool(self.quiet_hours_enabled)
+        self.quiet_hours_start = _normalize_clock(self.quiet_hours_start, "22:00")
+        self.quiet_hours_end = _normalize_clock(self.quiet_hours_end, "08:00")
 
 
 @dataclass
@@ -69,6 +105,7 @@ class SocialIntelligence:
         self._topic = ""
         self._last_turn_at = 0.0
         self._interaction_count = 0
+        self._proactive_prompt_counter = 0
         self._load_environment()
         self._load()
 
@@ -108,8 +145,13 @@ class SocialIntelligence:
             cooldown = max(0, int(os.environ.get("CONVERSATION_COOLDOWN", self._settings.conversation_cooldown)))
         except (TypeError, ValueError):
             cooldown = self._settings.conversation_cooldown
+        try:
+            max_per_day = int(os.environ.get("MAX_PROACTIVE_CONVERSATIONS_PER_DAY", self._settings.max_proactive_conversations_per_day))
+        except (TypeError, ValueError):
+            max_per_day = self._settings.max_proactive_conversations_per_day
         self._settings = SocialSettings(
             proactive_conversation=flag("PROACTIVE_CONVERSATION", self._settings.proactive_conversation),
+            voice_initiation_enabled=flag("VOICE_INITIATION_ENABLED", self._settings.voice_initiation_enabled),
             smart_interruption=flag("SMART_INTERRUPTION", self._settings.smart_interruption),
             humor=flag("HUMOR", self._settings.humor),
             playful_mode=flag("PLAYFUL_MODE", self._settings.playful_mode),
@@ -119,6 +161,10 @@ class SocialIntelligence:
             quiet_mode=flag("QUIET_MODE", self._settings.quiet_mode),
             interruption_permission=self._settings.interruption_permission,
             conversation_cooldown=cooldown,
+            max_proactive_conversations_per_day=max_per_day,
+            quiet_hours_enabled=flag("QUIET_HOURS_ENABLED", self._settings.quiet_hours_enabled),
+            quiet_hours_start=os.environ.get("QUIET_HOURS_START", self._settings.quiet_hours_start),
+            quiet_hours_end=os.environ.get("QUIET_HOURS_END", self._settings.quiet_hours_end),
             ai_perspective=self._settings.ai_perspective,
             personality=self._settings.personality,
         )
@@ -136,6 +182,7 @@ class SocialIntelligence:
         with self._lock:
             aliases = {
                 "proactiveConversation": "proactive_conversation",
+                "voiceInitiationEnabled": "voice_initiation_enabled",
                 "smartInterruption": "smart_interruption",
                 "playfulMode": "playful_mode",
                 "prankMode": "prank_mode",
@@ -143,15 +190,34 @@ class SocialIntelligence:
                 "conversationMemory": "conversation_memory",
                 "aiPerspective": "ai_perspective",
                 "quietMode": "quiet_mode",
+                "quietHoursEnabled": "quiet_hours_enabled",
+                "maxProactiveConversationsPerDay": "max_proactive_conversations_per_day",
+                "quietHoursStart": "quiet_hours_start",
+                "quietHoursEnd": "quiet_hours_end",
                 "interruptionPermission": "interruption_permission",
             }
-            for key in ("proactive_conversation", "smart_interruption", "humor", "playful_mode", "prank_mode", "emotion_awareness", "conversation_memory", "ai_perspective", "quiet_mode", "interruption_permission"):
+            for key in ("proactive_conversation", "voice_initiation_enabled", "smart_interruption", "humor", "playful_mode", "prank_mode", "emotion_awareness", "conversation_memory", "ai_perspective", "quiet_mode", "quiet_hours_enabled", "interruption_permission"):
                 source_key = next((candidate for candidate, target in aliases.items() if target == key), key)
                 if source_key in patch:
                     setattr(self._settings, key, bool(patch[source_key]))
             cooldown = patch.get("conversation_cooldown", patch.get("conversationCooldown"))
             if cooldown is not None:
-                self._settings.conversation_cooldown = max(0, int(cooldown))
+                try:
+                    self._settings.conversation_cooldown = max(0, int(cooldown))
+                except (TypeError, ValueError):
+                    pass
+            max_per_day = patch.get("max_proactive_conversations_per_day", patch.get("maxProactiveConversationsPerDay"))
+            if max_per_day is not None:
+                try:
+                    self._settings.max_proactive_conversations_per_day = max(0, int(max_per_day))
+                except (TypeError, ValueError):
+                    pass
+            quiet_hours_start = patch.get("quiet_hours_start", patch.get("quietHoursStart"))
+            if quiet_hours_start is not None:
+                self._settings.quiet_hours_start = _normalize_clock(quiet_hours_start, self._settings.quiet_hours_start)
+            quiet_hours_end = patch.get("quiet_hours_end", patch.get("quietHoursEnd"))
+            if quiet_hours_end is not None:
+                self._settings.quiet_hours_end = _normalize_clock(quiet_hours_end, self._settings.quiet_hours_end)
             personality = patch.get("personality")
             if isinstance(personality, dict):
                 for key in Personality.__dataclass_fields__:
@@ -220,18 +286,88 @@ class SocialIntelligence:
                 "response_style": "supportive" if serious else "casual" if casual else "clear",
             }
 
+    def _proactive_memory_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Attach at most one safe, locally retrieved memory to an idle check-in."""
+        enriched = dict(context)
+        privacy = str(enriched.get("privacy_level") or "").upper()
+        if not self._settings.conversation_memory or enriched.get("do_not_store") or privacy in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"}:
+            enriched.pop("relevant_memory", None)
+            return enriched
+
+        sensitive = re.compile(r"\b(password|passcode|token|api[ -]?key|secret|medical|health|diagnos(?:is|e)|doctor|therapy|medication|bank|credit card|\bssn\b|passport|tax|account number)\b", re.IGNORECASE)
+        query = str(enriched.get("unfinished_topic") or enriched.get("recent_user_message") or enriched.get("previous_topic") or "").strip()
+        if sensitive.search(query):
+            enriched.pop("relevant_memory", None)
+            return enriched
+
+        try:
+            if query:
+                candidates = MEMORY.search(query, limit=12)
+            else:
+                candidates = [asdict(item) if hasattr(item, "__dataclass_fields__") else dict(item) for item in getattr(MEMORY, "items", [])]
+                candidates.sort(key=lambda item: float(item.get("updated_at", item.get("updatedAt", 0)) or 0), reverse=True)
+        except Exception:
+            candidates = []
+
+        recent_topics = PROACTIVE_ENGINE.snapshot().get("recent_proactive_topics", [])
+        recent_tokens = [set(re.findall(r"[a-z0-9]{4,}", str(value).lower())) for value in recent_topics]
+        selected = ""
+        for item in candidates:
+            if not isinstance(item, dict):
+                continue
+            content = str(item.get("content") or "").strip()
+            metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+            kind = str(item.get("kind") or "").lower()
+            item_privacy = str(metadata.get("privacy_level") or metadata.get("privacy") or "").upper()
+            if not content or kind in {"secret", "credential", "password", "health", "medical"}:
+                continue
+            if item_privacy in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"} or metadata.get("do_not_store") or sensitive.search(content):
+                continue
+            score = item.get("score")
+            if query and score is not None:
+                try:
+                    if float(score) <= 0:
+                        continue
+                except (TypeError, ValueError):
+                    continue
+            tokens = set(re.findall(r"[a-z0-9]{4,}", content.lower()))
+            if not enriched.get("unfinished_topic") and tokens and any(
+                len(tokens & previous) / max(1, len(tokens | previous)) >= 0.5 for previous in recent_tokens if previous
+            ):
+                continue
+            selected = content[:320]
+            break
+
+        if selected:
+            enriched["relevant_memory"] = selected
+        else:
+            enriched.pop("relevant_memory", None)
+        return enriched
+
     def should_respond(self, context: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
             if not self._settings.proactive_conversation:
                 return {"action": "WAIT", "reason": "proactive_conversation_disabled", "relevance": 0.0, "confidence": 1.0}
+            if not self._settings.voice_initiation_enabled:
+                return {"action": "WAIT", "reason": "voice_initiation_disabled", "relevance": 0.0, "confidence": 1.0}
             if self._settings.quiet_mode:
                 return {"action": "WAIT", "reason": "quiet_mode", "relevance": 0.0, "confidence": 1.0}
             last_spoken = float(context.get("last_sara_spoke_at") or 0)
             cooldown_left = max(0.0, self._settings.conversation_cooldown - (time.time() - last_spoken)) if last_spoken else 0.0
             if cooldown_left > 0 and not context.get("important_event"):
                 return {"action": "WAIT", "reason": "conversation_cooldown", "cooldown_seconds": round(cooldown_left, 1), "relevance": 0.0, "confidence": 1.0}
+            context = self._proactive_memory_context(context)
+            policy_context = {
+                **context,
+                "quiet_mode": self._settings.quiet_mode,
+                "conversation_cooldown_seconds": self._settings.conversation_cooldown,
+                "max_proactive_conversations_per_day": self._settings.max_proactive_conversations_per_day,
+                "quiet_hours_enabled": self._settings.quiet_hours_enabled,
+                "quiet_hours_start": self._settings.quiet_hours_start,
+                "quiet_hours_end": self._settings.quiet_hours_end,
+            }
             try:
-                evaluation = PROACTIVE_ENGINE.evaluate(context)
+                evaluation = PROACTIVE_ENGINE.evaluate(policy_context)
             except Exception:
                 return {"action": "WAIT", "reason": "proactive_policy_unavailable", "relevance": 0.0, "confidence": 1.0}
             relevance = float(evaluation.get("conversation_score", 0.0))
@@ -242,9 +378,30 @@ class SocialIntelligence:
                 return {"action": "WAIT", "reason": "smart_interruption_disabled", "relevance": relevance, "confidence": confidence}
             if evaluation.get("action") in {"ASK", "SAY"} and confidence >= 0.6:
                 topic = evaluation.get("topic") or {}
-                topic_text = str(topic.get("topic") or context.get("current_task") or "your work").strip()
-                prompt = f"You have been working on {topic_text}. Want to continue, or should I help with the next step?" if context.get("user_busy") else f"I have context about {topic_text}. Would you like to pick that up?"
-                return {"action": evaluation["action"], "response_type": "proactive_help", "reason": evaluation.get("reason"), "relevance": relevance, "confidence": confidence, "topic": topic, "suggested_prompt": prompt}
+                topic_text = str(topic.get("topic") or context.get("relevant_memory") or "").strip()
+                if not topic_text:
+                    return {"action": "WAIT", "reason": "no_grounded_topic", "relevance": relevance, "confidence": confidence}
+                prompts = (
+                    "How has {topic} been going since we last talked?",
+                    "What's the latest with {topic}—anything you'd like to explore?",
+                    "Has anything changed around {topic} since we last talked?",
+                    "What feels like the next helpful step with {topic}?",
+                    "What part of {topic} is on your mind today?",
+                )
+                prompt = prompts[self._proactive_prompt_counter % len(prompts)].format(topic=topic_text[:120])
+                self._proactive_prompt_counter += 1
+                return {"action": evaluation["action"], "response_type": "proactive_check_in", "reason": evaluation.get("reason"), "relevance": relevance, "confidence": confidence, "topic": topic, "suggested_prompt": prompt}
+            policy_reason = evaluation.get("policy_reason")
+            if policy_reason:
+                return {
+                    "action": "WAIT",
+                    "reason": policy_reason,
+                    "cooldown_seconds": evaluation.get("cooldown_seconds", 0),
+                    "daily_count": evaluation.get("daily_count", 0),
+                    "daily_limit": evaluation.get("daily_limit", self._settings.max_proactive_conversations_per_day),
+                    "relevance": relevance,
+                    "confidence": confidence,
+                }
             return {"action": "WAIT", "reason": "low_confidence_or_cooldown", "relevance": relevance, "confidence": confidence}
 
     def record_turn(self, text: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:

@@ -66,18 +66,16 @@ export function WhatsAppPanel({ onClose }: { onClose?: () => void }) {
     sendLocks.current.add(key);
     setSending((current) => ({ ...current, [key]: true }));
     try {
-      const approved = window.confirm(
-        `Send this WhatsApp message now?\n\nRecipient: +${recipient}\n\nExact message:\n${exactMessage}`,
-      );
-      if (!approved) return;
-
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: recipient, text: exactMessage, confirmed: true }),
+        body: JSON.stringify({ to: recipient, text: exactMessage }),
       });
       const data = await res.json();
-      if (res.ok && data?.ok) {
+      if (res.status === 202 && data?.status === 'awaiting_confirmation') {
+        window.dispatchEvent(new CustomEvent('sara.confirmationRequired', { detail: { action: 'whatsapp_send', taskId: data?.task?.taskId } }));
+        window.alert('Nothing has been sent yet. Review the exact recipient and message in Pending approvals, then approve it there.');
+      } else if (res.ok && data?.ok) {
         await load();
       } else {
         window.alert(data?.error || 'WhatsApp message was not sent.');

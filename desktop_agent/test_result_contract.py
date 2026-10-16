@@ -31,6 +31,16 @@ class ResultContractTest(unittest.TestCase):
         self.assertTrue(result["verified"])
         self.assertEqual(result["operation_id"], "op-1")
 
+    def test_task_scoped_app_result_preserves_automation_task_id_and_verification(self):
+        result = _canonical_result(
+            "saraAppExecuteGoal",
+            {"ok": True, "verified": True, "auto_close_after_task": True, "result": "Task completed."},
+            args={"automation_task_id": "task-auto-close-1"},
+        )
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["task_id"], "task-auto-close-1")
+
     def test_failure_contains_structured_error(self):
         result = _canonical_result("readFile", error="File does not exist.", args={"request_id": "req-2"})
         self.assertFalse(result["ok"])

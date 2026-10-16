@@ -10,6 +10,7 @@ import { FilesystemVerifier } from "./verification/filesystemVerifier";
 import { DocumentVerifier } from "./verification/documentVerifier";
 import { WindowVerifier } from "./verification/windowVerifier";
 import { ScreenVerifier } from "./verification/screenVerifier";
+import { getDesktopAgentAuthHeaders } from "../../security/desktopAgentAuth";
 
 let orchestrator: ExecutionOrchestrator | null = null;
 
@@ -40,7 +41,7 @@ export function initializeToolExecution(
   const documentVerifier = new DocumentVerifier(async (tool, args) => {
     const response = await fetch(`${desktopAgentUrl}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getDesktopAgentAuthHeaders(desktopAgentUrl, process.env, "application/json"),
       body: JSON.stringify({ tool, args }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -57,6 +58,7 @@ export function initializeToolExecution(
   const windowVerifier = new WindowVerifier(desktopAgentUrl);
   verificationRegistry.registerVerifier("window", windowVerifier);
   verificationRegistry.mapToolToVerifier("openApplication", ["window"]);
+  verificationRegistry.mapToolToVerifier("closeApplication", ["window"]);
   verificationRegistry.mapToolToVerifier("closeWindow", ["window"]);
   verificationRegistry.mapToolToVerifier("focusWindow", ["window"]);
   verificationRegistry.mapToolToVerifier("minimizeWindow", ["window"]);
@@ -75,6 +77,66 @@ export function initializeToolExecution(
   verificationRegistry.mapToolToVerifier("youtube_play", ["screen"]);
   verificationRegistry.mapToolToVerifier("youtube_resume", ["screen"]);
   verificationRegistry.mapToolToVerifier("youtube_pause", ["screen"]);
+
+  // App automation emits explicit, task-level ok/verified fields from its
+  // action-specific verifier. Require both before treating the tool call as
+  // verified; launching or focusing an app alone is not enough for auto-close.
+  verificationRegistry.registerVerifier("application", {
+    canVerify: (tool) => ["saraAppExecuteGoal", "saraVoiceExecuteCommand", "closeLaunchedApplications"].includes(tool),
+    verify: async (_tool, _args, executionResult) => {
+      const outer = executionResult && typeof executionResult === "object"
+        ? executionResult as Record<string, unknown>
+        : {};
+      const payload = outer.data && typeof outer.data === "object"
+        ? outer.data as Record<string, unknown>
+        : outer;
+      const actionOk = payload.ok === true;
+      const actionVerified = payload.verified === true;
+      const verified = actionOk && actionVerified;
+      return {
+        verified,
+        method: "application",
+        checks: [
+          { name: "application_action_returned_ok", passed: actionOk },
+          { name: "application_action_explicitly_verified", passed: actionVerified },
+        ],
+        details: verified
+          ? "The application suite reported an explicitly verified successful action."
+          : "The application suite did not report both ok:true and verified:true for the requested action.",
+        confidence: verified ? 1 : 0,
+      };
+    },
+  });
+  verificationRegistry.mapToolToVerifier("saraAppExecuteGoal", ["application"]);
+  verificationRegistry.mapToolToVerifier("saraVoiceExecuteCommand", ["application"]);
+  verificationRegistry.mapToolToVerifier("closeLaunchedApplications", ["application"]);
+
+  verificationRegistry.registerVerifier("safety", {
+    canVerify: (tool) => tool === "saraAgentEmergencyStop",
+    verify: async (_tool, _args, executionResult) => {
+      const outer = executionResult && typeof executionResult === "object"
+        ? executionResult as Record<string, unknown>
+        : {};
+      const payload = outer.data && typeof outer.data === "object"
+        ? outer.data as Record<string, unknown>
+        : outer;
+      const accepted = payload.ok === true && payload.status === "stop_requested";
+      return {
+        verified: accepted,
+        method: "safety",
+        checks: [{
+          name: "emergency_stop_request_acknowledged",
+          passed: accepted,
+          reason: accepted ? undefined : "The coordinator did not acknowledge the stop request.",
+        }],
+        details: accepted
+          ? "The coordinator accepted the stop request. An already-running one-shot action may still finish."
+          : "The coordinator did not acknowledge the stop request.",
+        confidence: accepted ? 1 : 0,
+      };
+    },
+  });
+  verificationRegistry.mapToolToVerifier("saraAgentEmergencyStop", ["safety"]);
 
   // Create execution orchestrator
   orchestrator = new ExecutionOrchestrator(toolRouter, verificationRegistry);

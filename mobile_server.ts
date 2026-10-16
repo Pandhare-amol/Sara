@@ -12,6 +12,7 @@ import { createApprovedMemory, retrieveApprovedMemories, reviseApprovedMemory } 
 import { DATA_DIR, dataFile, getGeminiApiKey, hasGeminiApiKey, setGeminiApiKey } from "./server_paths";
 import { MultiUserStore } from "./src/security/multiUserStore";
 import { Memory } from "./src/lib/memoryTypes";
+import { SARA_VOICE_PROFILE } from "./src/config/saraProfile";
 import {
   constantTimeStringEqual,
   isHostAllowed,
@@ -24,12 +25,12 @@ import {
 dotenv.config();
 
 const textModels = createTextModelRouter(getGeminiApiKey);
-const PORT = Number(process.env.MOBILE_SERVER_PORT || 3001);
+const PORT = Number(process.env.MOBILE_SERVER_PORT || 3002);
 const BIND_HOST = String(process.env.SARA_MOBILE_SERVER_HOST || "127.0.0.1").trim();
 const REMOTE_ACCESS_TOKEN = String(process.env.SARA_REMOTE_ACCESS_TOKEN || "").trim();
 const TLS_CERT_FILE = String(process.env.SARA_TLS_CERT_FILE || "").trim();
 const TLS_KEY_FILE = String(process.env.SARA_TLS_KEY_FILE || "").trim();
-if (!Number.isFinite(PORT) || PORT < 1 || PORT > 65535) throw new Error("Invalid MOBILE_SERVER_PORT.");
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error("Invalid MOBILE_SERVER_PORT.");
 if (!isLoopbackHost(BIND_HOST)) {
   if (REMOTE_ACCESS_TOKEN.length < 32) throw new Error("Non-loopback mobile-server binding requires a 32-character SARA_REMOTE_ACCESS_TOKEN.");
   if (!TLS_CERT_FILE || !TLS_KEY_FILE) throw new Error("Non-loopback mobile-server binding requires SARA_TLS_CERT_FILE and SARA_TLS_KEY_FILE.");
@@ -83,7 +84,8 @@ function parseJsonWithBom<T>(value: string): T {
 function buildMobileChatPrompt(memories: Memory[], history: { role: string; text: string }[], userText: string): string {
   const baseInstruction =
     "You are Sara Mobile, an independent mobile companion with a separate memory core from desktop SARA. " +
-    "Speak in a warm, gentle, and helpful mobile companion tone. Keep mobile memories and context separate from the desktop system. " +
+    `Use a warm, feminine AI persona with a fictional adult profile aged ${SARA_VOICE_PROFILE.fictional_persona_age} for presentation only; you have no literal human age or body. ` +
+    "Keep mobile memories and context separate from the desktop system. " +
     "MULTILINGUAL CAPABILITIES: You natively support 10 languages: English, Marathi, Hindi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, and Punjabi. Automatically respond in the user's language.";
 
   const systemInstruction = formatSystemInstructionsWithMemories(baseInstruction, memories);
@@ -214,6 +216,14 @@ const server = remoteBind
   ? https.createServer({ cert: fs.readFileSync(TLS_CERT_FILE), key: fs.readFileSync(TLS_KEY_FILE) }, app)
   : http.createServer(app);
 const scheme = remoteBind ? "https" : "http";
+server.once("error", (error: NodeJS.ErrnoException) => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(`[Mobile Server] Port conflict: ${BIND_HOST}:${PORT} is already in use. SARA left the existing process untouched. Choose a distinct MOBILE_SERVER_PORT; the mobile service defaults to 3002.`);
+  } else {
+    console.error(`[Mobile Server] Could not listen on ${BIND_HOST}:${PORT} (${error?.code || "UNKNOWN"}): ${error?.message || "unknown startup error"}`);
+  }
+  process.exit(1);
+});
 server.listen(PORT, BIND_HOST, () => {
   console.log(`Mobile SARA server listening at ${scheme}://${BIND_HOST}:${PORT}`);
 });

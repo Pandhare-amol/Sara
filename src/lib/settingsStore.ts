@@ -32,6 +32,8 @@ export interface SaraSettings {
   /** Master toggle for UI animations. */
   animations: boolean;
   proactiveConversation: boolean;
+  /** Allow spoken proactive check-ins while a user-started Live voice session is connected. */
+  voiceInitiationEnabled: boolean;
   smartInterruption: boolean;
   humor: boolean;
   playfulMode: boolean;
@@ -40,7 +42,14 @@ export interface SaraSettings {
   aiPerspective: boolean;
   conversationMemory: boolean;
   quietMode: boolean;
+  /** Minimum delay between proactive check-ins, stored in seconds. */
   conversationCooldown: number;
+  /** Maximum number of proactive check-ins to send during the local calendar day. Zero disables check-ins. */
+  maxProactiveConversationsPerDay: number;
+  /** Suppress proactive check-ins during the configured local quiet-hour window. */
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
 }
 
 export const DEFAULT_SETTINGS: SaraSettings = {
@@ -55,6 +64,7 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   autoEnableGesture: false,
   animations: true,
   proactiveConversation: false,
+  voiceInitiationEnabled: false,
   smartInterruption: false,
   humor: true,
   playfulMode: false,
@@ -63,7 +73,11 @@ export const DEFAULT_SETTINGS: SaraSettings = {
   aiPerspective: true,
   conversationMemory: true,
   quietMode: false,
-  conversationCooldown: 1800,
+  conversationCooldown: 2700,
+  maxProactiveConversationsPerDay: 3,
+  quietHoursEnabled: true,
+  quietHoursStart: "22:00",
+  quietHoursEnd: "08:00",
 };
 
 const STORAGE_KEY = "sara.settings.v2";

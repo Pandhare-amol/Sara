@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { X, MessageSquareOff, ArrowDown } from "lucide-react";
+import { X, MessageSquare, MessageSquareOff, ArrowDown, Send } from "lucide-react";
 import { getDesktopConversation, saveDesktopConversation, cacheDesktopConversation, createDesktopConversation, restoreDesktopConversation, DesktopConversationRecord, DesktopChatMessage } from "../lib/desktopConversationStore";
 import { canSendMessage, mergePendingVoiceTurns, shouldApplyConversationResponse } from "./desktopChatUtils";
 import { recentChatHistory } from "../core/context/recentChatHistory";
@@ -13,6 +13,7 @@ type Props = {
   onClose: () => void;
   onShowConversations: () => void;
   initialConversationId?: string | null;
+  variant?: "quick" | "desktop";
 };
 
 type ChatResponse = {
@@ -22,7 +23,8 @@ type ChatResponse = {
   savedVoiceTurns?: DesktopChatMessage[];
 };
 
-export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initialConversationId }: Props) {
+export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initialConversationId, variant = "desktop" }: Props) {
+  const isQuickChat = variant === "quick";
   const [conversation, setConversation] = useState<DesktopConversationRecord | null>(null);
   const [messages, setMessages] = useState<DesktopChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -43,6 +45,19 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
   useEffect(() => () => { sendAbortRef.current?.abort(); }, [conversation?.id, isOpen]);
 
   const title = useMemo(() => conversation?.title ?? "Chat with SARA", [conversation]);
+
+  const starterQuestions = [
+    { label: "Plan my day", prompt: "Help me plan my priorities for today. Ask me one question at a time." },
+    { label: "What can SARA do?", prompt: "What can you help me do right now? Be clear about what you can and cannot do." },
+    { label: "AGI vs ASI", prompt: "Explain current AI, AGI, and ASI in plain language. Does SARA actually have AGI or ASI?" },
+    { label: "Think it through", prompt: "Help me think through a problem by asking me one clear question at a time." },
+  ];
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const useStarterQuestion = (prompt: string) => {
+    setInputText(prompt);
+    inputRef.current?.focus();
+  };
 
   const updateScrollState = () => {
     const container = scrollRef.current;
@@ -118,7 +133,11 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
     let mounted = true;
     initialLoadRef.current = true;
     (async () => {
-      const loaded = initialConversationId ? await getDesktopConversation(initialConversationId) : null;
+      let conversationToRestore = initialConversationId || null;
+      if (!conversationToRestore && isQuickChat) {
+        try { conversationToRestore = window.localStorage.getItem("sara.conversationId"); } catch { /* local history is optional */ }
+      }
+      const loaded = conversationToRestore ? await getDesktopConversation(conversationToRestore) : null;
       if (!mounted) return;
       if (loaded) {
         const restored = await restoreDesktopConversation(loaded.id);
@@ -150,7 +169,7 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
     return () => {
       mounted = false;
     };
-  }, [isOpen, initialConversationId]);
+  }, [isOpen, initialConversationId, isQuickChat]);
 
   const persistConversation = async (next: DesktopConversationRecord, expectedConversationId?: string | null, savedByChat = false) => {
     if (expectedConversationId && !shouldApplyConversationResponse(expectedConversationId, activeConversationIdRef.current)) return;
@@ -293,26 +312,31 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
     <AnimatePresence>
       {isOpen ? (
         <motion.div
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 30 }}
-          className="absolute inset-y-10 right-10 z-50 flex max-h-[calc(100vh-5rem)] min-h-0 w-[calc(100%-2.5rem)] max-w-2xl flex-col rounded-3xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur-2xl overflow-hidden"
+          role="dialog"
+          aria-modal="false"
+          aria-label={isQuickChat ? "Quick text chat with SARA" : "Desktop chat with SARA"}
+          initial={{ opacity: 0, x: 24, scale: isQuickChat ? 0.98 : 1 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 24, scale: isQuickChat ? 0.98 : 1 }}
+          className={`${isQuickChat
+            ? "fixed right-4 top-16 z-50 flex max-h-[calc(100vh-5.5rem)] min-h-0 w-[calc(100%-2rem)] max-w-md flex-col rounded-3xl border border-cyan-300/15 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:right-8 sm:top-20"
+            : "absolute inset-y-10 right-10 z-50 flex max-h-[calc(100vh-5rem)] min-h-0 w-[calc(100%-2.5rem)] max-w-2xl flex-col rounded-3xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur-2xl"} overflow-hidden`}
         >
-          <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-slate-900/90 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <MessageSquareOff size={20} className="text-cyan-300" />
-              <div>
-                <h2 className="text-base font-semibold text-white">{title}</h2>
-                <p className="text-xs text-slate-400">Desktop chat panel with SARA.</p>
+          <div className={`flex items-center justify-between gap-3 border-b border-white/10 bg-slate-900/90 ${isQuickChat ? "px-4 py-3" : "px-6 py-4"}`}>
+            <div className="flex min-w-0 items-center gap-3">
+              <MessageSquare size={18} className="shrink-0 text-cyan-300" />
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold text-white">{isQuickChat ? "Quick chat with SARA" : title}</h2>
+                <p className="text-[10px] text-slate-400">{isQuickChat ? "Fast, private text replies" : "Desktop conversation with SARA"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={onShowConversations}
                 aria-label="Open conversations"
-                className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200 hover:bg-cyan-500/15"
+                className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200 transition hover:bg-cyan-500/15"
               >
-                Conversations
+                {isQuickChat ? "History" : "Conversations"}
               </button>
               <button onClick={onClose} aria-label="Close chat" className="rounded-2xl p-2 text-slate-400 hover:text-white hover:bg-white/5">
                 <X size={18} />
@@ -324,11 +348,30 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
             <div className="relative min-h-0 flex-1">
               <div
                 ref={scrollRef}
-                className="chat-messages h-full overflow-y-auto overflow-x-hidden p-6 space-y-4"
+                className={`chat-messages h-full overflow-y-auto overflow-x-hidden space-y-4 ${isQuickChat ? "p-4" : "p-6"}`}
+                aria-live="polite"
               >
                 {messages.length === 0 ? (
-                  <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center text-slate-300">
-                    Start a desktop conversation with SARA.
+                  <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-cyan-400/[0.07] to-indigo-400/[0.04] p-5 text-center text-slate-300">
+                    <MessageSquare size={21} className="mx-auto mb-3 text-cyan-300" />
+                    <p className="text-sm font-medium text-white">Hi, I’m SARA. What would be useful today?</p>
+                    <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-400">
+                      {isQuickChat ? "Pick a question or type your own. I’ll answer here in text." : "Choose an opener to start, or ask me about a task, idea, or question."}
+                    </p>
+                    <div role="group" aria-label="Conversation starter questions" className="mt-4 flex flex-wrap justify-center gap-2">
+                      {starterQuestions.map((starter) => (
+                        <button
+                          key={starter.label}
+                          type="button"
+                          onClick={() => useStarterQuestion(starter.prompt)}
+                          aria-label={`Add starter question: ${starter.prompt}`}
+                          className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-2 text-[10px] font-medium text-cyan-100 transition hover:border-cyan-200/40 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300/35"
+                        >
+                          {starter.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[10px] text-slate-500">Questions are only drafted here; nothing is sent until you press Send.</p>
                   </div>
                 ) : (
                   messages.map((item, index) => (
@@ -340,6 +383,17 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
                       <p className="whitespace-pre-line text-sm leading-6 break-words">{item.text}</p>
                     </div>
                   ))
+                )}
+                {sending && (
+                  <div role="status" aria-live="polite" className="mr-auto flex max-w-[85%] items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 text-xs text-slate-300">
+                    <span className="font-semibold text-cyan-200">SARA</span>
+                    <span className="flex items-center gap-1" aria-label="SARA is preparing a text reply">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.2s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300 [animation-delay:-0.1s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-300" />
+                    </span>
+                    <span className="sr-only">Preparing a text reply</span>
+                  </div>
                 )}
               </div>
               {showScrollToLatest && (
@@ -354,7 +408,7 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
               )}
             </div>
 
-            <div className="shrink-0 border-t border-white/10 bg-slate-900/95 p-5">
+            <div className={`shrink-0 border-t border-white/10 bg-slate-900/95 ${isQuickChat ? "p-3" : "p-5"}`}>
               {(sending || chatNotice) && (
                 <div className="mb-3 flex items-center justify-between gap-2 text-xs" role={chatNotice ? "alert" : "status"}>
                   <span className={chatNotice ? "text-amber-300" : "text-cyan-200"}>
@@ -365,8 +419,9 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
                     aria-label="Stop this chat response without cancelling tasks">Stop response</button>}
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <textarea
+                  ref={inputRef}
                   value={inputText}
                   onChange={(event) => setInputText(event.currentTarget.value)}
                   onKeyDown={(event) => {
@@ -379,7 +434,7 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
                   }}
                   placeholder="Type a message..."
                   aria-label="Message input"
-                  className="min-h-[96px] flex-1 resize-none rounded-3xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  className={`${isQuickChat ? "min-h-[72px]" : "min-h-[96px]"} flex-1 resize-none rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20`}
                 />
                 <button
                   onClick={() => {
@@ -389,11 +444,13 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
                   }}
                   disabled={!canSendMessage(inputText, sending, conversation)}
                   aria-label={sending ? "Sending message" : "Send message"}
-                  className="rounded-3xl bg-cyan-400 px-6 py-4 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-w-20 items-center justify-center gap-2 self-stretch rounded-2xl bg-cyan-300 px-4 py-3 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {sending ? "Sending..." : "Send"}
+                  <Send size={14} />
+                  <span>{sending ? "Sending…" : "Send"}</span>
                 </button>
               </div>
+              <p className="mt-2 px-1 text-[10px] text-slate-500">Enter to send <span className="px-1 text-slate-700">·</span> Shift+Enter for a new line</p>
             </div>
           </div>
         </motion.div>

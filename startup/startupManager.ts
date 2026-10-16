@@ -54,6 +54,12 @@ import {
   spawnElectronWithConfig,
 } from "./electronLauncher.js";
 
+import {
+  ensureDesktopAgentInternalToken,
+  getDesktopAgentAuthHeaders,
+  hasAuthenticatedDesktopAgentProtocol,
+} from "../src/security/desktopAgentAuth.js";
+
 // ============================================================
 // Paths
 // ============================================================
@@ -901,13 +907,22 @@ async function acquireSupervisorLock(
       "/health",
       2000,
     );
+  const authenticatedAgentReadiness =
+    await httpHealthCheck(
+      backendPort,
+      "/api/agent-health",
+      2000,
+    );
 
   if (
     backend.ok &&
-    agent.ok
+    agent.ok &&
+    hasAuthenticatedDesktopAgentProtocol(agent.data) &&
+    authenticatedAgentReadiness.ok &&
+    authenticatedAgentReadiness.data?.agent_auth_verified === true
   ) {
     log(
-      "Existing SARA instance is healthy.",
+      "Existing SARA instance is healthy and the backend verified the Desktop Agent token handshake.",
     );
   } else {
     logWarn(
@@ -1055,6 +1070,18 @@ async function main(): Promise<void> {
     cleanupLock();
 
     process.exit(1);
+  }
+
+  let agentInternalToken: string;
+  try {
+    // The supervisor keeps this value in memory and passes it only to its
+    // backend, agent, and Electron children.
+    agentInternalToken = ensureDesktopAgentInternalToken(process.env);
+  } catch (error: any) {
+    logError(error?.message || "Invalid desktop-agent internal-token configuration.");
+    cleanupLock();
+    process.exit(1);
+    return;
   }
 
   log(
@@ -1206,6 +1233,9 @@ async function main(): Promise<void> {
 
           SARA_APP_ROOT:
             PROJECT_ROOT,
+
+          SARA_AGENT_INTERNAL_TOKEN:
+            agentInternalToken,
         },
 
         waitMs:
@@ -1245,8 +1275,17 @@ async function main(): Promise<void> {
     port:
       config.agentPort,
 
+    // The supervisor health path is a protected handshake, not public liveness.
     healthPath:
-      "/health",
+      "/auth/check",
+
+    healthHeaders:
+      getDesktopAgentAuthHeaders(`http://127.0.0.1:${config.agentPort}`, process.env),
+
+    requiredProtocol: {
+      field: "agent_auth_protocol_version",
+      version: 1,
+    },
 
     expectedServiceId:
       "sara-desktop-agent",
@@ -1286,6 +1325,9 @@ async function main(): Promise<void> {
 
       SARA_APP_ROOT:
         PROJECT_ROOT,
+
+      SARA_AGENT_INTERNAL_TOKEN:
+        agentInternalToken,
     },
 
     waitMs:
@@ -1297,34 +1339,52 @@ async function main(): Promise<void> {
       agentStartOpts,
     );
 
+  const capabilities =
+    await httpHealthCheck(
+      config.agentPort,
+      "/health",
+      3000,
+    );
+  let authenticatedHandshake: any = null;
+  try {
+    const authResponse = await fetch(`http://127.0.0.1:${config.agentPort}/auth/check`, {
+      headers: getDesktopAgentAuthHeaders(`http://127.0.0.1:${config.agentPort}`, process.env),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (authResponse.ok) authenticatedHandshake = await authResponse.json().catch(() => null);
+  } catch {
+    authenticatedHandshake = null;
+  }
+  const authenticatedProtocolReady = capabilities.ok &&
+    capabilities.data?.service === "sara-desktop-agent" &&
+    hasAuthenticatedDesktopAgentProtocol(capabilities.data) &&
+    authenticatedHandshake?.service === "sara-desktop-agent" &&
+    hasAuthenticatedDesktopAgentProtocol(authenticatedHandshake);
+
+  if (agentHandle.healthy && !authenticatedProtocolReady) {
+    // Do not adopt an older or differently keyed agent just because /health
+    // returns 200. Do not terminate an unknown listener; leave recovery explicit.
+    agentHandle.healthy = false;
+    agentHandle.state = "FAILED";
+    logWarn("A Desktop Agent is listening but its authenticated protocol/token could not be verified. SARA will not send control requests; stop/restart the owned agent or configure the shared token.");
+  }
+
   if (
     !agentHandle.healthy
   ) {
     logWarn(
-      "Desktop Agent failed to become healthy.",
-    );
-
-    logWarn(
-      "Window control and OS automation may be unavailable.",
+      "Desktop Agent failed authenticated health verification; window control and OS automation are unavailable.",
     );
   } else {
     log(
-      "Desktop Agent is healthy.",
+      "Desktop Agent authenticated channel is healthy.",
     );
 
     log(
       "Verifying Desktop Agent capabilities...",
     );
 
-    const capabilities =
-      await httpHealthCheck(
-        config.agentPort,
-        "/health",
-        3000,
-      );
-
     if (
-      capabilities.ok &&
       Number(capabilities.data?.tool_count) > 0 &&
       Array.isArray(capabilities.data?.tools)
     ) {

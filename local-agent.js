@@ -1,27 +1,70 @@
-﻿/**
+/**
  * Sara Playwright Local Agent Server
  * Run this locally on your machine to grant Sara real control over your browser!
  * 
  * Setup instructions:
  * 1. Make sure you have Node.js installed.
  * 2. In a clean folder on your local computer, create 'local-agent.js' pasting this content.
- * 3. Run: npm install playwright express cors
+ * 3. Run: npm install playwright express dotenv
  * 4. Run: npx playwright install chromium
  * 5. Launch the server: node local-agent.js
- * 
- * This server binds to port 3001 on localhost, permitting Sara's web portal to issue
- * real-time Playwright actions directly on your physical computer.
+ *
+ * This service is restricted to loopback and exact local UI origins. It must not
+ * be exposed to a LAN or public network.
  */
 
 import express from "express";
-import cors from "cors";
+import dotenv from "dotenv";
 import { chromium } from "playwright";
 
-const app = express();
-const PORT = 3001;
+dotenv.config();
 
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+const app = express();
+const HOST = "127.0.0.1";
+const PORT = Number(process.env.SARA_BROWSER_AGENT_PORT || 3001);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error(`Invalid SARA_BROWSER_AGENT_PORT: ${process.env.SARA_BROWSER_AGENT_PORT}`);
+}
+const allowedOrigins = new Set(
+  (process.env.SARA_BROWSER_AGENT_ALLOWED_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)),
+);
+const allowedHostnames = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function isLoopbackAddress(address = "") {
+  return address === "127.0.0.1" || address === "::1" || address.startsWith("::ffff:127.");
+}
+
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  if (!isLoopbackAddress(req.socket.remoteAddress || "")) {
+    return res.status(403).json({ error: "Browser agent accepts loopback connections only." });
+  }
+  try {
+    const host = new URL(`http://${req.headers.host || ""}`);
+    const hostname = host.hostname.replace(/^\[|\]$/g, "");
+    if (!allowedHostnames.has(hostname) || host.port !== String(PORT)) {
+      return res.status(403).json({ error: "Browser agent rejected this Host header." });
+    }
+  } catch {
+    return res.status(403).json({ error: "Browser agent rejected this Host header." });
+  }
+  const origin = req.get("origin");
+  if (origin && !allowedOrigins.has(origin)) {
+    return res.status(403).json({ error: "Browser agent rejected this Origin." });
+  }
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+app.use(express.json({ limit: "256kb", type: "application/json" }));
 
 // Main state references
 let browser = null;
@@ -66,6 +109,7 @@ async function ensureBrowser() {
 // REST GET API status endpoint
 app.get("/api/status", async (req, res) => {
   res.json({
+    service: "sara-local-browser-agent",
     connected: true,
     browserActive: !!browser,
     lastAction: lastActionStatus,
@@ -361,11 +405,42 @@ app.post("/api/action", async (req, res) => {
   }
 });
 
-// Start Express server
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`\n======================================================`);
-  console.log(`ðŸš€ Sara Playwright Local Agent Server Running!`);
-  console.log(`ðŸ“¡ Listening on: http://localhost:${PORT}`);
-  console.log(`======================================================\n`);
-});
+async function isSaraBrowserAgentAlreadyRunning() {
+  try {
+    const response = await fetch(`http://${HOST}:${PORT}/api/status`, { signal: AbortSignal.timeout(800) });
+    const status = await response.json();
+    return response.ok && status?.service === "sara-local-browser-agent";
+  } catch {
+    return false;
+  }
+}
+
+async function startServer() {
+  if (await isSaraBrowserAgentAlreadyRunning()) {
+    console.log(`[Browser Agent] An existing SARA browser agent is already healthy at http://${HOST}:${PORT}; not starting a duplicate.`);
+    return;
+  }
+
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`\n======================================================`);
+    console.log(`Sara Playwright Local Agent Server Running`);
+    console.log(`Listening on: http://${HOST}:${PORT}`);
+    console.log(`Allowed UI origins: ${[...allowedOrigins].join(", ") || "none configured"}`);
+    console.log(`======================================================\n`);
+  });
+  server.once("error", async (error) => {
+    if (error?.code === "EADDRINUSE" && await isSaraBrowserAgentAlreadyRunning()) {
+      console.log(`[Browser Agent] A healthy SARA browser agent is already running at http://${HOST}:${PORT}; not starting a duplicate.`);
+      return;
+    }
+    if (error?.code === "EADDRINUSE") {
+      console.error(`[Browser Agent] Port conflict: ${HOST}:${PORT} is occupied by another service. SARA left it untouched. Check SARA_BROWSER_AGENT_PORT or identify the listener before stopping anything.`);
+    } else {
+      console.error(`[Browser Agent] Failed to listen on ${HOST}:${PORT}: ${error?.message || error}`);
+    }
+    process.exitCode = 1;
+  });
+}
+
+void startServer();
 

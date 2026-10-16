@@ -181,7 +181,15 @@ class ApplicationAutomationSuite:
             "requires_confirmation": sensitive,
         }
 
-    def execute(self, app: str, action: str, args: Dict[str, Any], confirmed: bool = False) -> Dict[str, Any]:
+    def execute(
+        self,
+        app: str,
+        action: str,
+        args: Dict[str, Any],
+        confirmed: bool = False,
+        automation_task_id: Optional[str] = None,
+        auto_close_after_task: bool = False,
+    ) -> Dict[str, Any]:
         plugin = self.find(app)
         normalized_action = action.strip().lower().replace(" ", "_")
         if normalized_action not in plugin.capabilities and normalized_action not in {"open", "search", "play", "pause", "read"}:
@@ -190,14 +198,17 @@ class ApplicationAutomationSuite:
         audit = self.security.assess(f"{plugin.name}.{normalized_action}", args)
         if sensitive and not confirmed:
             return {
+                "ok": False,
+                "verified": False,
                 "requires_confirmation": True,
                 "audit": audit,
                 "result": f"Confirmation required before {normalized_action.replace('_', ' ')} in {plugin.name}.",
                 "plugin": asdict(plugin),
             }
 
+        tracking_task_id = automation_task_id if auto_close_after_task else None
         started = time.time()
-        result = self._execute_safe(plugin, normalized_action, args)
+        result = self._execute_safe(plugin, normalized_action, args, automation_task_id=tracking_task_id)
         duration_ms = int((time.time() - started) * 1000)
         self.logging.log(
             "application_automation",
@@ -209,29 +220,89 @@ class ApplicationAutomationSuite:
                 "confirmed": confirmed,
             },
         )
+        inner = result if isinstance(result, dict) else {}
+        verification = inner.get("verification") if isinstance(inner.get("verification"), dict) else {}
+        action_verified = (
+            (inner.get("verified") is True or verification.get("verified") is True)
+            and inner.get("ok") is not False
+        )
+        if normalized_action not in {"open", "launch"} and (
+            inner.get("opened_target_only") is True or inner.get("launched_by_sara") is True
+        ):
+            # Opening/focusing an app is not proof that a requested in-app action
+            # (for example, running tests) actually happened.
+            action_verified = False
         return {
             "result": result,
             "plugin": asdict(plugin),
             "duration_ms": duration_ms,
             "confirmed": confirmed,
+            "ok": action_verified,
+            "verified": action_verified,
         }
 
-    def execute_goal(self, goal: str, confirmed: bool = False) -> Dict[str, Any]:
+    def execute_goal(
+        self,
+        goal: str,
+        confirmed: bool = False,
+        automation_task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         plan = self.plan(goal)
         step = plan["steps"][0]
         if step["requires_confirmation"] and not confirmed:
             return {
+                "ok": False,
+                "verified": False,
+                "auto_close_after_task": False,
                 "requires_confirmation": True,
                 "plan": plan,
                 "result": f"Confirmation required before {step['action'].replace('_', ' ')} in {step['app']}.",
             }
-        result = self.execute(step["app"], step["action"], step["args"], confirmed=confirmed)
-        WORKFLOWS.save(f"app:{goal}", plan["steps"], {"source": "application_suite", "goal": goal})
-        return {"plan": plan, "execution": result, "result": result["result"]}
 
-    def _execute_safe(self, plugin: ApplicationPlugin, action: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        action = str(step["action"])
+        plugin = self.find(str(step["app"]))
+        persistent_actions = {"open", "launch", "open_project", "open_workspace", "play", "watch", "pause", "next", "previous", "search", "read"}
+        persistent_targets = {"spotify", "youtube", "vlc"}
+        close_candidate = bool(automation_task_id) and action not in persistent_actions and plugin.name.casefold() not in persistent_targets and plugin.category != "Office"
+        try:
+            result = self.execute(
+                step["app"],
+                action,
+                step["args"],
+                confirmed=confirmed,
+                automation_task_id=automation_task_id,
+                auto_close_after_task=close_candidate,
+            )
+        except Exception:
+            if close_candidate and automation_task_id:
+                from .tools_applications import _discard_task_app_tracking
+
+                _discard_task_app_tracking(str(automation_task_id))
+            raise
+        auto_close_eligible = close_candidate and result.get("verified") is True
+        if close_candidate and not auto_close_eligible and automation_task_id:
+            from .tools_applications import _discard_task_app_tracking
+
+            _discard_task_app_tracking(str(automation_task_id))
+        WORKFLOWS.save(f"app:{goal}", plan["steps"], {"source": "application_suite", "goal": goal})
+        return {
+            "plan": plan,
+            "execution": result,
+            "result": result.get("result"),
+            "ok": result.get("ok") is True,
+            "verified": result.get("verified") is True,
+            "auto_close_after_task": auto_close_eligible,
+        }
+
+    def _execute_safe(
+        self,
+        plugin: ApplicationPlugin,
+        action: str,
+        args: Dict[str, Any],
+        automation_task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if action in {"open", "launch"} and not (plugin.category == "Office" and args.get("path")):
-            return self._open(plugin)
+            return self._open(plugin, automation_task_id=automation_task_id)
         if plugin.name == "YouTube":
             if plugin.official_api:
                 session_result = SERVICE_INTEGRATIONS.execute(plugin.name, action, args)
@@ -252,14 +323,14 @@ class ApplicationAutomationSuite:
                 if "desktopBrowserSearch" in TOOLS:
                     return TOOLS["desktopBrowserSearch"]({"engine": args.get("engine") or "google", "query": args.get("query") or ""})
                 return {"result": f"Browser search queued for: {args.get('query') or ''}"}
-            return self._open(plugin)
+            return self._open(plugin, automation_task_id=automation_task_id)
         if plugin.name == "WhatsApp":
             if plugin.official_api:
                 session_result = SERVICE_INTEGRATIONS.execute(plugin.name, action, args)
                 if session_result.get("connected"):
                     return session_result
             if action == "open":
-                return self._open(plugin)
+                return self._open(plugin, automation_task_id=automation_task_id)
             if action in {"send_message", "reply", "forward"}:
                 if "desktopBrowserOpen" in TOOLS and "desktopBrowserType" in TOOLS and "desktopBrowserClick" in TOOLS:
                     text = str(args.get("text") or "")
@@ -290,14 +361,14 @@ class ApplicationAutomationSuite:
                 if "desktopBrowserSearch" in TOOLS:
                     return TOOLS["desktopBrowserSearch"]({"engine": "google", "query": "WhatsApp Web"})
                 return {"result": "WhatsApp search requested."}
-            return self._open(plugin)
+            return self._open(plugin, automation_task_id=automation_task_id)
         if plugin.name == "Instagram":
             if plugin.official_api:
                 session_result = SERVICE_INTEGRATIONS.execute(plugin.name, action, args)
                 if session_result.get("connected"):
                     return session_result
             if action == "open":
-                return self._open(plugin)
+                return self._open(plugin, automation_task_id=automation_task_id)
             if action in {"search", "read"}:
                 if "desktopBrowserOpen" in TOOLS:
                     return TOOLS["desktopBrowserOpen"]({"url": "https://www.instagram.com"})
@@ -311,7 +382,7 @@ class ApplicationAutomationSuite:
                 }
         if plugin.name == "Spotify":
             if action == "play":
-                return self._open(plugin)
+                return self._open(plugin, automation_task_id=automation_task_id)
             if action == "pause":
                 if "hardwareKeyboardPress" in TOOLS:
                     return TOOLS["hardwareKeyboardPress"]({"key": "playpause"})
@@ -330,17 +401,17 @@ class ApplicationAutomationSuite:
                 if session_result.get("connected"):
                     return session_result
             if action in {"open", "search", "read", "summarize", "draft"}:
-                return self._open(plugin, query=args.get("query"))
+                return self._open(plugin, query=args.get("query"), automation_task_id=automation_task_id)
         if plugin.category == "Development":
             if action in {"open", "open_project", "run_tests", "find"}:
-                return self._open(plugin)
+                return self._open(plugin, automation_task_id=automation_task_id)
         if plugin.category == "Office":
             # Opening Word is NOT creating or editing a file. Delegate only
             # structured, scoped edits to the document tool; natural-language
             # goals without an exact path must fail rather than claim success.
             from .tools_documents import document_create, document_edit, document_inspect, document_open
             if action == "open":
-                return document_open(args) if args.get("path") else self._open(plugin)
+                return document_open(args) if args.get("path") else self._open(plugin, automation_task_id=automation_task_id)
             if plugin.name not in {"Word", "Excel", "PowerPoint"}:
                 raise ToolError(f"{plugin.name}.{action} needs a supported document integration; no file was changed.")
             if not args.get("path"):
@@ -358,7 +429,7 @@ class ApplicationAutomationSuite:
             raise ToolError(f"{plugin.name}.{action} is not implemented; opening the application would not complete it.")
         if plugin.name == "VLC":
             if action == "open":
-                return self._open(plugin)
+                return self._open(plugin, automation_task_id=automation_task_id)
             if action in {"play", "pause", "stop", "fullscreen"}:
                 key = {"play": "space", "pause": "space", "stop": "s", "fullscreen": "f"}[action]
                 if "hardwareKeyboardPress" in TOOLS:
@@ -371,20 +442,38 @@ class ApplicationAutomationSuite:
             )
         }
 
-    def _open(self, plugin: ApplicationPlugin, query: Optional[str] = None) -> Dict[str, Any]:
+    def _open(
+        self,
+        plugin: ApplicationPlugin,
+        query: Optional[str] = None,
+        automation_task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if plugin.launch.get("tool") == "openApplication":
             if "openApplication" in TOOLS:
-                return TOOLS["openApplication"]({"name": plugin.launch["name"]})
+                launch_args: Dict[str, Any] = {"name": plugin.launch["name"]}
+                if automation_task_id:
+                    launch_args.update({
+                        "automation_task_id": automation_task_id,
+                        "auto_close_after_task": True,
+                    })
+                return TOOLS["openApplication"](launch_args)
             return {"result": f"Opened {plugin.name} via launch command."}
         url = plugin.launch.get("url")
         if query and "{query}" in str(url):
             url = str(url).replace("{query}", str(query).replace(" ", "+"))
         if url:
             if "desktopBrowserOpen" in TOOLS:
-                return TOOLS["desktopBrowserOpen"]({"url": url})
-            return {"result": f"Opened {plugin.name} at {url}."}
+                result = TOOLS["desktopBrowserOpen"]({"url": url})
+                return {**(result if isinstance(result, dict) else {"result": result}), "opened_target_only": True}
+            return {"result": f"Opened {plugin.name} at {url}.", "opened_target_only": True}
         if "openApplication" in TOOLS:
-            return TOOLS["openApplication"]({"name": plugin.name})
+            launch_args = {"name": plugin.name}
+            if automation_task_id:
+                launch_args.update({
+                    "automation_task_id": automation_task_id,
+                    "auto_close_after_task": True,
+                })
+            return TOOLS["openApplication"](launch_args)
         return {"result": f"Opened {plugin.name}."}
 
     def _detect_plugin(self, goal: str) -> ApplicationPlugin:

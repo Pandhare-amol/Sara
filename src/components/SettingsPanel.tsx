@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Settings,
   X,
@@ -18,6 +18,7 @@ import {
   loadSettings,
   saveSettings,
 } from "../lib/settingsStore";
+import { deleteLegacyStoredVoiceProfile, hasLegacyStoredVoiceProfile } from "../core/identity/legacyVoiceProfile";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -33,35 +34,9 @@ interface SettingsPanelProps {
 
 type SettingsTab = "general" | "voice" | "system" | "about";
 
-type StoredSpeakerProfile = {
-  userId: string;
-  displayName: string;
+type TemporarySpeakerProfile = {
   fingerprint: number[];
-  enrolledAt: string;
 };
-
-const VOICE_PROFILE_STORAGE_KEY = "sara.voiceProfile.v1";
-
-function loadStoredSpeakerProfile(): StoredSpeakerProfile | null {
-  try {
-    if (typeof window === "undefined") return null;
-    const raw = window.localStorage.getItem(VOICE_PROFILE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredSpeakerProfile;
-    return parsed && Array.isArray(parsed.fingerprint) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveStoredSpeakerProfile(profile: StoredSpeakerProfile): void {
-  try {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(VOICE_PROFILE_STORAGE_KEY, JSON.stringify(profile));
-  } catch {
-    // Ignore storage failures; feature remains best effort.
-  }
-}
 
 function fingerprintFromAudioBuffer(audioBuffer: AudioBuffer): number[] {
   const channelData = audioBuffer.getChannelData(0);
@@ -74,11 +49,8 @@ function fingerprintFromAudioBuffer(audioBuffer: AudioBuffer): number[] {
     const end = Math.min(start + step, channelData.length);
     const slice = channelData.subarray(start, end);
     let sumSquares = 0;
-    for (let i = 0; i < slice.length; i++) {
-      sumSquares += slice[i] * slice[i];
-    }
-    const rms = Math.sqrt(sumSquares / Math.max(1, slice.length));
-    values.push(Number(rms.toFixed(4)));
+    for (let i = 0; i < slice.length; i++) sumSquares += slice[i] * slice[i];
+    values.push(Math.sqrt(sumSquares / Math.max(1, slice.length)));
   }
 
   const maxValue = Math.max(...values, 1);
@@ -139,9 +111,15 @@ function ToggleRow({
 export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor, locked }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
-  const [voiceProfile, setVoiceProfile] = useState<StoredSpeakerProfile | null>(() => loadStoredSpeakerProfile());
-  const [voiceStatus, setVoiceStatus] = useState<string>("No local voice sample saved. Voice similarity is experimental and is not admin authentication.");
+  const [voiceProfile, setVoiceProfile] = useState<TemporarySpeakerProfile | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<string>("No temporary voice sample captured in this settings session.");
   const [isRecordingVoice, setIsRecordingVoice] = useState<boolean>(false);
+  const voiceCaptureAbortRef = useRef<AbortController | null>(null);
+  const voiceCaptureInProgressRef = useRef(false);
+  const settingsOpenRef = useRef(isOpen);
+  settingsOpenRef.current = isOpen;
+  const [hasLegacyVoiceSample, setHasLegacyVoiceSample] = useState<boolean>(() => hasLegacyStoredVoiceProfile());
+  const [legacyVoiceSampleStatus, setLegacyVoiceSampleStatus] = useState<string>("");
   const [agentHealth, setAgentHealth] = useState<{
     online: boolean;
     toolCount?: number;
@@ -149,82 +127,155 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
     ram?: string;
   }>({ online: false });
 
-  const captureVoiceSample = async (mode: "enroll" | "identify") => {
-    if (locked) return;
+  useEffect(() => {
+    if (!isOpen) {
+      setVoiceProfile(null);
+      setIsRecordingVoice(false);
+      setVoiceStatus("No temporary voice sample captured in this settings session.");
+      return;
+    }
+    return () => {
+      settingsOpenRef.current = false;
+      voiceCaptureAbortRef.current?.abort();
+      voiceCaptureAbortRef.current = null;
+    };
+  }, [isOpen]);
 
+  const captureVoiceSample = async (mode: "enroll" | "identify") => {
+    if (locked || voiceCaptureInProgressRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setVoiceStatus("Microphone access is unavailable in this browser.");
       return;
     }
 
+    voiceCaptureInProgressRef.current = true;
+    const controller = new AbortController();
+    voiceCaptureAbortRef.current?.abort();
+    voiceCaptureAbortRef.current = controller;
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let timeoutId: number | undefined;
+
     try {
       setIsRecordingVoice(true);
-      setVoiceStatus(mode === "enroll" ? "Recording a short voice sample..." : "Checking the current speaker profile...");
+      setVoiceStatus(mode === "enroll" ? "Recording a short temporary sample..." : "Comparing with this session's temporary sample...");
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (controller.signal.aborted) return;
+      if (typeof MediaRecorder === "undefined") throw new Error("MediaRecorder is unavailable.");
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: BlobPart[] = [];
-
-      await new Promise<void>((resolve, reject) => {
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunks.push(event.data);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        const cleanup = () => {
+          if (timeoutId !== undefined) {
+            window.clearTimeout(timeoutId);
+            timeoutId = undefined;
+          }
+          controller.signal.removeEventListener("abort", handleAbort);
         };
-        recorder.onerror = () => reject(new Error("Voice sample capture failed."));
-        recorder.onstop = () => resolve();
-        recorder.start();
-        window.setTimeout(() => {
+        const handleAbort = () => {
+          if (recorder.state === "inactive") {
+            cleanup();
+            reject(new DOMException("Voice sample capture cancelled.", "AbortError"));
+            return;
+          }
           try {
             recorder.stop();
           } catch {
-            resolve();
+            cleanup();
+            reject(new DOMException("Voice sample capture cancelled.", "AbortError"));
+          }
+        };
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onerror = () => {
+          cleanup();
+          reject(new Error("Voice sample capture failed."));
+        };
+        recorder.onstop = () => {
+          cleanup();
+          if (controller.signal.aborted) {
+            reject(new DOMException("Voice sample capture cancelled.", "AbortError"));
+          } else {
+            resolve(new Blob(chunks, { type: mimeType }));
+          }
+        };
+        controller.signal.addEventListener("abort", handleAbort, { once: true });
+        recorder.start();
+        timeoutId = window.setTimeout(() => {
+          if (recorder.state !== "inactive") {
+            try { recorder.stop(); } catch { /* stream cleanup runs in finally */ }
           }
         }, 2200);
       });
 
       stream.getTracks().forEach((track) => track.stop());
-      const blob = new Blob(chunks, { type: mimeType });
+      stream = null;
+      if (controller.signal.aborted) return;
       const arrayBuffer = await blob.arrayBuffer();
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) {
-        throw new Error("AudioContext is unavailable.");
-      }
-      const audioContext = new AudioContextClass();
+      if (!AudioContextClass) throw new Error("AudioContext is unavailable.");
+      audioContext = new AudioContextClass();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      if (controller.signal.aborted) return;
       const fingerprint = fingerprintFromAudioBuffer(audioBuffer);
-      await audioContext.close();
 
       if (mode === "enroll") {
-        const profile: StoredSpeakerProfile = {
-          userId: "local-user",
-          displayName: "Local User",
-          fingerprint,
-          enrolledAt: new Date().toISOString(),
-        };
-        saveStoredSpeakerProfile(profile);
-        setVoiceProfile(profile);
-        setVoiceStatus("Sample saved locally for experimentation. This cannot verify an admin or unlock sensitive actions.");
+        setVoiceProfile({ fingerprint });
+        setVoiceStatus("Similarity sample is held in memory only until Settings closes. It is not sent to SARA's backend and is not identity verification.");
         return;
       }
 
-      const existing = loadStoredSpeakerProfile();
-      if (!existing) {
-        setVoiceStatus("No speaker profile is enrolled yet. Enroll one first.");
+      if (!voiceProfile) {
+        setVoiceStatus("Capture a temporary sample first. No stored profile is loaded.");
         return;
       }
-
-      const matchScore = compareVoiceFingerprints(existing.fingerprint, fingerprint);
-      const recognized = matchScore >= 0.8;
+      const matchScore = compareVoiceFingerprints(voiceProfile.fingerprint, fingerprint);
       setVoiceStatus(
-        recognized
-          ? `Experimental audio similarity only: the sample resembles ${existing.displayName} (${matchScore.toFixed(2)}). This is not identity verification.`
-          : `Experimental audio similarity only: the sample did not resemble the saved sample (${matchScore.toFixed(2)}). This is not identity verification.`
+        `Heuristic audio similarity: ${matchScore.toFixed(2)}. This does not verify a speaker or authorize any action.`
       );
-    } catch (error) {
-      console.warn("Voice enrollment failed:", error);
-      setVoiceStatus("Voice capture failed. Please try again.");
+    } catch {
+      if (!controller.signal.aborted) setVoiceStatus("Voice capture failed. No identity was verified; check permission and try again.");
     } finally {
-      setIsRecordingVoice(false);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      stream?.getTracks().forEach((track) => track.stop());
+      if (audioContext && audioContext.state !== "closed") {
+        try { await audioContext.close(); } catch { /* best-effort release */ }
+      }
+      if (voiceCaptureAbortRef.current === controller) voiceCaptureAbortRef.current = null;
+      voiceCaptureInProgressRef.current = false;
+      if (settingsOpenRef.current) setIsRecordingVoice(false);
+    }
+  };
+
+  const cancelVoiceCapture = () => {
+    if (!voiceCaptureAbortRef.current) return;
+    voiceCaptureAbortRef.current.abort();
+    setVoiceStatus("Voice capture cancelled. If a browser permission prompt is still open, decline it; any stream granted later is stopped.");
+  };
+
+  const clearTemporaryVoiceSample = () => {
+    setVoiceProfile(null);
+    setVoiceStatus("Temporary voice sample cleared from this settings session.");
+  };
+
+  const deleteLegacyVoiceSample = () => {
+    if (!hasLegacyVoiceSample || typeof window === "undefined") return;
+    try {
+      const confirmed = window.confirm("Delete the old experimental voice-similarity sample saved in this browser? This cannot be undone.");
+      if (!confirmed) return;
+      const deleted = deleteLegacyStoredVoiceProfile(confirmed);
+      setHasLegacyVoiceSample(hasLegacyStoredVoiceProfile());
+      setLegacyVoiceSampleStatus(
+        deleted
+          ? "Legacy experimental sample deleted from this browser."
+          : "The legacy sample could not be removed; browser storage may still contain it."
+      );
+    } catch {
+      setLegacyVoiceSampleStatus("Browser storage could not be accessed. The legacy sample may still be present.");
     }
   };
 
@@ -353,7 +404,7 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
 
             {locked && (
               <div className="px-6 py-3 border-b border-amber-500/10 bg-amber-900/10 text-amber-300 text-sm">
-                Settings are locked while Sara is active. Stop Sara to change preferences.
+                Most preferences are locked while SARA is active. Proactive safety controls remain available for immediate suppression.
               </div>
             )}
 
@@ -419,10 +470,15 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
 
                   <ToggleRow
                     label="PROACTIVE CONVERSATION"
-                    description="Allow grounded check-ins when useful"
+                    description="Allow grounded check-ins while a voice session is connected"
                     checked={settings.proactiveConversation}
                     onChange={(v) => onChange({ proactiveConversation: v })}
-                    disabled={locked}
+                  />
+                  <ToggleRow
+                    label="VOICE INITIATION"
+                    description="Allow SARA to speak first during a connected Live session"
+                    checked={settings.voiceInitiationEnabled}
+                    onChange={(v) => onChange({ voiceInitiationEnabled: v })}
                   />
                   <ToggleRow
                     label="SMART INTERRUPTION"
@@ -475,26 +531,77 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                   />
                   <ToggleRow
                     label="QUIET MODE"
-                    description="Suppress proactive conversation until disabled"
+                    description="Pause all proactive check-ins immediately"
                     checked={settings.quietMode}
                     onChange={(v) => onChange({ quietMode: v })}
-                    disabled={locked}
                   />
+                  <ToggleRow
+                    label="QUIET HOURS"
+                    description="Suppress proactive check-ins during local quiet hours"
+                    checked={settings.quietHoursEnabled}
+                    onChange={(v) => onChange({ quietHoursEnabled: v })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="space-y-1.5 text-[10px] font-mono tracking-wider text-slate-300 uppercase">
+                      Starts
+                      <input
+                        type="time"
+                        value={settings.quietHoursStart}
+                        onChange={(e) => e.target.value && onChange({ quietHoursStart: e.target.value })}
+                        aria-label="Quiet hours start time"
+                        className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition"
+                      />
+                    </label>
+                    <label className="space-y-1.5 text-[10px] font-mono tracking-wider text-slate-300 uppercase">
+                      Ends
+                      <input
+                        type="time"
+                        value={settings.quietHoursEnd}
+                        onChange={(e) => e.target.value && onChange({ quietHoursEnd: e.target.value })}
+                        aria-label="Quiet hours end time"
+                        className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition"
+                      />
+                    </label>
+                  </div>
+                  <p className="-mt-2 text-[9px] font-mono text-slate-500">
+                    Quiet hours use this device's local time. Equal start and end times suppress check-ins all day.
+                  </p>
                   <div className="space-y-1.5 pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-mono tracking-wider text-slate-300 uppercase">Conversation Cooldown</label>
-                      <span className="text-[10px] font-mono text-cyan-300">{settings.conversationCooldown}s</span>
+                      <label className="text-[10px] font-mono tracking-wider text-slate-300 uppercase">Minimum Interval</label>
+                      <span className="text-[10px] font-mono text-cyan-300">{Math.ceil(settings.conversationCooldown / 60)} min</span>
                     </div>
                     <input
                       type="number"
                       min={0}
-                      max={86400}
-                      step={60}
-                      value={settings.conversationCooldown}
-                      onChange={(e) => !locked && onChange({ conversationCooldown: Math.max(0, Number(e.target.value) || 0) })}
-                      disabled={locked}
-                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      step={5}
+                      value={Math.ceil(settings.conversationCooldown / 60)}
+                      onChange={(e) => {
+                        const minutes = Number(e.target.value);
+                        if (Number.isFinite(minutes)) onChange({ conversationCooldown: Math.max(0, Math.round(minutes)) * 60 });
+                      }}
+                      aria-label="Minimum interval between proactive check-ins in minutes"
+                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition"
                     />
+                  </div>
+                  <div className="space-y-1.5 pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono tracking-wider text-slate-300 uppercase">Maximum Check-ins per Day</label>
+                      <span className="text-[10px] font-mono text-cyan-300">{settings.maxProactiveConversationsPerDay}</span>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={settings.maxProactiveConversationsPerDay}
+                      onChange={(e) => {
+                        const maximum = Number(e.target.value);
+                        if (Number.isFinite(maximum)) onChange({ maxProactiveConversationsPerDay: Math.max(0, Math.floor(maximum)) });
+                      }}
+                      aria-label="Maximum proactive check-ins per local day"
+                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white font-mono focus:outline-none focus:border-cyan-400/50 transition"
+                    />
+                    <p className="text-[9px] font-mono text-slate-500">Set to 0 to suppress proactive check-ins. Changes apply without stopping SARA.</p>
                   </div>
 
                   {settings.autoStart && (
@@ -652,53 +759,104 @@ export function SettingsPanel({ isOpen, onClose, settings, onChange, themeColor,
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-3">
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
-                      Voice Sample (Experimental)
-                    </div>
-
+                  <div className="p-3 rounded-xl border border-amber-400/20 bg-amber-400/5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[10px] font-mono text-slate-300">
-                        {voiceProfile ? `Enrolled: ${voiceProfile.displayName}` : "No participant profile saved"}
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-300">
+                        Voice authentication
                       </div>
-                      {voiceProfile && <div className="text-[9px] font-mono text-amber-300">sample stored locally only</div>}
+                      <span className="rounded border border-amber-400/30 px-2 py-0.5 text-[8px] font-mono uppercase tracking-wider text-amber-200">
+                        Not available
+                      </span>
                     </div>
+                    <p className="text-[9px] font-mono text-slate-400 leading-relaxed">
+                      SARA has no validated speaker-verification or replay/liveness provider. Voice similarity and speech recognition are not authentication and cannot unlock actions.
+                    </p>
+                    <p className="text-[9px] font-mono text-slate-400 leading-relaxed">
+                      For admin controls, use a configured WebAuthn passkey in Owner &amp; Security. The OS may offer a PIN, fingerprint, or face; SARA accepts only a valid server-verified assertion for that enrolled admin credential.
+                    </p>
+                  </div>
 
-                    <div className="flex gap-2">
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-3">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-300">
+                      Voice similarity sample (experimental, session-only)
+                    </div>
+                    <div className="text-[9px] font-mono text-slate-400">
+                      {voiceProfile ? "Temporary sample ready in memory" : "No temporary sample captured"}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => void captureVoiceSample("enroll")}
                         disabled={locked || isRecordingVoice}
-                        className={`flex-1 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-widest transition ${
+                        className={`rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-widest transition ${
                           locked || isRecordingVoice
                             ? "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
                             : "border-cyan-400/40 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15 cursor-pointer"
                         }`}
                       >
-                        {isRecordingVoice ? "Recording..." : "Save Sample"}
+                        {isRecordingVoice ? "Recording..." : "Capture temporary sample"}
                       </button>
-
                       <button
                         type="button"
                         onClick={() => void captureVoiceSample("identify")}
-                        disabled={locked || isRecordingVoice}
-                        className={`flex-1 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-widest transition ${
-                          locked || isRecordingVoice
+                        disabled={locked || isRecordingVoice || !voiceProfile}
+                        className={`rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-widest transition ${
+                          locked || isRecordingVoice || !voiceProfile
                             ? "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
                             : "border-violet-400/40 bg-violet-400/10 text-violet-200 hover:bg-violet-400/15 cursor-pointer"
                         }`}
                       >
-                        Compare
+                        Compare sample
                       </button>
+                      {isRecordingVoice && (
+                        <button
+                          type="button"
+                          onClick={cancelVoiceCapture}
+                          className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-[9px] font-mono uppercase tracking-widest text-rose-200 hover:bg-rose-400/15 transition cursor-pointer"
+                        >
+                          Cancel capture
+                        </button>
+                      )}
+                      {voiceProfile && !isRecordingVoice && (
+                        <button
+                          type="button"
+                          onClick={clearTemporaryVoiceSample}
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[9px] font-mono uppercase tracking-widest text-slate-300 hover:bg-white/10 transition cursor-pointer"
+                        >
+                          Clear sample
+                        </button>
+                      )}
                     </div>
-
-                    <div className="text-[9px] font-mono text-slate-400 leading-relaxed">
+                    <div role="status" className="text-[9px] font-mono text-slate-400 leading-relaxed">
                       {voiceStatus}
                     </div>
-                    <div className="text-[8px] font-mono text-amber-200/80 leading-relaxed">
-                      This sample comparison is not biometrics and must never be used to authorize admin access. Use the device passkey in the Owner &amp; Security panel; Windows Hello may use face, fingerprint, or PIN depending on your device.
-                    </div>
+                    <p className="text-[8px] font-mono text-amber-200/80 leading-relaxed">
+                      Captures only after you press the button. Audio and numeric features remain in browser memory and are cleared when Settings closes; nothing is sent to the AI or backend. This heuristic is not speaker verification, liveness detection, or authorization.
+                    </p>
                   </div>
+
+                  {hasLegacyVoiceSample && (
+                    <div className="p-3 rounded-xl border border-rose-400/20 bg-rose-400/5 space-y-3">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-rose-200">
+                        Legacy browser sample found
+                      </div>
+                      <p className="text-[9px] font-mono text-slate-300 leading-relaxed">
+                        An old experimental numeric voice-similarity sample is still stored in this browser. It is not used for authentication. Delete it here if you no longer need it.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={deleteLegacyVoiceSample}
+                        className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-[9px] font-mono uppercase tracking-widest text-rose-200 hover:bg-rose-400/15 transition cursor-pointer"
+                      >
+                        Delete legacy sample
+                      </button>
+                    </div>
+                  )}
+                  {legacyVoiceSampleStatus && (
+                    <div role="status" className="text-[9px] font-mono text-slate-400 leading-relaxed">
+                      {legacyVoiceSampleStatus}
+                    </div>
+                  )}
                 </div>
               )}
 

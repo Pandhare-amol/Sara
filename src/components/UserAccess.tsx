@@ -64,6 +64,17 @@ export function UserAccess({ legacyWorkspace }: { legacyWorkspace: ReactNode }) 
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
+    // Another authorized tab or local client can enable protected mode while
+    // this tab still shows the legacy owner workspace. Recheck the public
+    // protection status so that stale private controls unmount promptly;
+    // backend authorization alone must not leave an accepted board on screen.
+    if (status?.enabled !== false) return;
+    const timer = window.setInterval(() => { void refresh(); }, 5000);
+    const onFocus = () => { void refresh(); };
+    window.addEventListener("focus", onFocus);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
+  }, [status?.enabled, refresh]);
+  useEffect(() => {
     if (!status?.error) return;
     const timer = window.setInterval(() => { void refresh(); }, 30_000);
     return () => window.clearInterval(timer);

@@ -4,6 +4,7 @@
  */
 
 import type { ToolVerifier, VerificationOutcome } from "./verificationRegistry";
+import { getDesktopAgentAuthHeaders } from "../../../security/desktopAgentAuth";
 
 export interface WindowListResponse {
   windows: Array<{
@@ -27,14 +28,17 @@ export interface ActiveWindowResponse {
 export class WindowVerifier implements ToolVerifier {
   timeout = 2000;
   private desktopAgentUrl: string;
+  private readonly fetcher: typeof fetch;
 
-  constructor(desktopAgentUrl: string = "http://127.0.0.1:8765") {
+  constructor(desktopAgentUrl: string = "http://127.0.0.1:8765", fetcher: typeof fetch = fetch) {
     this.desktopAgentUrl = desktopAgentUrl;
+    this.fetcher = fetcher;
   }
 
   canVerify(tool: string): boolean {
     return [
       "openApplication",
+      "closeApplication",
       "closeWindow",
       "focusWindow",
       "minimizeWindow",
@@ -72,19 +76,23 @@ export class WindowVerifier implements ToolVerifier {
       }
 
       // Get active window
-      const activeRes = await fetch(
+      const activeRes = await this.fetcher(
         `${this.desktopAgentUrl}/screen/live/windows`,
-        { signal: AbortSignal.timeout(this.timeout) },
+        {
+          headers: getDesktopAgentAuthHeaders(this.desktopAgentUrl, process.env),
+          signal: AbortSignal.timeout(this.timeout),
+        },
       );
+      if (!activeRes.ok) throw new Error(`Agent window query failed with HTTP ${activeRes.status}.`);
       const activeData = (await activeRes.json()) as WindowListResponse;
       const windows = activeData?.windows || [];
       observedState.windows = windows;
 
-      const target = title.toLowerCase();
+      const target = title.toLowerCase().replace(/\s+/g, " ").trim();
       const processAliases: Record<string, string> = { word: "winword", powerpoint: "powerpnt", "microsoft word": "winword", "microsoft powerpoint": "powerpnt" };
       const expectedProcess = processAliases[target] || target;
       const matches = windows.filter((w) => {
-        const application = String(w.process_name || w.application_name || "").trim().toLowerCase().replace(/\.exe$/, "");
+        const application = String(w.process_name || w.application_name || "").trim().toLowerCase().replace(/\.exe$/, "").replace(/\s+/g, " ");
         const namedApplication = application.length > 0 &&
           (application === expectedProcess || application.includes(expectedProcess) ||
             (application.length >= 4 && expectedProcess.includes(application)));
@@ -92,11 +100,11 @@ export class WindowVerifier implements ToolVerifier {
         // name (which matches every string via includes("")), cannot prove that
         // the requested native application actually opened.
         if (tool === "openApplication") return namedApplication && w.visible !== false;
-        const caption = String(w.title || "").trim().toLowerCase();
+        const caption = String(w.title || "").trim().toLowerCase().replace(/\s+/g, " ");
         return namedApplication || (caption.length > 0 && caption.includes(target));
       });
 
-      if (tool === "closeWindow") {
+      if (tool === "closeWindow" || tool === "closeApplication") {
         passed = matches.length === 0;
         checks.push({
           name: "window_closed",

@@ -131,6 +131,29 @@ export function buildStructuredExecutionResult(
   return result;
 }
 
+function hasAutoCloseRequest(value: unknown, depth = 0): boolean {
+  if (depth > 6 || !value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some((child) => hasAutoCloseRequest(child, depth + 1));
+  const record = value as Record<string, unknown>;
+  if (record.auto_close_after_task === true && record.ok === true && record.verified === true) return true;
+  return ["data", "result", "executionResult", "canonical", "unified", "execution"].some((key) =>
+    hasAutoCloseRequest(record[key], depth + 1),
+  );
+}
+
+function summarizeAutoCloseOutcome(outcome: any): NonNullable<AuthoritativeTaskResult["autoClose"]> {
+  const result = outcome?.result && typeof outcome.result === "object" ? outcome.result as Record<string, any> : {};
+  const payload = result.data && typeof result.data === "object" ? result.data as Record<string, any> : result;
+  return {
+    ok: payload.ok === true,
+    verified: payload.verified === true,
+    status: String(payload.status || (payload.ok === true ? "completed" : "left_open")),
+    closed: Array.isArray(payload.closed) ? payload.closed : [],
+    left_open: Array.isArray(payload.left_open) ? payload.left_open : [],
+    result: String(payload.result || outcome?.error || "Graceful close outcome could not be verified; the app was left open."),
+  };
+}
+
 export type { AuthoritativeTaskResult, VerificationResult };
 
 export function inferTaskToolCall(task: any): { tool: string; args: Record<string, unknown> } {
@@ -139,62 +162,113 @@ export function inferTaskToolCall(task: any): { tool: string; args: Record<strin
     return { tool: "saraAgentExecute", args: { goal: "General task" } };
   }
 
-  const siteTokens = ["youtube", "google", "github", "gmail", "chatgpt", "instagram", "docs", "wikipedia", "amazon", "netflix", "spotify"];
-  const namedSiteMatch = siteTokens.find((site) => new RegExp(`\\b${site}\\b`, "i").test(description));
-  const openTargetMatch = /(?:open|go to|visit|launch)\s+(?:the\s+)?([a-z0-9.-]+(?:\.[a-z0-9.-]+)+|youtube|google|github|gmail|chatgpt|instagram|docs|wikipedia|amazon|netflix|spotify)(?:\s|$)/i.exec(description);
-
-  const extractQuery = (site?: string, fallback = "query") => {
-    const base = site ? description.replace(new RegExp(`\\b${site}\\b`, "gi"), "").trim() : description;
-    const direct = /(?:search(?:\s+(?:for|on))?|find|look up)\s+(?:for\s+)?(.+)/i.exec(base);
-    if (direct?.[1]) return direct[1].trim();
-    const stripped = base.replace(/^(?:search|find|look up|for|on|play|watch|open)\s+/i, "").trim();
-    return stripped || fallback;
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const youtubeUrlMatch = /https?:\/\/(?:www\.)?(?:youtube\.com|m\.youtube\.com|youtu\.be)\/[^\s]+/i.exec(description);
+  if (youtubeUrlMatch && /\b(?:play|watch)\b/i.test(description)) {
+    return { tool: "youtube_play", args: { url: youtubeUrlMatch[0].replace(/[),.!?]+$/, "") } };
+  }
+  const youtubePlay = /\b(?:play|watch)\s+(.+?)(?:\s+on\s+youtube)?[.!?]*$/i.exec(description);
+  if (/\byoutube\b/i.test(description) && youtubePlay) {
+    const query = youtubePlay[1].replace(/\s+on\s+youtube[.!?]*$/i, "").trim();
+    return { tool: "youtube_play", args: { query } };
+  }
+  const cleanSearchQuery = (raw: string, engine?: string): string => {
+    let query = raw.trim();
+    if (engine) {
+      const escapedEngine = escapeRegex(engine);
+      query = query.replace(new RegExp(`^(?:(?:on|in|using)\\s+)?${escapedEngine}(?:\\s+for)?\\s+`, "i"), "");
+      query = query.replace(new RegExp(`\\s+(?:on|in|using)\\s+${escapedEngine}\\b`, "i"), "");
+    }
+    return query.replace(/^(?:for|on|in|using)\s+/i, "").trim();
   };
-
-  if (/\byoutube\b/i.test(description) && /(?:search|find|look up|play|watch)/i.test(description)) {
-    const playMatch = /(?:play|watch)\s+(.+)/i.exec(description);
-    const query = playMatch ? playMatch[1].trim() : extractQuery("youtube", "popular videos");
-    return { tool: "searchYouTube", args: { query } };
+  const searchMatch = /\b(?:search|find|look up)\s+(.+?)[.!?]*$/i.exec(description);
+  if (/\bgoogle\b/i.test(description) && searchMatch) {
+    const query = cleanSearchQuery(searchMatch[1], "google");
+    return { tool: "searchGoogle", args: { query: query || "search" } };
+  }
+  if (/\bgithub\b/i.test(description) && searchMatch) {
+    const query = cleanSearchQuery(searchMatch[1], "github");
+    return { tool: "searchGitHub", args: { query: query || "project" } };
+  }
+  if (/\byoutube\b/i.test(description) && searchMatch) {
+    const query = cleanSearchQuery(searchMatch[1], "youtube");
+    return { tool: "searchYouTube", args: { query: query || "video" } };
+  }
+  if (searchMatch) {
+    const query = cleanSearchQuery(searchMatch[1]);
+    return { tool: "searchWeb", args: { query: query || "query" } };
   }
 
-  if (/\bgoogle\b/i.test(description) && /(?:search|find|look up)/i.test(description)) {
-    return { tool: "searchGoogle", args: { query: extractQuery("google", "search") } };
+  if (/\b(?:close|shut)\s+(?:the\s+)?(?:current\s+)?tab\b/i.test(description)) {
+    return { tool: "desktopBrowserCloseTab", args: {} };
+  }
+  if (/\b(?:open|create)\s+(?:a\s+)?new\s+tab\b/i.test(description)) {
+    return { tool: "desktopBrowserOpenTab", args: {} };
   }
 
-  if (/\bgithub\b/i.test(description) && /(?:search|find|look up)/i.test(description)) {
-    return { tool: "searchGitHub", args: { query: extractQuery("github", "project") } };
+  const appAliases = ([
+    ["google chrome", "chrome"], ["chrome", "chrome"], ["microsoft edge", "edge"], ["edge", "edge"],
+    ["firefox browser", "firefox"], ["firefox", "firefox"], ["brave browser", "brave"], ["brave", "brave"],
+    ["visual studio code", "vscode"], ["vs code", "vscode"], ["vscode", "vscode"], ["code editor", "vscode"],
+    ["file explorer", "file explorer"], ["windows explorer", "file explorer"], ["explorer", "file explorer"],
+    ["task manager", "task manager"], ["calculator", "calculator"], ["calc", "calculator"], ["settings", "settings"],
+    ["command prompt", "command prompt"], ["powershell", "powershell"], ["notepad", "notepad"], ["wordpad", "wordpad"],
+    ["snipping tool", "snipping tool"], ["whatsapp desktop", "whatsapp"], ["whatsapp", "whatsapp"],
+    ["visual studio", "visual studio"], ["github desktop", "github desktop"], ["docker desktop", "docker desktop"],
+    ["libreoffice", "libreoffice"], ["thunderbird", "thunderbird"], ["powerpoint", "powerpoint"],
+    ["onenote", "onenote"], ["spotify", "spotify"], ["discord", "discord"], ["slack", "slack"], ["teams", "teams"],
+    ["zoom", "zoom"], ["pycharm", "pycharm"], ["obsidian", "obsidian"], ["vlc", "vlc"],
+    ["excel", "excel"], ["word", "word"], ["paint", "paint"], ["camera", "camera"],
+  ] as Array<[string, string]>).sort((left, right) => right[0].length - left[0].length);
+  const appAction = /\b(open|launch|start|close|quit|exit)\s+(?:the\s+)?(?:(?:app|application|program)\s+)?(.+)/i.exec(description);
+  if (appAction) {
+    const action = appAction[1].toLowerCase();
+    const remainder = appAction[2].replace(/[.!?]+$/, "").trim();
+    const alias = appAliases.find(([name]) => new RegExp(`^${escapeRegex(name)}(?:\\s+(?:app|application|program|window))?(?:$|\\s)`, "i").test(remainder));
+    if (alias) {
+      return { tool: ["close", "quit", "exit"].includes(action) ? "closeApplication" : "openApplication", args: { name: alias[1] } };
+    }
+    const genericApp = /^(?:the\s+)?(?:app|application|program)\s+(.+)$/i.exec(remainder);
+    if (genericApp && ["open", "launch", "start"].includes(action)) {
+      return { tool: "openApplication", args: { name: genericApp[1].trim() } };
+    }
   }
 
-  if (/(?:open|go to|visit|launch)/i.test(description) || namedSiteMatch) {
-    const target = openTargetMatch ? openTargetMatch[1].trim() : (namedSiteMatch || "website");
+  const namedSites: Array<[string, string]> = [
+    ["youtube", "youtube"], ["google", "google"], ["github", "github"], ["gmail", "gmail"],
+    ["chatgpt", "chatgpt"], ["instagram", "instagram"], ["docs", "docs"], ["wikipedia", "wikipedia"],
+    ["amazon", "amazon"], ["netflix", "netflix"], ["spotify", "spotify"],
+  ];
+  const openTargetMatch = /\b(?:open|go to|visit|launch)\s+(?:the\s+)?([a-z0-9.-]+(?:\.[a-z0-9.-]+)+|youtube|google|github|gmail|chatgpt|instagram|docs|wikipedia|amazon|netflix|spotify)(?:\s|$)/i.exec(description);
+  const namedSite = namedSites.find(([site]) => new RegExp(`\\b${escapeRegex(site)}\\b`, "i").test(description));
+  if (/\b(?:open|go to|visit|launch)\b/i.test(description) || namedSite) {
+    const target = openTargetMatch ? openTargetMatch[1].trim() : (namedSite?.[1] || "website");
     return { tool: "openWebsite", args: { name: target } };
   }
 
-  if (/search|find|look up/.test(description)) {
-    return { tool: "searchWeb", args: { query: extractQuery(undefined, "query") } };
-  }
-
-  if (/click|type|open tab|close tab|navigate|scroll|refresh|back|forward/.test(description) || /browser|website/.test(description)) {
+  if (/\b(?:click|type|open tab|close tab|navigate|scroll|refresh|back|forward)\b/i.test(description) || /\b(?:browser|website)\b/i.test(description)) {
     return { tool: "desktopBrowserOpen", args: { url: "https://www.google.com" } };
   }
 
   return { tool: "saraAgentExecute", args: { goal: description } };
 }
-
-class TaskRunner extends EventEmitter {
+export class TaskRunner extends EventEmitter {
   private concurrency = 2;
   private running = 0;
   private activeTaskIds = new Set<string>();
+  private stopRequestedTaskIds = new Set<string>();
   private queueWake = false;
   private stopped = false;
   private callDesktopAgent: (tool: string, args: Record<string, unknown>, originalArgs?: Record<string, unknown>) => Promise<any>;
 
-  constructor(callAgent?: typeof defaultCallDesktopAgent) {
+  constructor(callAgent?: typeof defaultCallDesktopAgent, autoStart = true) {
     super();
     this.callDesktopAgent = callAgent || defaultCallDesktopAgent;
-    void this.recoverInterruptedTasks()
-      .catch((error) => console.error('[TaskRunner] interrupted-task recovery failed', error))
-      .finally(() => { void this.loop(); });
+    if (autoStart) {
+      void this.recoverInterruptedTasks()
+        .catch((error) => console.error('[TaskRunner] interrupted-task recovery failed', error))
+        .finally(() => { void this.loop(); });
+    }
   }
 
   private async recoverInterruptedTasks() {
@@ -229,6 +303,83 @@ class TaskRunner extends EventEmitter {
 
   public stop() {
     this.stopped = true;
+  }
+
+  /** Cancel only not-yet-started work and cooperatively stop active task flows. */
+  public async emergencyStop(): Promise<{ cancelledQueuedTaskIds: string[]; cancellationRequestedTaskIds: string[] }> {
+    const cancelledQueuedTaskIds: string[] = [];
+    const cancellationRequestedTaskIds: string[] = [];
+    const tasks = await loadTasks();
+    for (const task of tasks) {
+      if (task.metadata?.automation) continue;
+      if (this.activeTaskIds.has(task.taskId) || task.status === "running") {
+        this.stopRequestedTaskIds.add(task.taskId);
+        const requestedAt = new Date().toISOString();
+        const updated = await updateTask(task.taskId, {
+          checkpoint: {
+            ...(task.checkpoint || {}),
+            cancellation: { requested: true, requestedAt, actionMayHaveCompleted: true, automaticReplay: false },
+          },
+          metadata: { ...(task.metadata || {}), cancellationRequestedAt: requestedAt },
+          updatedAt: requestedAt,
+        } as any);
+        if (updated) {
+          cancellationRequestedTaskIds.push(task.taskId);
+          this.emit("taskUpdated", updated);
+        }
+      } else if (task.status === "queued") {
+        const updated = await updateTask(task.taskId, {
+          status: "cancelled",
+          completedAt: new Date().toISOString(),
+          error: "Cancelled by emergency stop before execution; no tool call was started.",
+        } as any);
+        if (updated) {
+          cancelledQueuedTaskIds.push(task.taskId);
+          this.emit("taskUpdated", updated);
+        }
+      }
+    }
+    return { cancelledQueuedTaskIds, cancellationRequestedTaskIds };
+  }
+
+  private async cancelBeforeExecution(task: any): Promise<void> {
+    const cancelledAt = new Date().toISOString();
+    const updated = await updateTask(task.taskId, {
+      status: "cancelled",
+      completedAt: cancelledAt,
+      updatedAt: cancelledAt,
+      error: "Cancelled by emergency stop before any tool call was started.",
+      checkpoint: {
+        ...(task.checkpoint || {}),
+        cancellation: { requested: true, actionStarted: false, automaticReplay: false },
+      },
+    } as any);
+    if (updated) this.emit("taskUpdated", updated);
+    this.stopRequestedTaskIds.delete(task.taskId);
+  }
+
+  private async pauseForEmergencyStop(task: any, outcome?: unknown): Promise<void> {
+    const requestedAt = new Date().toISOString();
+    const current = (await loadTasks()).find((item) => item.taskId === task.taskId) || task;
+    const error = "Stop requested while this task may have been running. The current tool call may have completed external effects; review the actual state before retrying. SARA will not replay the task automatically.";
+    const checkpoint = {
+      ...(current.checkpoint || {}),
+      cancellation: { requested: true, actionMayHaveCompleted: true, automaticReplay: false },
+      recovery: { state: "paused_for_review", checkpointPreserved: true, automaticReplay: false },
+    };
+    const patch: Record<string, unknown> = {
+      status: "paused",
+      updatedAt: requestedAt,
+      error,
+      checkpoint,
+      metadata: { ...(current.metadata || {}), cancellationRequestedAt: current.metadata?.cancellationRequestedAt || requestedAt },
+    };
+    if (outcome !== undefined) {
+      patch.result = JSON.stringify({ cancellation: "requested", outcomeReturned: true, externalEffectsMayHaveOccurred: true });
+    }
+    const updated = await updateTask(task.taskId, patch as any);
+    if (updated) this.emit("taskUpdated", updated);
+    this.stopRequestedTaskIds.delete(task.taskId);
   }
 
   private async pickNextTasks(): Promise<any[]> {
@@ -276,8 +427,17 @@ class TaskRunner extends EventEmitter {
     if (this.activeTaskIds.has(task.taskId)) return;
     this.activeTaskIds.add(task.taskId);
     this.running += 1;
+    let toolDispatchStarted = false;
     try {
+      const latest = (await loadTasks()).find((entry) => entry.taskId === task.taskId);
+      if (!latest || latest.status !== "queued") return;
+      task = latest;
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.cancelBeforeExecution(task);
+        return;
+      }
       const started = await updateTask(task.taskId, { status: 'running', startedAt: new Date().toISOString() });
+      if (!started) return;
       this.emit('taskUpdated', started);
       this.emit('taskStarted', started);
 
@@ -289,9 +449,18 @@ class TaskRunner extends EventEmitter {
         if (fresh) task = fresh;
       } catch {}
 
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.cancelBeforeExecution(task);
+        return;
+      }
+
       if (task.metadata?.musicWorkflowTaskId) {
         const { executeMusicWorkflowTask } = await import("./src/services/music_studio/autonomous_creator");
         const workflow = await executeMusicWorkflowTask(String(task.metadata.musicWorkflowTaskId));
+        if (this.stopRequestedTaskIds.has(task.taskId)) {
+          await this.pauseForEmergencyStop(task, { workflow });
+          return;
+        }
         const succeeded = workflow.status === "COMPLETED";
         const updated = await updateTask(task.taskId, {
           status: succeeded ? "completed" : workflow.status === "WAITING_USER" ? "waiting" : "failed",
@@ -307,6 +476,10 @@ class TaskRunner extends EventEmitter {
       }
 
       const callSpec = await this.extractCallFromTask(task);
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.cancelBeforeExecution(task);
+        return;
+      }
       if (!callSpec) {
         await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: 'No call spec' });
         return;
@@ -347,7 +520,15 @@ class TaskRunner extends EventEmitter {
       if (!callSpec.args || Object.keys(callSpec.args || {}).length === 0) {
         const maxPoll = 10;
         for (let i = 0; i < maxPoll; i++) {
+          if (this.stopRequestedTaskIds.has(task.taskId)) {
+            await this.cancelBeforeExecution(task);
+            return;
+          }
           await this.sleep(500);
+          if (this.stopRequestedTaskIds.has(task.taskId)) {
+            await this.cancelBeforeExecution(task);
+            return;
+          }
           try {
             const all = await loadTasks();
             const fresh = all.find((t: any) => t.taskId === task.taskId);
@@ -378,8 +559,20 @@ class TaskRunner extends EventEmitter {
       } catch {}
 
       const argsWithContext = Object.assign({}, originalArgs || {}, { taskId: task.taskId });
+      if (callSpec.tool === "saraAppExecuteGoal" || callSpec.tool === "saraVoiceExecuteCommand") {
+        argsWithContext.automation_task_id = task.taskId;
+      }
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.cancelBeforeExecution(task);
+        return;
+      }
       const toolStartedAt = new Date().toISOString();
-            const res = await this.callDesktopAgent(callSpec.tool, argsWithContext, originalArgs || {});
+      toolDispatchStarted = true;
+      const res = await this.callDesktopAgent(callSpec.tool, argsWithContext, originalArgs || {});
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.pauseForEmergencyStop(task, { tool: callSpec.tool, result: res });
+        return;
+      }
 
       // Handle policy-driven user approval requirement
       if (!res.ok && res.error === "WAITING_FOR_APPROVAL") {
@@ -419,8 +612,37 @@ class TaskRunner extends EventEmitter {
       // Log the tool call using the original args that were intended (avoid
       // propagating the `taskId`-only payload entries seen earlier).
       await logToolCall(task.conversationId, callSpec.tool, originalArgs || (callSpec.args || {}), finalResult, res.error, task.taskId);
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        await this.pauseForEmergencyStop(task, finalResult);
+        return;
+      }
 
       if (finalResult.success) {
+        if (["saraAppExecuteGoal", "saraVoiceExecuteCommand"].includes(callSpec.tool) && hasAutoCloseRequest(res?.result)) {
+          try {
+            const closeOutcome = await this.callDesktopAgent("closeLaunchedApplications", {
+              automation_task_id: task.taskId,
+              taskId: task.taskId,
+            });
+            finalResult.autoClose = summarizeAutoCloseOutcome(closeOutcome);
+          } catch (cleanupError) {
+            finalResult.autoClose = {
+              ok: false,
+              verified: false,
+              status: "left_open",
+              closed: [],
+              left_open: [],
+              result: `The task succeeded, but graceful app cleanup could not be verified; the app was left open. ${String(cleanupError)}`,
+            };
+          }
+          if (finalResult.autoClose?.verified !== true) {
+            finalResult.userMessage = `${finalResult.userMessage || finalResult.summary} The task succeeded, but SARA left the app open because a graceful close could not be verified.`;
+          }
+        }
+        if (this.stopRequestedTaskIds.has(task.taskId)) {
+          await this.pauseForEmergencyStop(task, finalResult);
+          return;
+        }
         const updated = await updateTask(task.taskId, {
           status: 'completed',
           completedAt: new Date().toISOString(),
@@ -443,14 +665,20 @@ class TaskRunner extends EventEmitter {
         sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, tool: callSpec.tool, action: 'execute', result: 'failure', verification: finalResult.verified ? 'verified' : 'unverified', error: finalResult.error?.message });
       }
     } catch (e: any) {
-      const failed = await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: String(e) });
-      this.emit('taskUpdated', failed);
-      this.emit('taskCompleted', failed);
-      console.error(`TASK_RUN error ${task.taskId} ${e?.message || e}`);
-      sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, action: 'execute', result: 'exception', error: String(e) });
+      if (this.stopRequestedTaskIds.has(task.taskId)) {
+        if (toolDispatchStarted) await this.pauseForEmergencyStop(task, { error: String(e?.message || e) });
+        else await this.cancelBeforeExecution(task);
+      } else {
+        const failed = await updateTask(task.taskId, { status: 'failed', completedAt: new Date().toISOString(), error: String(e) });
+        this.emit('taskUpdated', failed);
+        this.emit('taskCompleted', failed);
+        console.error(`TASK_RUN error ${task.taskId} ${e?.message || e}`);
+        sysLogger.log({ component: 'TaskRunner', task_id: task.taskId, action: 'execute', result: 'exception', error: String(e) });
+      }
     } finally {
       this.running = Math.max(0, this.running - 1);
       this.activeTaskIds.delete(task.taskId);
+      this.stopRequestedTaskIds.delete(task.taskId);
     }
   }
 

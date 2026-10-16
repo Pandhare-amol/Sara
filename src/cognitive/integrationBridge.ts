@@ -37,6 +37,15 @@ export interface TaskExecutionResult {
   output: string;
   durationMs: number;
   reward: number;
+  cancelled?: boolean;
+  execution?: { actions: any[]; errors: any[]; corrections: any[] };
+  checkpoint?: {
+    planId: string;
+    status: "paused_for_review";
+    attemptedStepIds: string[];
+    pendingStepIds: string[];
+    automaticReplay: false;
+  };
 }
 
 export class CognitiveIntegrationBridge {
@@ -58,6 +67,7 @@ export class CognitiveIntegrationBridge {
       errors: any[];
       corrections: any[];
       result: string;
+      cancelled?: boolean;
     }>
   ): Promise<TaskExecutionResult> {
     const taskStartTime = Date.now();
@@ -134,7 +144,13 @@ export class CognitiveIntegrationBridge {
       );
 
       const executionStart = Date.now();
-      let execution;
+      let execution: {
+        actions: any[];
+        errors: any[];
+        corrections: any[];
+        result: string;
+        cancelled?: boolean;
+      };
       try {
         execution = await executeFn(plan, cognitiveContext);
       } catch (error) {
@@ -153,6 +169,35 @@ export class CognitiveIntegrationBridge {
         Date.now() - executionStart;
 
       result.output = execution.result;
+      if (execution.cancelled) {
+        result.cancelled = true;
+        result.execution = {
+          actions: execution.actions || [],
+          errors: execution.errors || [],
+          corrections: execution.corrections || [],
+        };
+        const attemptedStepIds = Array.from(new Set(
+          result.execution.actions
+            .map((action) => String(action?.id || "").trim())
+            .filter(Boolean)
+        ));
+        const attempted = new Set(attemptedStepIds);
+        result.checkpoint = {
+          planId: plan.id,
+          status: "paused_for_review",
+          attemptedStepIds,
+          pendingStepIds: plan.steps
+            .filter((step) => !attempted.has(step.id))
+            .map((step) => step.id),
+          automaticReplay: false,
+        };
+        result.durationMs = Date.now() - taskStartTime;
+        // A user-requested stop is an interruption, not evidence that the plan
+        // failed. Preserve completed actions and pending steps for review
+        // without creating a negative learning/reinforcement signal.
+        this.cognitive.clearWorking();
+        return result;
+      }
 
       // 5. RECORD EXECUTION IN WORKING MEMORY
       this.cognitive.setWorking("execution_result", execution);

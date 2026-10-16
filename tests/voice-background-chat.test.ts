@@ -34,6 +34,9 @@ test("voice queue acknowledges pending work, deduplicates a repeated call id and
   assert.equal(queued.verified, false);
   assert.ok(queued.task_id);
   assert.equal(queueVoiceAutomation(orchestrator, input).task_id, queued.task_id);
+  const changedArgs = queueVoiceAutomation(orchestrator, { ...input, args: { name: "chrome", operation_id: input.args.operation_id } });
+  assert.equal(changedArgs.ok, false, "An existing operation ID cannot be rebound to a different app.");
+  assert.equal(changedArgs.status, "CONFLICT");
   for (let index = 2; index <= 4; index++) {
     assert.equal(queueVoiceAutomation(orchestrator, { ...input, args: { ...input.args, operation_id: `fc-${index}-openApplication` } }).status, "QUEUED");
   }

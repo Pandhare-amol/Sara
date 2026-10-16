@@ -32,6 +32,7 @@ async function until(check: () => Promise<boolean>, timeoutMs = 18_000): Promise
 
 test("HTTP chat keeps later-turn context bounded without repeating the same history", { timeout: 45_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sara-chat-http-"));
+  const agentToken = "chat-fixture-agent-token-0123456789abcdef";
   const prompts: string[] = [];
   let child: ChildProcess | undefined;
   let output = "";
@@ -39,7 +40,17 @@ test("HTTP chat keeps later-turn context bounded without repeating the same hist
   let releaseNavigation!: () => void;
   const heldNavigation = new Promise<void>((resolve) => { releaseNavigation = resolve; });
   const agent = await listen(async (req, res) => {
-    if (req.url === "/health") { res.writeHead(200); res.end('{"status":"ok"}'); return; }
+    if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"status":"ok","service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}');
+      return;
+    }
+    if (req.headers["x-sara-agent-token"] !== agentToken) { res.writeHead(401); res.end(); return; }
+    if (req.url === "/auth/check") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true,"service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}');
+      return;
+    }
     if (req.url !== "/execute") { res.writeHead(404); res.end(); return; }
     let body = "";
     for await (const chunk of req) body += String(chunk);
@@ -73,6 +84,7 @@ test("HTTP chat keeps later-turn context bounded without repeating the same hist
         ...process.env, PORT: String(port), SARA_BIND_HOST: "127.0.0.1", SARA_SUPERVISOR: "1", DISABLE_HMR: "true",
         SARA_DATA_DIR: dir, SARA_TEXT_PROVIDER: "openai-compatible", SARA_TEXT_MODEL: "fake",
         SARA_TEXT_API_BASE_URL: `http://127.0.0.1:${provider.port}/v1`, DESKTOP_AGENT_URL: `http://127.0.0.1:${agent.port}`,
+        SARA_AGENT_INTERNAL_TOKEN: agentToken,
         SARA_AUTO_MEMORY: "false", GEMINI_API_KEY: "",
       },
     });

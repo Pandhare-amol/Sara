@@ -36,6 +36,7 @@ test("HTTP integration: fake planning provider, existing task API, unauthenticat
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sara-workflow-http-"));
   const calls: string[] = [];
   const admin = "test-only-admin-credential-32-characters";
+  const agentToken = "workflow-fixture-agent-token-0123456789abcdef";
   let child: ChildProcess | undefined;
   let output = "";
   const provider = await listen(async (req, res) => {
@@ -49,13 +50,25 @@ test("HTTP integration: fake planning provider, existing task API, unauthenticat
     res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(plan) } }], usage: { completion_tokens: 45 } }));
   });
   const agent = await listen(async (req, res) => {
-    if (req.url === "/health") { res.writeHead(200); res.end('{"status":"ok"}'); return; }
+    if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"status":"ok","service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}');
+      return;
+    }
+    if (req.headers["x-sara-agent-token"] !== agentToken) { res.writeHead(401); res.end(); return; }
+    if (req.url === "/auth/check") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true,"service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}');
+      return;
+    }
     if (req.url !== "/execute") { res.writeHead(404); res.end(); return; }
     let content = "";
     for await (const part of req) content += part.toString();
     const { tool, args } = JSON.parse(content);
     assert.equal(tool, "desktopBrowserWorkflow");
-    assert.equal(args.confirmed, undefined);
+    // The server adds trusted approval only to the exact reviewed write step;
+    // model-provided flags are stripped before the agent sees the request.
+    assert.equal(args.confirmed, args.operation === "click" ? true : undefined);
     assert.equal(args.authorized, undefined);
     calls.push(args.operation);
     const observed = { ok: true, verified: ["inspect", "read"].includes(args.operation), url: "https://example.com/start", text: "Article loaded", result: "Observed." };
@@ -69,6 +82,7 @@ test("HTTP integration: fake planning provider, existing task API, unauthenticat
       cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"], env: {
         ...process.env, PORT: String(port), SARA_BIND_HOST: "127.0.0.1", SARA_SUPERVISOR: "1",
         SARA_DATA_DIR: dir, DESKTOP_AGENT_URL: `http://127.0.0.1:${agent.port}`,
+        SARA_AGENT_INTERNAL_TOKEN: agentToken,
         SARA_TEXT_PROVIDER: "openai-compatible", SARA_TEXT_MODEL: "fake", SARA_PLANNING_MODEL: "fake",
         SARA_TEXT_API_BASE_URL: `http://127.0.0.1:${provider.port}/v1`, SARA_ADMIN_TOKEN: admin, DISABLE_HMR: "true",
       },

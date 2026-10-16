@@ -63,7 +63,10 @@ class AppAutomationSuiteTest(unittest.TestCase):
         self.assertTrue(any(name == "type" and call["text"] == "I'll be home at 7." for name, call in calls))
 
     def test_instagram_open_is_safe(self) -> None:
-        result = self.suite.execute("Instagram", "open", {}, confirmed=False)
+        with patch.dict(self.app_suite.TOOLS, {
+            "desktopBrowserOpen": lambda args: {"result": f"Opened {args['url']}", "verified": True},
+        }, clear=False):
+            result = self.suite.execute("Instagram", "open", {}, confirmed=False)
         self.assertIn("result", result)
 
     def test_office_goal_cannot_claim_creation_by_only_opening_word(self) -> None:
@@ -84,6 +87,45 @@ class AppAutomationSuiteTest(unittest.TestCase):
             self.assertEqual(edit.call_args.args[0]["action"], "set_font_size")
         with self.assertRaisesRegex(Exception, "not implemented"):
             self.suite.execute("Word", "export_pdf", {"path": "report.docx"})
+
+    def test_open_and_media_targets_are_not_marked_for_auto_close(self) -> None:
+        launch_calls = []
+
+        def launch(args):
+            launch_calls.append(dict(args))
+            return {"ok": True, "verified": True, "status": "SUCCESS", "launched_by_sara": True}
+
+        with patch.dict(self.app_suite.TOOLS, {"openApplication": launch}, clear=False):
+            opened = self.suite.execute_goal("Open VS Code", automation_task_id="task-open")
+            playing = self.suite.execute_goal("Play music on Spotify", automation_task_id="task-play")
+
+        self.assertTrue(opened["verified"])
+        self.assertFalse(opened["auto_close_after_task"])
+        self.assertFalse(playing["auto_close_after_task"])
+        self.assertTrue(all("auto_close_after_task" not in call for call in launch_calls))
+
+    def test_app_suite_does_not_claim_opening_an_app_verified_a_different_task(self) -> None:
+        launch_calls = []
+
+        def launch(args):
+            launch_calls.append(dict(args))
+            return {"ok": True, "verified": True, "status": "SUCCESS", "launched_by_sara": True}
+
+        with patch.dict(self.app_suite.TOOLS, {"openApplication": launch}, clear=False):
+            result = self.suite.execute_goal("Run tests in VS Code", automation_task_id="task-tests")
+
+        self.assertFalse(result["verified"])
+        self.assertFalse(result["auto_close_after_task"])
+        self.assertTrue(launch_calls[0]["auto_close_after_task"])
+        self.assertEqual(launch_calls[0]["automation_task_id"], "task-tests")
+
+    def test_verified_helper_action_is_scoped_to_its_automation_task(self) -> None:
+        with patch.object(self.suite, "_execute_safe", return_value={"ok": True, "verified": True, "result": "Tests passed."}) as execute:
+            result = self.suite.execute_goal("Run tests in VS Code", automation_task_id="task-verified")
+
+        self.assertTrue(result["auto_close_after_task"])
+        self.assertTrue(result["verified"])
+        self.assertEqual(execute.call_args.kwargs["automation_task_id"], "task-verified")
 
     def test_plugin_manager_can_register_and_list_plugins(self) -> None:
         manager = self.app_suite.PluginManager()

@@ -21,6 +21,7 @@ async function until(check: () => boolean | Promise<boolean>, timeout = 15_000) 
 test("admin-approved visual grant is scoped, revocable and does not block chat/status during an uncertain click", { timeout: 50_000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sara11-visual-http-"));
   const bridgeKey = "visual-bridge-key-for-isolated-http-fixture-123456789";
+  const agentToken = "visual-fixture-agent-token-0123456789abcdef";
   const admin = "unit-test-admin-secret-that-is-long-enough";
   let releaseClick!: () => void;
   const holdClick = new Promise<void>((resolve) => { releaseClick = resolve; });
@@ -34,7 +35,11 @@ test("admin-approved visual grant is scoped, revocable and does not block chat/s
     res.setHeader("Content-Type", "application/json");
     if (req.url === "/health") {
       if (protectedEnabled) { nativeEnabled = false; healthStops++; }
-      res.end('{"status":"ok"}'); return;
+      res.end('{"status":"ok","service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}'); return;
+    }
+    if (req.headers["x-sara-agent-token"] !== agentToken) { res.statusCode = 401; res.end("{}"); return; }
+    if (req.url === "/auth/check") {
+      res.end('{"ok":true,"service":"sara-desktop-agent","agent_auth_required":true,"agent_auth_protocol_version":1}'); return;
     }
     if (req.url !== "/execute") { res.statusCode = 404; res.end("{}"); return; }
     let body = ""; for await (const chunk of req) body += String(chunk);
@@ -104,6 +109,7 @@ test("admin-approved visual grant is scoped, revocable and does not block chat/s
       cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"], env: { ...process.env,
         PORT: String(port), SARA_BIND_HOST: "127.0.0.1", SARA_SUPERVISOR: "1", SARA_DATA_DIR: dir,
         DESKTOP_AGENT_URL: `http://127.0.0.1:${agentPort}`, SARA_VISUAL_BRIDGE_KEY: bridgeKey,
+        SARA_AGENT_INTERNAL_TOKEN: agentToken,
         SARA_ADMIN_TOKEN: admin, SARA_AUTO_MEMORY: "false", GEMINI_API_KEY: "",
         SARA_TEXT_PROVIDER: "openai-compatible", SARA_TEXT_MODEL: "fixture-chat",
         SARA_TEXT_API_BASE_URL: `http://127.0.0.1:${providerPort}/v1`,

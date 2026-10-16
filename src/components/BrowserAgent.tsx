@@ -330,10 +330,19 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
             const query = args.query;
             if (!query) throw new Error("Query text is required.");
             
-            // Check if we are searching for YouTube videos
-            const isYtRelated = query.toLowerCase().includes("youtube") || query.toLowerCase().includes("video") || (activeTab && activeTab.url.includes("youtube"));
+            // Route explicit YouTube/video playback searches to YouTube even
+            // when the current tab is not already on YouTube.
+            const normalizedQuery = query.toLowerCase();
+            const isYtRelated = /\b(youtube|videos?|play|watch|music video|songs?)\b/.test(normalizedQuery)
+              || Boolean(activeTab?.url.includes("youtube"));
             if (isYtRelated) {
-              const cleanYtQ = query.replace(/youtube|search|find|play/gi, "").trim();
+              const cleanYtQ = query
+                .replace(/\byoutube\b/gi, " ")
+                .replace(/^\s*(?:search|find|play|watch)\s+/i, "")
+                .replace(/^\s*(?:search|find|play|watch)\s+/i, "")
+                .replace(/^\s*(?:for|on)\s+/i, "")
+                .replace(/\s+/g, " ")
+                .trim();
               const destUrl = `https://youtube.com/results?search_query=${encodeURIComponent(cleanYtQ || query)}`;
               navigateToUrl(destUrl);
               callback({ result: `Searching YouTube for "${cleanYtQ || query}" right away.` });
@@ -397,8 +406,20 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
             const frameWindow = iframeRef.current?.contentWindow;
             if (!frameWindow) throw new Error("The browser frame is unavailable.");
 
-            const isYouTubeEmbed = Boolean(activeTab?.url && /(?:youtube\.com|youtu\.be)/i.test(activeTab.url));
-            if (isYouTubeEmbed) {
+            const sourceUrl = String(activeTab?.url || "");
+            const isYouTubeSite = /(?:youtube\.com|youtu\.be)/i.test(sourceUrl);
+            const embeddedPlayerUrl = getRenderUrl(sourceUrl);
+            const hasEmbeddedYouTubePlayer = Boolean(
+              !activeTab?.openedExternally
+              && /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]{11}(?:\?|$)/.test(embeddedPlayerUrl)
+            );
+            if (isYouTubeSite && !hasEmbeddedYouTubePlayer) {
+              throw new Error(
+                "This YouTube page is open in the system default browser or is only a search page. " +
+                "SARA cannot control that separate browser tab here, so no command was sent to an unrelated hidden page."
+              );
+            }
+            if (hasEmbeddedYouTubePlayer) {
               const func = action === "play" ? "playVideo"
                 : action === "pause" ? "pauseVideo"
                   : action === "volume" ? "setVolume"
@@ -408,7 +429,11 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
               if (!func) throw new Error("Unsupported media action.");
               const args = action === "volume" ? [value] : action === "skip" ? [30, true] : [];
               frameWindow.postMessage(JSON.stringify({ event: "command", func, args }), "https://www.youtube.com");
-              callback({ result: `Sent the ${action} command to the YouTube player.` });
+              callback({
+                result: `Sent the ${action} command to the embedded YouTube player; playback state was not verified.`,
+                verification: "UNCERTAIN",
+                verified: false,
+              });
             } else {
               const result = await sendFrameCommand("media", { action, value });
               callback({ result: result?.message || `Executed media action: ${action}.` });
@@ -1083,15 +1108,15 @@ export const BrowserAgent: React.FC<BrowserAgentProps> = ({
                     <div className="flex-1 overflow-y-auto space-y-5 pr-1 select-text">
                       <div className="p-3.5 rounded-xl border border-indigo-500/10 bg-indigo-505/10 text-[11px] font-sans leading-normal text-indigo-300">
                         <p className="font-bold uppercase tracking-wider text-xs mb-1">Local Browser Sync Mode</p>
-                        <span>If you prefer to command a real, headed Chrome browser on your desktop computer, easily launch Sara's local client script!</span>
+                        <span>If you prefer to command a real, headed Chrome browser on your desktop computer, launch Sara's local client script. It binds to loopback only and permits exact localhost UI origins; do not expose it to a LAN or the public internet.</span>
                       </div>
 
                       <div className="space-y-4 font-mono text-[10px]">
                         <div>
                           <p className="text-slate-400 uppercase font-bold mb-1">1. Install libraries</p>
                           <div className="p-2.5 bg-slate-950 border border-white/5 rounded-lg flex items-center justify-between text-slate-300">
-                            <code>npm install playwright express cors</code>
-                            <button onClick={() => copyToClipboard("npm install playwright express cors", "install1")} className="p-1 rounded hover:bg-white/5 text-slate-500 hover:text-white">
+                            <code>npm install playwright express dotenv</code>
+                            <button onClick={() => copyToClipboard("npm install playwright express dotenv", "install1")} className="p-1 rounded hover:bg-white/5 text-slate-500 hover:text-white">
                               {copiedSection === "install1" ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                             </button>
                           </div>
