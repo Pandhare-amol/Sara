@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { SaraAudioSession, LiveState } from "./lib/audio";
+import { isScreenCaptureUnsupported } from "./lib/screenSharePermissions";
+import { hasVisualToken, visualHeaders } from "./lib/visualClient";
 import { SaraCoreVisualizer, SaraEmotion } from "./components/SaraCoreVisualizer";
 import { BrowserAgent } from "./components/BrowserAgent";
 import { DesktopChatPanel } from "./components/DesktopChatPanel";
+import { VisualAccessIndicator } from "./components/VisualAccessIndicator";
 import { DesktopConversationsPanel } from "./components/DesktopConversationsPanel";
 import { 
   Power, 
@@ -18,6 +21,8 @@ import {
   Mic,
   X,
   Brain,
+  BookOpen,
+  ListTodo,
   Monitor,
   Play,
   Pause,
@@ -32,6 +37,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Memory, MemoryCategory } from "./lib/memoryTypes";
 import { MemoryDashboard } from "./components/MemoryDashboard";
+import { TaskManagerPanel } from "../TaskManagerPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { GestureControlPanel } from "./components/GestureControlPanel";
 import { CameraPanel } from "./components/CameraPanel";
@@ -44,8 +50,18 @@ import { ProjectManagerPanel } from "./components/ProjectManagerPanel";
 import { SaraSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./lib/settingsStore";
 import { SaraWakeWordDetector } from "./lib/wakeWord";
 import { SecurityAlertPollingCursor } from "./services/securityAlertPolling";
+import { apiFetch } from "./lib/userSession";
+import { UserAccess } from "./components/UserAccess";
+import { ApiKeyGate } from "./components/ApiKeyGate";
+
+const ResearchLearningPanel = lazy(() => import("./components/ResearchLearningPanel").then((module) => ({ default: module.ResearchLearningPanel })));
+const StudioWorkspace = lazy(() => import("./components/StudioWorkspace").then((module) => ({ default: module.StudioWorkspace })));
 
 export default function App() {
+  return <UserAccess legacyWorkspace={<ApiKeyGate><SaraWorkspace /></ApiKeyGate>} />;
+}
+
+function SaraWorkspace() {
   const [state, setState] = useState<LiveState>("disconnected");
 
   // Real-time Screen Sharing states
@@ -53,7 +69,9 @@ export default function App() {
   const [isScreenSharingPaused, setIsScreenSharingPaused] = useState<boolean>(false);
   const [screenVisionMode, setScreenVisionMode] = useState<boolean>(true);
   const [screenPreviewUrl, setScreenPreviewUrl] = useState<string | null>(null);
-  const [muted, setMuted] = useState<boolean>(false);
+  const [muted, setMuted] = useState<boolean>(() => {
+    try { return window.localStorage.getItem("sara.muted") === "1"; } catch { return false; }
+  });
   const [toast, setToast] = useState<string | null>(null);
   const [securityAlert, setSecurityAlert] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -100,6 +118,7 @@ export default function App() {
   const screenIntervalRef = useRef<any>(null);
   const screenCaptureModeRef = useRef<"stream" | "desktop">("stream");
   const desktopCaptureInFlightRef = useRef(false);
+  const screenAttemptRef = useRef(0);
 
   const isPausedRef = useRef<boolean>(false);
   const screenVisionRef = useRef<boolean>(true);
@@ -118,12 +137,16 @@ export default function App() {
     stateRef.current = state;
   }, [state]);
 
-  // Clean up streaming intervals on unmount
+  // A switch into protected mode unmounts this workspace. Stop browser media
+  // tracks as well as timers so an approved Live stream cannot linger.
   useEffect(() => {
     return () => {
-      if (screenIntervalRef.current) {
-        clearInterval(screenIntervalRef.current);
-      }
+      screenAttemptRef.current++;
+      isPausedRef.current = true;
+      if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
+      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+      sessionRef.current?.screenShareStopped();
     };
   }, []);
 
@@ -179,17 +202,18 @@ export default function App() {
     }
   };
 
-  const captureDesktopFrameAndSend = async (): Promise<boolean> => {
-    if (isPausedRef.current || !screenVisionRef.current || desktopCaptureInFlightRef.current) return false;
+  const captureDesktopFrameAndSend = async (attempt = screenAttemptRef.current): Promise<boolean> => {
+    if (attempt !== screenAttemptRef.current || isPausedRef.current || !screenVisionRef.current || desktopCaptureInFlightRef.current || !hasVisualToken()) return false;
     desktopCaptureInFlightRef.current = true;
     try {
-      const response = await fetch("/api/vision/screen-capture", { method: "POST" });
+      const response = await fetch("/api/vision/screen-capture", { method: "POST", headers: visualHeaders() });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok || !data.imageBase64 || !data.imageMime) {
         throw new Error(data.error || "Desktop screen capture failed.");
       }
+      if (attempt !== screenAttemptRef.current || isPausedRef.current || !hasVisualToken()) return false;
       setScreenPreviewUrl(`data:${data.imageMime};base64,${data.imageBase64}`);
-      if (sessionRef.current && stateRef.current !== "disconnected") {
+      if (!isPausedRef.current && screenVisionRef.current && sessionRef.current && stateRef.current !== "disconnected") {
         sessionRef.current.sendVideoFrame(data.imageBase64);
       }
       return true;
@@ -202,6 +226,8 @@ export default function App() {
   };
 
   const startScreenSharing = async () => {
+    const attempt = ++screenAttemptRef.current;
+    isPausedRef.current = false;
     setErrorText(null);
     try {
       // First try the standard browser API
@@ -215,38 +241,20 @@ export default function App() {
           },
           audio: false
         });
-      } catch (sdErr) {
-        // If running inside Electron, attempt the desktopCapturer-based fallback
-        try {
-          const sara = (window as any).sara;
-          if (sara && sara.isDesktop && typeof sara.getPrimaryScreenSourceId === 'function') {
-            const sourceId = await sara.getPrimaryScreenSourceId();
-            if (sourceId) {
-              // Use legacy chromeMediaSourceId approach as a fallback
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              stream = await (navigator.mediaDevices as any).getUserMedia({
-                audio: false,
-                video: {
-                  mandatory: {
-                    chromeMediaSource: 'desktop',
-                    chromeMediaSourceId: sourceId,
-                    minWidth: 1280,
-                    minHeight: 720,
-                    maxFrameRate: 5
-                  }
-                }
-              });
-            }
-          }
-        } catch (e) {
-          console.warn('[Screen Capture] Electron fallback failed:', e);
+        if (attempt !== screenAttemptRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
         }
-        // The VS Code embedded browser has no display-media API or Electron
-        // bridge. Use the local desktop agent in that environment instead.
-        if (!stream && sdErr?.name === "NotSupportedError") {
-          const captured = await captureDesktopFrameAndSend();
-          if (captured) {
+      } catch (sdErr) {
+        if (attempt !== screenAttemptRef.current) return;
+        // A user/OS denial is final. Another backend must NOT capture a screen
+        // after getDisplayMedia refused permission; fallback is unsupported-API only.
+        if (!isScreenCaptureUnsupported(sdErr, typeof navigator.mediaDevices?.getDisplayMedia === "function")) throw sdErr;
+        // A missing browser API may use the separately approved desktop-agent
+        // scope. Never use implicit Electron sources or switch on user denial.
+        if (!stream && isScreenCaptureUnsupported(sdErr, typeof navigator.mediaDevices?.getDisplayMedia === "function")) {
+          const captured = await captureDesktopFrameAndSend(attempt);
+          if (captured && attempt === screenAttemptRef.current) {
             screenCaptureModeRef.current = "desktop";
             setIsScreenSharing(true);
             setIsScreenSharingPaused(false);
@@ -260,6 +268,10 @@ export default function App() {
         if (!stream) throw sdErr;
       }
 
+      if (attempt !== screenAttemptRef.current) {
+        stream?.getTracks().forEach((track) => track.stop());
+        return;
+      }
       screenStreamRef.current = stream as MediaStream;
       screenCaptureModeRef.current = "stream";
       setScreenPreviewUrl(null);
@@ -293,97 +305,25 @@ export default function App() {
       }, 500);
 
     } catch (e: any) {
-      console.error("Screen sharing permission declined or missing API:", e);
-      let attemptedFallback = false;
-      let fallbackError: any = null;
-      try {
-        const sara = (window as any).sara;
-        if (sara && sara.isDesktop && typeof sara.getScreenSources === 'function') {
-          attemptedFallback = true;
-          const sources = await sara.getScreenSources();
-          if (Array.isArray(sources) && sources.length > 0) {
-            for (const s of sources) {
-              try {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                const sStream = await (navigator.mediaDevices as any).getUserMedia({
-                  audio: false,
-                  video: {
-                    mandatory: {
-                      chromeMediaSource: 'desktop',
-                      chromeMediaSourceId: s.id,
-                      minWidth: 1280,
-                      minHeight: 720,
-                      maxFrameRate: 5
-                    }
-                  }
-                });
-                if (sStream) {
-                  // Use this stream
-                  screenStreamRef.current = sStream as MediaStream;
-                  const video = document.createElement('video');
-                  video.srcObject = sStream as MediaStream;
-                  video.muted = true;
-                  video.playsInline = true;
-                  video.play().catch((err) => console.warn('Video play warning (fallback):', err));
-                  screenVideoRef.current = video;
-
-                  setIsScreenSharing(true);
-                  setIsScreenSharingPaused(false);
-
-                  (sStream as MediaStream).getVideoTracks()[0].onended = () => {
-                    stopScreenSharing();
-                  };
-
-                  if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
-                  screenIntervalRef.current = setInterval(() => { captureFrameAndSend(); }, 2000);
-                  setTimeout(() => { captureFrameAndSend(); }, 500);
-                  break;
-                }
-              } catch (subErr) {
-                fallbackError = subErr;
-                console.warn('[Screen Capture] fallback attempt failed for source', s, subErr);
-              }
-            }
-          }
-        }
-      } catch (fbEx) {
-        fallbackError = fbEx;
+      if (attempt !== screenAttemptRef.current) return;
+      console.error("Screen sharing could not start:", e);
+      if (!isScreenCaptureUnsupported(e, typeof navigator.mediaDevices?.getDisplayMedia === "function")) {
+        setErrorText("Screen sharing was not authorized or the requested source was unavailable. Please use the Share Screen button if you want to try again.");
+        return;
       }
-
-      // If still not sharing, report full payload to server and copy to clipboard
-      if (!screenStreamRef.current) {
-        const payload: any = {
-          errorName: e?.name || null,
-          errorMessage: e?.message || String(e),
-          errorStack: e?.stack || null,
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-          url: typeof window !== 'undefined' ? window.location.href : null,
-          timestamp: new Date().toISOString(),
-          isElectron: !!((window as any).sara?.isDesktop),
-          attemptedFallback,
-          fallbackError: fallbackError ? (fallbackError.message || String(fallbackError)) : null
-        };
-        try {
-          await fetch('/api/client-error', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } catch (postErr) { console.warn('Failed to POST client error payload', postErr); }
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-            alert('Screen capture error details copied to clipboard. Paste them into the chat.');
-          }
-        } catch (clipErr) { console.warn('Failed to copy error payload to clipboard', clipErr); }
-
-        if (e.name !== 'NotAllowedError') setErrorText(`Could not capture screen: ${e.message || e}`);
-      }
+      // Electron has its own explicit picker in the main process. No retry via
+      // alternate sources after a denied request; no clipboard/IPC workaround.
+      console.warn("[Screen Capture] No authorized stream was obtained.");
+      setErrorText(!hasVisualToken()
+        ? "Browser screen sharing is unsupported here. Open Tasks and explicitly approve short-lived visual access to observe a scoped window or display instead."
+        : `Could not capture the approved screen scope: ${e?.message || e}`);
     }
   };
 
   const stopScreenSharing = () => {
+    screenAttemptRef.current++;
+    isPausedRef.current = true;
+    sessionRef.current?.screenShareStopped();
     if (screenIntervalRef.current) {
       clearInterval(screenIntervalRef.current);
       screenIntervalRef.current = null;
@@ -410,10 +350,13 @@ export default function App() {
   };
 
   const pauseScreenSharing = () => {
+    isPausedRef.current = true;
+    sessionRef.current?.screenShareStopped();
     setIsScreenSharingPaused(true);
   };
 
   const resumeScreenSharing = () => {
+    isPausedRef.current = false;
     setIsScreenSharingPaused(false);
     // Refresh first frame immediately
     setTimeout(() => {
@@ -422,13 +365,7 @@ export default function App() {
   };
 
   const switchScreenShare = async () => {
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach((track) => {
-        try {
-          track.stop();
-        } catch (e) {}
-      });
-    }
+    stopScreenSharing();
     await startScreenSharing();
   };
 
@@ -474,6 +411,9 @@ export default function App() {
   const [memoriesLoading, setMemoriesLoading] = useState<boolean>(false);
   const [memoriesError, setMemoriesError] = useState<string | null>(null);
   const [showMemoryDashboard, setShowMemoryDashboard] = useState<boolean>(false);
+  const [showTaskManager, setShowTaskManager] = useState(false);
+  const [showResearchLearning, setShowResearchLearning] = useState(false);
+  const [showStudio, setShowStudio] = useState(false);
   const [showCalendarPanel, setShowCalendarPanel] = useState<boolean>(false);
   const [showSystemMonitor, setShowSystemMonitor] = useState<boolean>(false);
   const [showProjectManager, setShowProjectManager] = useState<boolean>(false);
@@ -486,6 +426,24 @@ export default function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showGesturePanel, setShowGesturePanel] = useState<boolean>(false);
   const [showCameraPanel, setShowCameraPanel] = useState<boolean>(false);
+  const [cameraCommand, setCameraCommand] = useState<{
+    action: string; question?: string; duration?: number; respond: (result: unknown) => void;
+  } | null>(null);
+  const cameraCommandRef = useRef<typeof cameraCommand>(null);
+  useEffect(() => {
+    if (!cameraCommand || !showCameraPanel) return;
+    const resolveCommand = (result: unknown) => {
+      if (cameraCommandRef.current !== cameraCommand) return;
+      cameraCommandRef.current = null;
+      setCameraCommand(null);
+      cameraCommand.respond(result);
+    };
+    const expired = window.setTimeout(() => resolveCommand({ ok: false, error: "The camera action timed out; completion was not verified." }), 30_000);
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("sara-camera-action", { detail: { ...cameraCommand, respond: resolveCommand } }));
+    }, 0);
+    return () => { window.clearTimeout(timer); window.clearTimeout(expired); };
+  }, [cameraCommand, showCameraPanel]);
   const [showMappingEditor, setShowMappingEditor] = useState<boolean>(false);
   const [showConfirmPanel, setShowConfirmPanel] = useState<boolean>(false);
   const [showAdminSecurity, setShowAdminSecurity] = useState<boolean>(false);
@@ -529,7 +487,7 @@ export default function App() {
   useEffect(() => {
     const det = wakeDetectorRef.current;
     if (!det) return;
-    if (settings.wakeWordEnabled && state === "disconnected") {
+    if (settings.wakeWordEnabled && state === "disconnected" && !muted) {
       det.start({
         phrase: settings.wakePhrase,
         sensitivity: settings.sensitivity,
@@ -542,7 +500,7 @@ export default function App() {
     } else {
       det.stop();
     }
-  }, [settings.wakeWordEnabled, settings.wakePhrase, settings.sensitivity, state]);
+  }, [settings.wakeWordEnabled, settings.wakePhrase, settings.sensitivity, state, muted]);
 
   // Handle settings changes: persist to localStorage + update state.
   const handleSettingsChange = (patch: Partial<SaraSettings>) => {
@@ -556,7 +514,7 @@ export default function App() {
     setMemoriesLoading(true);
     setMemoriesError(null);
     try {
-      const response = await fetch("/api/memories", { cache: "no-store" });
+      const response = await apiFetch("/api/memories", { cache: "no-store" });
       if (!response.ok) throw new Error(`Memory service returned ${response.status}.`);
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error("Memory service returned an invalid response.");
@@ -572,28 +530,33 @@ export default function App() {
   // Fetch initial recollections from the existing memory service.
   useEffect(() => { void loadMemories(); }, []);
 
-  const handleAddManualMemory = async (category: MemoryCategory, text: string) => {
-    try {
-      const resp = await fetch("/api/memories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, text })
-      });
-      const saved = await resp.json();
-      if (saved && saved.id) {
-        setMemories((prev) => [...prev, saved]);
-      }
-    } catch (err) {
-      console.error("Manual database recollect upload error:", err);
-    }
+  const handleAddManualMemory = async (category: MemoryCategory, text: string, expiresAt?: string) => {
+    const resp = await apiFetch("/api/memories", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, text, expiresAt }),
+    });
+    const saved = await resp.json();
+    if (!resp.ok || !saved?.id) throw new Error(saved?.error || "Could not save memory.");
+    setMemories((prev) => [...prev, saved]);
+  };
+
+  const handleUpdateMemory = async (id: string, category: MemoryCategory, text: string, expiresAt?: string) => {
+    const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, text, expiresAt }),
+    });
+    const saved = await resp.json();
+    if (!resp.ok || !saved?.id) throw new Error(saved?.error || "Could not update memory.");
+    setMemories((prev) => prev.map((memory) => memory.id === id ? saved : memory));
   };
 
   const handleDeleteMemory = async (id: string) => {
     try {
-      const resp = await fetch(`/api/memories/${id}`, {
+      const resp = await apiFetch(`/api/memories/${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
       const resObj = await resp.json();
+      if (!resp.ok || !resObj?.success) throw new Error(resObj?.error || "Could not delete memory.");
       if (resObj && resObj.success) {
         setMemories((prev) => prev.filter(m => m.id !== id));
       }
@@ -634,40 +597,14 @@ export default function App() {
           setCharacterState("thinking");
           try {
             const lower = String(transcriptText || "").toLowerCase();
-            // Voice camera commands
-            const takePhotoRe = /take (?:a )?(?:photo|picture)(?: in (\d+) seconds?)?/i;
-            const startRecRe = /start (?:recording|video)(?: for (\d+) seconds?)?/i;
-            const stopRecRe = /stop (?:recording|video)/i;
-            const analyzeVisionRe = /how am i looking|what am i wearing|describe my appearance|check my appearance|check my outfit|what do you see/i;
-            const startCamRe = /(?:open|show|start|use) camera|see me|look at me|can you see me/i;
-            const stopCamRe = /(?:close|stop|hide|turn off) camera|stop seeing me|stop looking/i;
+            // Camera actions are performed only through camera_vision's
+            // result-bearing tool call. A transcription alone is not consent or
+            // evidence of capture; firing here also duplicated a model tool.
             const galleryRe = /(?:open|show) (?:camera )?gallery/i;
             const enableGestureRe = /enable hand gesture control|enable gestures|turn on gestures/i;
             const disableGestureRe = /disable hand gesture control|disable gestures|turn off gestures/i;
-
-            let m = null;
-            if (analyzeVisionRe.test(transcriptText)) {
+            if (galleryRe.test(transcriptText)) {
               setShowCameraPanel(true);
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'analyzeVision' } }));
-              }, 0);
-            } else if ((m = transcriptText.match(takePhotoRe))) {
-              const delay = m[1] ? parseInt(m[1], 10) : 0;
-              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'takePhoto', delay } }));
-            } else if (startRecRe.test(transcriptText)) {
-              const mm = transcriptText.match(startRecRe);
-              const duration = mm && mm[1] ? parseInt(mm[1], 10) : undefined;
-              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startRecording', duration } }));
-            } else if (stopRecRe.test(transcriptText)) {
-              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopRecording' } }));
-            } else if (startCamRe.test(transcriptText)) {
-              setShowCameraPanel(true);
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'startCamera' } }));
-              }, 0);
-            } else if (stopCamRe.test(transcriptText)) {
-              window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'stopCamera' } }));
-            } else if (galleryRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-camera-action', { detail: { action: 'openGallery' } }));
             } else if (enableGestureRe.test(transcriptText)) {
               window.dispatchEvent(new CustomEvent('sara-vision-action', { detail: { action: 'enable' } }));
@@ -694,8 +631,26 @@ export default function App() {
         }
       },
       onToolCall: (name, args, callback) => {
-        console.log(`[App] Tool call triggered: ${name}`, args);
-        
+        // Argument values may include private camera requests; do not log them.
+        console.log(`[App] Tool call triggered: ${name}`);
+        if (name === "camera_vision") {
+          const action = String(args?.action || "");
+          if (!["start", "stop", "status", "analyze", "photo", "record_start", "record_stop"].includes(action)) {
+            callback({ ok: false, error: "Unsupported camera action." });
+            return;
+          }
+          if (cameraCommandRef.current) {
+            callback({ ok: false, error: "Another camera request is still pending." });
+            return;
+          }
+          const command = { action, question: typeof args.question === "string" ? args.question.slice(0, 400) : undefined,
+            duration: typeof args.duration === "number" ? args.duration : undefined, respond: callback };
+          cameraCommandRef.current = command;
+          setCameraCommand(command);
+          setShowCameraPanel(true);
+          return;
+        }
+
         const browserTools = [
           "browserOpen",
           "browserSearch",
@@ -754,12 +709,17 @@ export default function App() {
       onAutomationEvent: (event) => {
         const task = event?.task;
         if (!task) return;
-        const label = task.tool === "youtube_play" ? "YouTube" : task.tool;
-        const status = String(task.status || "").toLowerCase();
-        if (status === "completed") showToast(`${label}: verified and completed`);
-        else if (status === "failed") showToast(`${label}: automation failed`);
-        else if (status === "paused") showToast(`${label}: outcome needs review before retrying`);
-        else if (status === "running") showToast(`${label}: working in background`);
+        window.dispatchEvent(new CustomEvent("sara.automationEvent", { detail: {
+          task_id: task.task_id, status: task.status, conversationId: task.conversationId,
+        } }));
+        const label = task.tool === "youtube_play" ? "YouTube" : String(task.tool || "Task");
+        // Only one toast per meaningful transition; progress remains in the
+        // task panel rather than piling up over the user's next voice turn.
+        if (event.type === "automation:completed") showToast(`${label}: verified and completed`);
+        else if (event.type === "automation:failed") showToast(`${label}: stopped or failed; check task status`);
+        else if (event.type === "RECOVERY_PAUSED") showToast(`${label}: outcome needs review`);
+        else if (event.type === "automation:cancel_requested") showToast(`${label}: stop requested; result pending`);
+        else if (event.type === "automation:started") showToast(`${label}: working in background`);
       },
       onDesktopEvent: (event) => {
         if (event?.event === "application_opened") {
@@ -774,6 +734,10 @@ export default function App() {
       ,
       onWake: async (info) => {
         try {
+          if (sessionRef.current?.isMuted()) {
+            showToast("Wake ignored: microphone is muted in this app.");
+            return;
+          }
           // Play a brief activation chime locally
           const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
           if (Ctx) {
@@ -881,11 +845,12 @@ export default function App() {
     if (state === "disconnected") {
       // Connect the audio session
       voiceConversationIdRef.current = desktopConversationId || window.localStorage.getItem("sara.conversationId");
+      // Honor the visible user's last mute choice before opening the device.
+      let startMuted = false;
+      try { startMuted = window.localStorage.getItem("sara.muted") === "1"; } catch {}
+      sessionRef.current.setMuted(startMuted);
+      setMuted(startMuted);
       await sessionRef.current.connect(voiceConversationIdRef.current);
-      // Ensure unmuted by default when connecting
-      try { sessionRef.current.setMuted(false); } catch {}
-      setMuted(false);
-      try { window.localStorage.setItem("sara.muted", "0"); } catch {}
     } else {
       // If already connected, toggle mute/unmute instead of disconnecting
       const next = !muted;
@@ -1014,6 +979,29 @@ export default function App() {
             <span className="hidden sm:inline">RECALLS</span>
           </button>
 
+          <VisualAccessIndicator onOpen={() => setShowTaskManager(true)} browserSharing={isScreenSharing}
+            browserPaused={isScreenSharingPaused} onStopBrowserSharing={stopScreenSharing} />
+          <button
+            onClick={() => setShowTaskManager((value) => !value)}
+            aria-label="Open task workflows"
+            className={`flex items-center gap-1 transition text-xs font-mono tracking-widest cursor-pointer ${showTaskManager ? "text-cyan-400 opacity-100" : "opacity-25 hover:opacity-100 text-white"}`}
+            title="Reviewed tasks and browser workflows"
+          >
+            <ListTodo size={14} />
+            <span className="hidden sm:inline">TASKS</span>
+          </button>
+
+          <button onClick={() => { setShowResearchLearning(true); setShowStudio(false); }}
+            className="flex items-center gap-1 text-xs font-mono tracking-widest text-white/55 hover:text-cyan-300"
+            aria-label="Open research and learning dashboard" title="Source-grounded learning (local owner only)">
+            <BookOpen size={14} /><span className="hidden sm:inline">LEARN</span>
+          </button>
+          <button onClick={() => { setShowStudio(true); setShowResearchLearning(false); }}
+            className="flex items-center gap-1 text-xs font-mono tracking-widest text-white/55 hover:text-fuchsia-300"
+            aria-label="Open creative studio" title="Validated private artifact workspace (local owner only)">
+            <Sparkles size={14} /><span className="hidden sm:inline">CREATE</span>
+          </button>
+
           {/* Real-time screen sharing toggler button inside Sara glass style header */}
           <button
             onClick={() => setShowCalendarPanel((value) => !value)}
@@ -1118,14 +1106,23 @@ export default function App() {
       </header>
 
       {showGesturePanel && <GestureControlPanel onClose={() => setShowGesturePanel(false)} />}
-      {showCameraPanel && <CameraPanel onClose={() => setShowCameraPanel(false)} />}
+      {showCameraPanel && <CameraPanel onClose={() => {
+        const pending = cameraCommandRef.current;
+        if (pending) {
+          cameraCommandRef.current = null;
+          setCameraCommand(null);
+          pending.respond({ ok: false, error: "Camera panel was closed before this action completed." });
+        }
+        setShowCameraPanel(false);
+      }} />}
       <CalendarPanel isOpen={showCalendarPanel} onClose={() => setShowCalendarPanel(false)} />
       <SystemMonitorPanel
         isOpen={showSystemMonitor}
         onClose={() => setShowSystemMonitor(false)}
         onOpenMonitor={() => setShowSystemMonitor(true)}
       />
-      <ProjectManagerPanel isOpen={showProjectManager} onClose={() => setShowProjectManager(false)} />
+      <ProjectManagerPanel isOpen={showProjectManager} onClose={() => setShowProjectManager(false)}
+        onOpenStudio={() => { setShowProjectManager(false); setShowResearchLearning(false); setShowStudio(true); }} />
       {showMappingEditor && <GestureMappingEditor onClose={() => setShowMappingEditor(false)} />}
       {showConfirmPanel && <ConfirmationPanel onClose={() => setShowConfirmPanel(false)} />}
 
@@ -1399,6 +1396,18 @@ export default function App() {
             </button>
           )}
         </div>
+        <div className="flex items-center gap-3 text-xs text-slate-300" role="status" aria-live="polite">
+          <span>{state === "disconnected"
+            ? settings.wakeWordEnabled && !muted ? "Voice off · wake detection enabled" : "Voice off · Live mic inactive"
+            : muted ? "Live mic muted" : state === "connecting" ? "Connecting · requesting microphone"
+              : "Live mic on · listening"}</span>
+          {state === "speaking" && (
+            <button type="button" onClick={() => {
+              if (sessionRef.current?.stopSpeaking()) showToast("Speech stopped; background tasks continue");
+            }} className="rounded-xl border border-purple-400/40 px-3 py-1.5 text-purple-200 hover:bg-purple-400/10"
+              aria-label="Stop SARA speech without cancelling any task">Stop speaking</button>
+          )}
+        </div>
 
       </footer>
 
@@ -1554,6 +1563,16 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {showResearchLearning && <Suspense fallback={<div role="status" className="fixed bottom-4 right-4 z-[90] text-white">Opening learning dashboard…</div>}>
+        <ResearchLearningPanel isOpen onClose={() => setShowResearchLearning(false)} />
+      </Suspense>}
+      {showStudio && <Suspense fallback={<div role="status" className="fixed bottom-4 right-4 z-[90] text-white">Opening creative workspace…</div>}>
+        <StudioWorkspace isOpen onClose={() => setShowStudio(false)} />
+      </Suspense>}
+
+      {/* Reviewed workflow panel uses the existing task store; legacy task UI remains available. */}
+      <TaskManagerPanel isOpen={showTaskManager} onClose={() => setShowTaskManager(false)} activeConversationId={desktopConversationId} />
+
       {/* Recollections sliding core panel */}
       <MemoryDashboard
         isOpen={showMemoryDashboard}
@@ -1563,6 +1582,7 @@ export default function App() {
         error={memoriesError}
         onRetry={() => { void loadMemories(); }}
         onAddMemory={handleAddManualMemory}
+        onUpdateMemory={handleUpdateMemory}
         onDeleteMemory={handleDeleteMemory}
         themeColor={themeColor}
       />

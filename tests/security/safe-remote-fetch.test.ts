@@ -22,6 +22,11 @@ test('public destination classifier permits ordinary global unicast addresses', 
   }
 });
 
+test('approved origin is checked before DNS; a redirected origin cannot broaden scope', async () => {
+  await assert.rejects(() => fetchPublicUrl('https://docs.example.com/private',
+    { allowedOrigins: ['https://other.example.com'] }), /approved origin/);
+});
+
 test('safe fetch rejects local, credential-bearing and non-HTTP URLs before connecting', async () => {
   await assert.rejects(() => fetchPublicUrl('http://127.0.0.1/'), /non-public/);
   await assert.rejects(() => fetchPublicUrl('http://[::1]/'), /non-public/);

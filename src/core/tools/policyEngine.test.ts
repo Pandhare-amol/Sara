@@ -35,11 +35,17 @@ test("policy denies browser domains outside the allowlist", () => {
   assert.equal(result.decision, "DENY");
 });
 
-test("power execution accepts the existing single-use token flow", () => {
-  const result = new ToolPolicyEngine().evaluate(
-    "executePowerAction",
-    { execute_token: "token-from-confirmation" },
-    registry(),
-  );
-  assert.equal(result.decision, "ALLOW");
+test("a model-visible power token cannot replace trusted user approval", () => {
+  const args = { execute_token: "token-from-preparation", confirmed: true, policy_override: true };
+  assert.equal(new ToolPolicyEngine().evaluate("executePowerAction", args, registry()).decision, "ASK_USER");
+  assert.equal(new ToolPolicyEngine().evaluate("executePowerAction", args, registry(), { confirmed: true }).decision, "ALLOW");
+});
+
+test("browser form submission and clicks need approval, ordinary fills do not", () => {
+  const tools = registry();
+  tools.registerRuntimeTools(["desktopBrowserFillForm", "desktopBrowserClick"]);
+  const policy = new ToolPolicyEngine();
+  assert.equal(policy.evaluate("desktopBrowserFillForm", { fields: { "#name": "Ada" } }, tools).decision, "ALLOW");
+  assert.equal(policy.evaluate("desktopBrowserFillForm", { fields: { "#name": "Ada" }, submit: "#send" }, tools).decision, "ASK_USER");
+  assert.equal(policy.evaluate("desktopBrowserClick", { selector: "#send" }, tools).decision, "ASK_USER");
 });

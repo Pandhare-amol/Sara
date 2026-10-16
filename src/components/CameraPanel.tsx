@@ -11,6 +11,7 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingSavedRef = useRef<Promise<{ ok: boolean; path?: string; filename?: string; error?: string }> | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const cameraManagerRef = useRef(new CameraManager());
   const frameRateControllerRef = useRef(new FrameRateController(500));
@@ -52,29 +53,42 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  // Listen for voice-driven camera actions dispatched from App
+  // Result-bearing camera actions originate from the active voice tool call.
+  // A command is *not* complete when the event is dispatched; only this
+  // handler's actual browser/media/HTTP outcome is returned to the model.
   useEffect(() => {
-    const handler = (e: any) => {
-      const d = e?.detail || {};
-      const act = d.action;
-      if (!act) return;
-      if (act === 'startCamera') startCamera();
-      else if (act === 'stopCamera') stopCamera();
-      else if (act === 'takePhoto') {
-        const delay = Number(d.delay || 0);
-        if (delay > 0) setTimeout(() => takePhoto(), delay * 1000); else takePhoto();
-      } else if (act === 'startRecording') {
-        const duration = Number(d.duration || 0);
-        startRecording();
-        if (duration > 0) setTimeout(() => stopRecording(), duration * 1000);
-      } else if (act === 'stopRecording') stopRecording();
-      else if (act === 'openGallery') fetchAndShowGallery();
-      else if (act === 'analyzeVision') {
-        void startCamera().then(() => window.setTimeout(analyzeFrame, 500));
-      }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      const respond = typeof detail.respond === "function" ? detail.respond as (value: unknown) => void : () => {};
+      void (async () => {
+        const action = String(detail.action || "");
+        if (action === "start" || action === "startCamera") return startCamera();
+        if (action === "stop" || action === "stopCamera") return stopCamera();
+        if (action === "status") return { ok: true, status: streamRef.current ? "active" : "off",
+          streamActive: Boolean(streamRef.current?.getVideoTracks().some((track) => track.readyState === "live")),
+          recording: recorderRef.current?.state === "recording" };
+        if (action === "photo" || action === "takePhoto") return takePhoto();
+        if (action === "analyze" || action === "analyzeVision") return analyzeFrame(detail.question);
+        if (action === "record_start" || action === "startRecording") {
+          const duration = Number(detail.duration || 0);
+          if (!Number.isFinite(duration) || duration < 0 || duration > 20) {
+            return { ok: false, error: "Recording duration must be 0–20 seconds. Longer capture requires a separate explicit stop request." };
+          }
+          const started = await startRecording();
+          if (!started.ok) return started;
+          if (duration > 0) {
+            await new Promise<void>((resolve) => window.setTimeout(resolve, duration * 1000));
+            return { ...await stopRecording(), saved: true };
+          }
+          return started;
+        }
+        if (action === "record_stop" || action === "stopRecording") return stopRecording();
+        if (action === "openGallery") { await fetchAndShowGallery(); return { ok: true, status: "gallery_opened" }; }
+        return { ok: false, error: "Unsupported camera action." };
+      })().then(respond, (error) => respond({ ok: false, error: error?.message || "Camera action failed." }));
     };
-    window.addEventListener('sara-camera-action', handler as EventListener);
-    return () => window.removeEventListener('sara-camera-action', handler as EventListener);
+    window.addEventListener("sara-camera-action", handler);
+    return () => window.removeEventListener("sara-camera-action", handler);
   }, [selectedDeviceId]);
 
   const enumerate = async () => {
@@ -88,7 +102,10 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
     }
   };
 
-  const startCamera = async () => {
+  const startCamera = async (): Promise<{ ok: boolean; status?: string; streamActive?: boolean; error?: string }> => {
+    if (streamRef.current?.getVideoTracks().some((track) => track.readyState === "live")) {
+      return { ok: true, status: "active", streamActive: true };
+    }
     setErrorText(null);
     setStatus("starting");
     try {
@@ -102,12 +119,16 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         videoRef.current.playsInline = true;
         try { await videoRef.current.play(); } catch {}
       }
+      const streamActive = s.getVideoTracks().some((track) => track.readyState === "live");
+      if (!streamActive) throw new Error("Camera stream has no active video track.");
       setStatus("active");
-
+      return { ok: true, status: "active", streamActive: true };
     } catch (e: any) {
       console.error("Camera start failed", e);
-      setErrorText(e?.message || String(e));
+      const error = e?.message || String(e);
+      setErrorText(error);
       setStatus("error");
+      return { ok: false, error };
     }
   };
 
@@ -127,21 +148,30 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
     setIsRecording(false);
     visionSessionRef.current?.end();
     visionSessionRef.current = null;
+    return { ok: true, status: "off", streamActive: false };
   };
 
-  const takePhoto = async () => {
-    if (!streamRef.current || !videoRef.current) return;
+  const takePhoto = async (): Promise<{ ok: boolean; path?: string; filename?: string; error?: string }> => {
+    if (!streamRef.current) {
+      const started = await startCamera();
+      if (!started.ok) return { ok: false, error: started.error || "Camera permission was not granted." };
+    }
+    if (!videoRef.current) return { ok: false, error: "Camera preview is not mounted." };
     try {
       const video = videoRef.current;
       if (video.videoWidth === 0 || video.videoHeight === 0) {
-        setErrorText("Video not ready");
-        return;
+        await Promise.race([new Promise<void>((resolve) => video.addEventListener("loadedmetadata", () => resolve(), { once: true })),
+          new Promise<void>((resolve) => window.setTimeout(resolve, 2000))]);
+      }
+      if (!video.videoWidth || !video.videoHeight) {
+        setErrorText("Camera video is not ready.");
+        return { ok: false, error: "Camera video is not ready." };
       }
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) return { ok: false, error: "Camera canvas is unavailable." };
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const image = await canvasToBlob(canvas, "image/jpeg", 0.92);
       const resp = await fetch("/api/camera/photo", {
@@ -150,20 +180,27 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         body: image
       });
       const j = await resp.json();
-      if (!resp.ok) {
-        setErrorText(j?.error || "Failed to save photo");
-      } else {
-        // success
+      if (!resp.ok || !j?.ok || !j?.path || !j?.filename) {
+        const error = j?.error || "Failed to save photo";
+        setErrorText(error);
+        return { ok: false, error };
       }
+      return { ok: true, path: j.path, filename: j.filename };
     } catch (e: any) {
-      setErrorText(e?.message || String(e));
+      const error = e?.message || String(e);
+      setErrorText(error);
+      return { ok: false, error };
     }
   };
 
-  const analyzeFrame = async () => {
-    if (!streamRef.current || !videoRef.current || videoRef.current.videoWidth === 0) {
+  const analyzeFrame = async (question?: string): Promise<{ ok: boolean; text?: string; error?: string }> => {
+    if (!streamRef.current) {
+      const started = await startCamera();
+      if (!started.ok) return { ok: false, error: started.error || "Camera permission was not granted." };
+    }
+    if (!videoRef.current || videoRef.current.videoWidth === 0) {
       setErrorText("Start the camera and wait for the preview before analyzing.");
-      return;
+      return { ok: false, error: "The camera has not produced a visible frame yet. Please retry." };
     }
     setIsAnalyzing(true);
     setAnalysisText(null);
@@ -175,7 +212,7 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       const context = canvas.getContext("2d");
       if (!context) throw new Error("Camera frame is unavailable.");
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      if (!frameRateControllerRef.current.shouldCapture()) return;
+      if (!frameRateControllerRef.current.shouldCapture()) return { ok: false, error: "Please wait for a new camera frame." };
       visionSessionRef.current?.recordFrame();
       visionSessionRef.current?.beginAnalysis();
       const startedAt = performance.now();
@@ -184,65 +221,94 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         method: "POST",
         headers: {
           "Content-Type": "image/jpeg",
-          "X-SARA-Question": "Describe visible, non-sensitive details only. Do not infer emotion, personality, health, or identity.",
+          "X-SARA-Question": `${typeof question === "string" ? question.slice(0, 350) : "Describe what is visible."} Describe only visible, non-sensitive details; do not infer emotions, personality, health, or identity.`,
         },
         body: image,
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Vision analysis failed.");
-      setAnalysisText(result.text || "I could not find enough visible detail to comment on.");
-      visionSessionRef.current?.finishAnalysis(result.text || "", performance.now() - startedAt);
+      const description = String(result.text || "").trim();
+      if (!description) throw new Error("The provider did not return a usable camera description.");
+      setAnalysisText(description);
+      visionSessionRef.current?.finishAnalysis(description, performance.now() - startedAt);
+      return { ok: true, text: description };
     } catch (error: any) {
-      setErrorText(error?.message || String(error));
+      const message = error?.message || String(error);
+      setErrorText(message);
+      return { ok: false, error: message };
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = async (): Promise<{ ok: boolean; status?: string; streamActive?: boolean; recording?: boolean; error?: string }> => {
+    if (recorderRef.current?.state === "recording") return { ok: false, error: "A video is already recording." };
     if (!streamRef.current) {
-      await startCamera();
-      if (!streamRef.current) return;
+      const started = await startCamera();
+      if (!started.ok) return { ok: false, error: started.error || "Camera permission was not granted." };
     }
     try {
+      if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
+        throw new Error("This browser does not support saving WebM video.");
+      }
       recordedChunksRef.current = [];
-      const mime = "video/webm;codecs=vp8";
-      const rec = new MediaRecorder(streamRef.current as MediaStream, { mimeType: mime });
+      const rec = new MediaRecorder(streamRef.current as MediaStream, { mimeType: "video/webm;codecs=vp8" });
+      let finish!: (result: { ok: boolean; path?: string; filename?: string; error?: string }) => void;
+      recordingSavedRef.current = new Promise((resolve) => { finish = resolve; });
       recorderRef.current = rec;
       rec.ondataavailable = (ev) => {
         if (ev.data && ev.data.size > 0) recordedChunksRef.current.push(ev.data);
       };
-      rec.onstop = async () => {
-        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
-        try {
-          if (blob.size === 0) throw new Error("The recording is empty.");
-          if (blob.size > 50 * 1024 * 1024) throw new Error("The recording exceeds the 50 MB upload limit.");
-          const resp = await fetch("/api/camera/video", {
-            method: "POST",
-            headers: { "Content-Type": "video/webm" },
-            body: blob
-          });
-          const j = await resp.json();
-          if (!resp.ok) setErrorText(j?.error || "Failed to save video");
-        } catch (e: any) {
-          setErrorText(e?.message || String(e));
-        }
+      rec.onerror = () => {
+        const error = "Video recording failed before it could be saved.";
+        setErrorText(error);
+        finish({ ok: false, error });
         setIsRecording(false);
       };
+      rec.onstop = async () => {
+        try {
+          const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+          if (!blob.size) throw new Error("The recording is empty.");
+          if (blob.size > 50 * 1024 * 1024) throw new Error("The recording exceeds the 50 MB upload limit.");
+          const resp = await fetch("/api/camera/video", {
+            method: "POST", headers: { "Content-Type": "video/webm" }, body: blob,
+          });
+          const saved = await resp.json();
+          if (!resp.ok || !saved?.ok || !saved.path || !saved.filename) throw new Error(saved?.error || "Failed to save video.");
+          finish({ ok: true, path: saved.path, filename: saved.filename });
+        } catch (error: any) {
+          const message = error?.message || String(error);
+          setErrorText(message);
+          finish({ ok: false, error: message });
+        } finally {
+          setIsRecording(false);
+        }
+      };
       rec.start(1000);
+      if (rec.state !== "recording") throw new Error("The browser did not start recording.");
       setIsRecording(true);
-    } catch (e: any) {
-      setErrorText(e?.message || String(e));
+      return { ok: true, status: "recording", streamActive: true, recording: true };
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      setErrorText(message);
+      setIsRecording(false);
+      return { ok: false, error: message };
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = async (): Promise<{ ok: boolean; path?: string; filename?: string; error?: string }> => {
+    const recorder = recorderRef.current;
+    const saving = recordingSavedRef.current;
+    if (!recorder || !saving) return { ok: false, error: "No active video recording was found." };
     try {
-      if (recorderRef.current && recorderRef.current.state !== "inactive") {
-        recorderRef.current.stop();
-      }
-    } catch (e) {
-      console.warn("Stop recording failed", e);
+      if (recorder.state !== "inactive") recorder.stop();
+      // A stop request is not a saved video until MediaRecorder fires onstop,
+      // the upload succeeds, and the server confirms the file path.
+      return await saving;
+    } catch (error: any) {
+      return { ok: false, error: error?.message || String(error) };
+    } finally {
+      recordingSavedRef.current = null;
     }
   };
 

@@ -35,6 +35,8 @@ export interface ContextConversationSignal {
 
 export interface ContextInput {
   userInput: string;
+  /** The chat prompt may already contain the current request; avoid duplicating it. */
+  includeUserInput?: boolean;
   recentMessages?: ContextMessage[];
   relevantMemories?: ContextMemory[];
   activeTasks?: ContextTask[];
@@ -57,7 +59,9 @@ export class ContextManager {
     const sections: string[] = [];
     const included = { currentInput: false, activeTasks: 0, recentMessages: 0, memories: 0, summary: false, userProfile: false, conversationSignal: false };
 
-    this.append(sections, `CURRENT USER REQUEST:\n${input.userInput.trim()}`, maxCharacters, included, "currentInput");
+    if (input.includeUserInput !== false) {
+      this.append(sections, `CURRENT USER REQUEST:\n${input.userInput.trim()}`, maxCharacters, included, "currentInput");
+    }
 
     if (input.userProfile) {
       const profile = input.userProfile;
@@ -79,7 +83,7 @@ export class ContextManager {
 
     for (const task of input.activeTasks || []) {
       const checkpoint = task.checkpoint ? ` checkpoint=${JSON.stringify(task.checkpoint)}` : "";
-      if (this.append(sections, `ACTIVE TASK: ${task.taskId || "unknown"} | ${task.status || "unknown"} | ${task.description || ""}${checkpoint}`, maxCharacters, included, "activeTasks")) included.activeTasks += 1;
+      if (this.append(sections, `ACTIVE TASK (status only; do not claim completion without verification): ${task.taskId || "unknown"} | ${task.status || "unknown"} | ${task.description || ""}${checkpoint}`, maxCharacters, included, "activeTasks")) included.activeTasks += 1;
     }
 
     if (input.summary?.trim() && this.append(sections, `CONVERSATION SUMMARY:\n${input.summary.trim()}`, maxCharacters, included, "summary")) included.summary = true;

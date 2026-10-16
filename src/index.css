@@ -7,6 +7,26 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/* User access center controls: visible focus states and touch-sized targets. */
+.auth-input {
+  width: 100%; min-width: 0; min-height: 42px; padding: 9px 12px;
+  border: 1px solid rgba(148, 163, 184, .28); border-radius: 10px;
+  color: #f1f5f9; background: #0e182c; font-size: 14px;
+}
+.auth-input::placeholder { color: #94a3b8; }
+.auth-input:focus-visible, .auth-button:focus-visible, .auth-outline:focus-visible {
+  outline: 2px solid #67e8f9; outline-offset: 2px;
+}
+.auth-button, .auth-outline {
+  width: 100%; min-height: 42px; padding: 9px 14px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.auth-button { color: #07101d; background: #67e8f9; }
+.auth-button:hover:not(:disabled) { background: #a5f3fc; }
+.auth-outline { color: #e2e8f0; border: 1px solid rgba(148, 163, 184, .3); background: rgba(255, 255, 255, .06); }
+.auth-outline:hover:not(:disabled) { background: rgba(255, 255, 255, .12); }
+.auth-button:disabled, .auth-outline:disabled { opacity: .45; cursor: not-allowed; }
+
 /* Custom smooth transition classes */
 .theme-transition {
   transition: background-color 1.2s cubic-bezier(0.4, 0, 0.2, 1), 

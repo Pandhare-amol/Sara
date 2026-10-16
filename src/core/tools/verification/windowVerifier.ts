@@ -8,7 +8,8 @@ import type { ToolVerifier, VerificationOutcome } from "./verificationRegistry";
 export interface WindowListResponse {
   windows: Array<{
     title: string;
-    application_name: string;
+    application_name?: string;
+    process_name?: string;
     hwnd?: number;
     visible?: boolean;
   }>;
@@ -17,7 +18,8 @@ export interface WindowListResponse {
 export interface ActiveWindowResponse {
   window: {
     title: string;
-    application_name: string;
+    application_name?: string;
+    process_name?: string;
     hwnd?: number;
   };
 }
@@ -78,12 +80,21 @@ export class WindowVerifier implements ToolVerifier {
       const windows = activeData?.windows || [];
       observedState.windows = windows;
 
-      const matches = windows.filter(
-        (w) =>
-          title.toLowerCase().includes(w.application_name?.toLowerCase() || "") ||
-          w.application_name?.toLowerCase().includes(title.toLowerCase() || "") ||
-          w.title?.toLowerCase().includes(title.toLowerCase() || ""),
-      );
+      const target = title.toLowerCase();
+      const processAliases: Record<string, string> = { word: "winword", powerpoint: "powerpnt", "microsoft word": "winword", "microsoft powerpoint": "powerpnt" };
+      const expectedProcess = processAliases[target] || target;
+      const matches = windows.filter((w) => {
+        const application = String(w.process_name || w.application_name || "").trim().toLowerCase().replace(/\.exe$/, "");
+        const namedApplication = application.length > 0 &&
+          (application === expectedProcess || application.includes(expectedProcess) ||
+            (application.length >= 4 && expectedProcess.includes(application)));
+        // A browser tab title containing an app name, or an empty application
+        // name (which matches every string via includes("")), cannot prove that
+        // the requested native application actually opened.
+        if (tool === "openApplication") return namedApplication && w.visible !== false;
+        const caption = String(w.title || "").trim().toLowerCase();
+        return namedApplication || (caption.length > 0 && caption.includes(target));
+      });
 
       if (tool === "closeWindow") {
         passed = matches.length === 0;

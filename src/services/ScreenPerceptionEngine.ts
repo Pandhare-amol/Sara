@@ -6,7 +6,6 @@
 import type { WorldState, Screen, Window, ScreenCapture, CursorState, UIElement, Observation } from '../types/WorldState';
 import { createObservation } from '../types/WorldState';
 import * as fs from 'fs';
-import * as path from 'path';
 
 export interface ScreenshotOptions {
   savePath?: string;
@@ -58,35 +57,10 @@ export class ScreenPerceptionEngine {
   /**
    * Capture a screenshot of the desktop
    */
-  async captureScreenshot(options?: ScreenshotOptions): Promise<{ success: boolean; capture?: ScreenCapture; error?: string }> {
-    try {
-      // In production, this would use a real screenshot library
-      // For now, we return a placeholder that would be implemented with:
-      // - sharp, jimp, or similar for image capture
-      // - pyautogui.screenshot() via Python bridge
-      // - Windows GDI / DirectX APIs
-
-      const timestamp = Date.now();
-      const filename = options?.savePath
-        ? path.basename(options.savePath)
-        : `screenshot-${timestamp}.png`;
-
-      const capture: ScreenCapture = {
-        id: `cap-${timestamp}`,
-        timestamp,
-        path: options?.savePath || `./screenshots/${filename}`,
-        width: 1366, // placeholder
-        height: 768, // placeholder
-        confidence: 0.95,
-      };
-
-      this.cache.lastScreenshot = capture;
-      this.cache.lastScreenshotTime = timestamp;
-
-      return { success: true, capture };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
+  async captureScreenshot(_options?: ScreenshotOptions): Promise<{ success: boolean; capture?: ScreenCapture; error?: string }> {
+    // This older engine is a prototype. It must not fabricate a screenshot or
+    // world state. The approved Windows agent has the actual capture path.
+    return { success: false, error: 'No approved capture bridge exists for this prototype. Use Tasks → Visual access.' };
   }
 
   /**
@@ -354,7 +328,8 @@ export class ScreenPerceptionEngine {
     try {
       // Capture screenshot
       const screenshotResult = await this.captureScreenshot();
-      if (screenshotResult.success && screenshotResult.capture) {
+      if (!screenshotResult.success) return { success: false, error: screenshotResult.error || 'Capture unavailable.' };
+      if (screenshotResult.capture) {
         observations.push(
           createObservation(
             'screen_capture',

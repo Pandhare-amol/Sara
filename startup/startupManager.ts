@@ -18,6 +18,7 @@
 import path from "path";
 import fs from "fs";
 import http from "http";
+import dotenv from "dotenv";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
@@ -62,10 +63,13 @@ const PROJECT_ROOT = path.resolve(
   "..",
 );
 
-const DATA_DIR = path.join(
-  PROJECT_ROOT,
-  "data",
-);
+// The supervisor chooses its lock and child datastore before validateConfig()
+// runs. Load the same local configuration now, or it can override an intended
+// protected installation with PROJECT_ROOT/data and start legacy services.
+dotenv.config({ path: path.join(PROJECT_ROOT, ".env") });
+const DATA_DIR = process.env.SARA_DATA_DIR
+  ? path.resolve(PROJECT_ROOT, process.env.SARA_DATA_DIR)
+  : path.join(PROJECT_ROOT, "data");
 
 const LOCK_PATH = path.join(
   DATA_DIR,

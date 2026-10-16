@@ -5,6 +5,7 @@
 
 export type VerifierName = 
   | "filesystem"
+  | "document"
   | "window"
   | "process"
   | "browser"

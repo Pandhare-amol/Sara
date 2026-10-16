@@ -7,17 +7,12 @@
 
 import { Request, Response, Router } from "express";
 import {
-  getCognitiveIntegrationBridge,
   getCognitiveOrchestrator,
   getPlanningEngine,
   getStrategyManager,
-  getTaskEvaluator,
 } from "./index";
-import type { TaskExecutionContext } from "./integrationBridge";
-import { callDesktopAgent } from "../../desktop_agent_bridge";
 
 const router = Router();
-const bridge = getCognitiveIntegrationBridge();
 const orchestrator = getCognitiveOrchestrator();
 
 /**
@@ -58,35 +53,11 @@ router.post("/cognitive/plan", async (req: Request, res: Response) => {
  * POST /cognitive/remember
  * Record a fact, preference, or piece of knowledge.
  */
-router.post("/cognitive/remember", async (req: Request, res: Response) => {
-  try {
-    const { category, content, type } = req.body;
-
-    if (!category || !content || !type) {
-      return res.status(400).json({
-        error:
-          "Missing required parameters: category, content, type",
-      });
-    }
-
-    const memory = orchestrator.rememberFact(
-      category,
-      content,
-      type as any
-    );
-
-    res.json({
-      ok: true,
-      memory,
-    });
-  } catch (error: any) {
-    console.error("[CognitiveAPI] /cognitive/remember error:", error);
-    res.status(500).json({
-      error:
-        error.message ||
-        "Failed to record memory",
-    });
-  }
+router.post("/cognitive/remember", (_req: Request, res: Response) => {
+  return res.status(410).json({
+    ok: false,
+    error: "Legacy cognitive memory writes bypass user review. Use /api/memories with explicit consent.",
+  });
 });
 
 /**
@@ -211,164 +182,25 @@ router.get(
  * POST /cognitive/memory/consolidate
  * Manually trigger memory consolidation (learning pass).
  */
-router.post(
-  "/cognitive/memory/consolidate",
-  async (req: Request, res: Response) => {
-    try {
-      const report = await orchestrator.consolidateMemories();
-
-      res.json({
-        ok: true,
-        report,
-      });
-    } catch (error: any) {
-      console.error(
-        "[CognitiveAPI] /cognitive/memory/consolidate error:",
-        error
-      );
-      res.status(500).json({
-        error:
-          error.message ||
-          "Failed to consolidate memories",
-      });
-    }
-  }
-);
+router.post("/cognitive/memory/consolidate", (_req: Request, res: Response) => {
+  return res.status(410).json({
+    ok: false,
+    error: "Legacy memory consolidation is disabled until proposals can be reviewed individually.",
+  });
+});
 
 /**
- * POST /cognitive/task/execute
- * Execute a task with full cognitive flow:
- * context → plan → execute → evaluate → learn
+ * The old cognitive executor accepted a plan's arbitrary tool name/arguments
+ * without an independent approval or tool-argument policy. Keep the read-only
+ * cognitive views, but do not route this legacy entry point to the desktop.
+ * Browser work goes through the reviewed, bounded task workflow instead.
  */
-router.post(
-  "/cognitive/task/execute",
-  async (req: Request, res: Response) => {
-    try {
-      const {
-        taskId,
-        conversationId,
-        goal,
-        userInput,
-        projectContext,
-        maxDuration,
-      } = req.body;
-
-      if (!goal || !userInput) {
-        return res.status(400).json({
-          error:
-            "Missing required parameters: goal, userInput",
-        });
-      }
-
-      // Execute task using desktop agent with real tool calls
-      const executionResult = await bridge.executeTaskWithCognition(
-        {
-          taskId: taskId || `task-${Date.now()}`,
-          conversationId,
-          goal,
-          userInput,
-          projectContext,
-          maxDuration,
-          startTime: Date.now(),
-        },
-        async (plan, context) => {
-          const actions = [];
-          const errors = [];
-          const corrections = [];
-
-          // Execute each plan step using the desktop agent
-          for (const step of plan.steps) {
-            try {
-              // Use the tool from the plan step, or fallback to the action name
-              const toolName = step.tool || step.action;
-              const toolArgs = step.args || {};
-
-              console.debug(`[CognitiveRoutes] Executing tool: ${toolName}`, toolArgs);
-
-              // Call the desktop agent with the tool and arguments
-              const agentResult = await callDesktopAgent(toolName, toolArgs);
-
-              // Record the action
-              actions.push({
-                id: step.id,
-                index: step.index,
-                tool: toolName,
-                args: toolArgs,
-                success: agentResult.ok,
-                output: agentResult.result || agentResult.error || "No output",
-                duration: 0, // Desktop agent doesn't report timing
-              });
-
-              // If tool failed, record as error
-              if (!agentResult.ok) {
-                errors.push({
-                  id: `error-${step.id}`,
-                  stepId: step.id,
-                  message: agentResult.error || "Unknown error",
-                  tool: toolName,
-                  args: toolArgs,
-                });
-              }
-            } catch (error: any) {
-              console.error(`[CognitiveRoutes] Tool execution failed: ${step.tool}`, error);
-
-              // Record the action as failed
-              actions.push({
-                id: step.id,
-                index: step.index,
-                tool: step.tool || step.action,
-                args: step.args || {},
-                success: false,
-                output: error.message || "Tool execution failed",
-                duration: 0,
-              });
-
-              // Record the error
-              errors.push({
-                id: `error-${step.id}`,
-                stepId: step.id,
-                message: error.message || "Unknown error",
-                tool: step.tool || step.action,
-                args: step.args || {},
-              });
-            }
-          }
-
-          // Determine overall success from the actual execution outcome rather
-          // than from the tool intent or a generated sentence.
-          const allSucceeded = actions.length > 0 && actions.every((a) => a.success);
-          const overallSuccess = allSucceeded && errors.length === 0;
-
-          return {
-            actions,
-            errors,
-            corrections,
-            result: overallSuccess
-              ? (executionResult?.output || "Task completed successfully")
-              : (errors.length > 0
-                ? `Task failed: ${errors.map((e) => e.message || "Unknown error").join("; ")}`
-                : (executionResult?.output || "Task did not complete successfully")),
-          };
-        }
-      );
-
-      res.json({
-        ok: true,
-        result: executionResult,
-      });
-    } catch (error: any) {
-      console.error(
-        "[CognitiveAPI] /cognitive/task/execute error:",
-        error
-      );
-      res.status(500).json({
-        error:
-          error.message ||
-          "Failed to execute task",
-      });
-    }
-  }
-);
+router.post("/cognitive/task/execute", (_req: Request, res: Response) => {
+  return res.status(410).json({
+    ok: false,
+    error: "Legacy cognitive execution is disabled. Use /api/workflows/browser/plan for reviewed browser work.",
+  });
+});
 
 /**
  * GET /cognitive/work-summary

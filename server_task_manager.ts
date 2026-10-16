@@ -237,7 +237,7 @@ class TaskRunner extends EventEmitter {
       // Only freshly queued tasks auto-run. In-flight and retry states require
       // explicit review/retry so an interrupted side effect cannot be replayed.
       const candidates = tasks.filter((t) =>
-        !t.metadata?.automation && t.status === "queued" && !this.activeTaskIds.has(t.taskId)
+        !t.metadata?.automation && !t.metadata?.workflow && t.status === "queued" && !this.activeTaskIds.has(t.taskId)
       );
       // simple priority sort: lower numeric value = higher priority
       candidates.sort((a: any, b: any) => (a.priority || 5) - (b.priority || 5));

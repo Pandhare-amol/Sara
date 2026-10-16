@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ApiKeyGate â€” first-run onboarding.
  *
  * SARA ships without any API key. On launch we ask the backend whether a key
@@ -11,11 +11,13 @@
 
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
 import { KeyRound, Loader2, ExternalLink, ShieldCheck } from "lucide-react";
+import { apiFetch, activeUserId } from "../lib/userSession";
 
 type Phase = "checking" | "needsKey" | "ready";
 
 export function ApiKeyGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>("checking");
+  const [textOnly, setTextOnly] = useState(false);
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +26,12 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/config", { cache: "no-store" });
+        const res = await apiFetch("/api/config", { cache: "no-store" });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Configuration is unavailable.");
         if (cancelled) return;
-        setPhase(data.hasApiKey ? "ready" : "needsKey");
+        setTextOnly(!data.hasApiKey && data.textModel?.configured === true);
+        setPhase(data.hasApiKey || data.textModel?.configured === true ? "ready" : "needsKey");
       } catch {
         // Backend not up yet â€” assume onboarding needed rather than hard-fail.
         if (!cancelled) setPhase("needsKey");
@@ -45,7 +49,7 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/config/apikey", {
+      const res = await apiFetch("/api/config/apikey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: key }),
@@ -61,7 +65,12 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
     }
   }
 
-  if (phase === "ready") return <>{children}</>;
+  if (phase === "ready") return <>
+    {children}
+    {textOnly && <div role="status" className="fixed bottom-2 left-2 z-50 max-w-xs rounded-lg border border-amber-500/30 bg-slate-950/95 px-3 py-2 text-xs text-amber-200">
+      Local/compatible text model selected. Gemini Live voice still requires a Gemini key.
+    </div>}
+  </>;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050509] text-white">
@@ -85,8 +94,7 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
             </div>
             <h1 className="text-xl font-semibold tracking-tight">Welcome to SARA</h1>
             <p className="mt-2 text-sm leading-relaxed text-white/55">
-              SARA runs on your own Google Gemini API key. Paste it below to get
-              started â€” it stays on this computer and is never shared.
+              {activeUserId() ? "Protected mode locks installation-wide API key changes. Configure a server-side text provider before enabling multi-user mode or ask the owner to use a reviewed recovery procedure. Existing account controls remain available above." : "SARA runs on your own Google Gemini API key. Paste it below to get started — it stays on this computer and is never shared."}
             </p>
           </div>
 
@@ -111,7 +119,7 @@ export function ApiKeyGate({ children }: { children: ReactNode }) {
 
           <button
             type="submit"
-            disabled={submitting || !value.trim()}
+            disabled={Boolean(activeUserId()) || submitting || !value.trim()}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? (

@@ -39,12 +39,19 @@ class RealtimeControlContractTest(unittest.TestCase):
 
     def test_screen_state_uses_cache_until_forced(self):
         manager = ScreenStateManager(cache_ttl=60)
+        from types import SimpleNamespace
         class Image:
             width = 10
             height = 20
-            def tobytes(self):
-                return b"same"
-        with patch.object(manager, "_capture", return_value=Image()), patch.object(manager, "_active_window", return_value={}):
+            def convert(self, _mode): return self
+            def resize(self, _size): return self
+            def tobytes(self): return b"same"
+        active = {"hwnd": 1, "process_name": "notepad.exe", "bounds": {"x": 0, "y": 0, "width": 10, "height": 20}}
+        with patch.object(manager, "_capture", return_value=Image()), \
+             patch.object(manager, "_active_window", return_value=active), \
+             patch("desktop_agent.screen_state_manager.VISUAL_ACCESS.require", return_value=SimpleNamespace(generation=1)), \
+             patch("desktop_agent.screen_state_manager.VISUAL_ACCESS.select", return_value=(object(), (0, 0, 10, 20))), \
+             patch("desktop_agent.screen_state_manager.VISUAL_ACCESS.unchanged"):
             first = manager.current(reason="before_click")
             second = manager.current(reason="after_click")
         self.assertFalse(first["cached"])

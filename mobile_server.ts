@@ -4,8 +4,13 @@ import https from "https";
 import dotenv from "dotenv";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
-import { loadMemories, saveMemories, formatSystemInstructionsWithMemories, searchMemories, processConversationSlice } from "./server_memory";
-import { dataFile, getGeminiApiKey, hasGeminiApiKey, setGeminiApiKey } from "./server_paths";
+import { createTextModelRouter, ModelError } from "./src/core/models/textModelRouter";
+import { recentChatHistory } from "./src/core/context/recentChatHistory";
+import { scheduleMemoryExtraction } from "./src/core/memory/scheduleExtraction";
+import { loadMemories, saveMemories, formatSystemInstructionsWithMemories, processConversationSlice } from "./server_memory";
+import { createApprovedMemory, retrieveApprovedMemories, reviseApprovedMemory } from "./src/core/memory/approvedMemory";
+import { DATA_DIR, dataFile, getGeminiApiKey, hasGeminiApiKey, setGeminiApiKey } from "./server_paths";
+import { MultiUserStore } from "./src/security/multiUserStore";
 import { Memory } from "./src/lib/memoryTypes";
 import {
   constantTimeStringEqual,
@@ -18,6 +23,7 @@ import {
 
 dotenv.config();
 
+const textModels = createTextModelRouter(getGeminiApiKey);
 const PORT = Number(process.env.MOBILE_SERVER_PORT || 3001);
 const BIND_HOST = String(process.env.SARA_MOBILE_SERVER_HOST || "127.0.0.1").trim();
 const REMOTE_ACCESS_TOKEN = String(process.env.SARA_REMOTE_ACCESS_TOKEN || "").trim();
@@ -32,6 +38,7 @@ if (!isLoopbackHost(BIND_HOST)) {
 const allowedHosts = new Set(["localhost", "127.0.0.1", "::1", ...parseCsvSet(process.env.SARA_ALLOWED_HOSTS)]);
 const allowedOrigins = parseCsvSet(process.env.SARA_ALLOWED_ORIGINS);
 const app = express();
+const multiUserStore = new MultiUserStore(DATA_DIR);
 app.disable("x-powered-by");
 app.use((req, res, next) => {
   const hostHeader = String(req.headers.host || "");
@@ -45,8 +52,13 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
   }
+  // Companion tokens identify devices, not people. Until the separate mobile
+  // backend has per-user sessions, never expose shared data in protected mode.
+  if (multiUserStore.isEnabled() && req.path.startsWith("/api/")) {
+    return res.status(403).json({ error: "The separate mobile API is unavailable in multi-user mode until user-scoped authentication is implemented." });
+  }
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,X-SARA-Access-Token");
     return res.status(204).end();
   }
@@ -83,32 +95,12 @@ function buildMobileChatPrompt(memories: Memory[], history: { role: string; text
 }
 
 async function generateMobileChatResponse(
-  apiKey: string,
   history: { role: string; text: string }[],
   userText: string,
-  relevantMemories: Memory[] = [],
 ): Promise<string> {
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-
-  const memories = relevantMemories.length > 0 ? relevantMemories : await loadMemories("mobile");
+  const memories = retrieveApprovedMemories(await loadMemories("mobile"), userText, 8);
   const prompt = buildMobileChatPrompt(memories, history.slice(-8), userText);
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: prompt,
-    config: {
-      maxOutputTokens: 512,
-      temperature: 0.7,
-    },
-  });
-
-  return String(response.text ?? "").trim();
+  return (await textModels.generate({ role: "chat", prompt, maxOutputTokens: 512, temperature: 0.7 })).text;
 }
 
 app.get("/api/memories", async (_req, res) => {
@@ -122,25 +114,28 @@ app.get("/api/memories", async (_req, res) => {
 
 app.post("/api/memories", async (req, res) => {
   try {
-    const { category, text } = req.body;
-    if (!category || !text) {
-      return res.status(400).json({ error: "Category and text parameters are required." });
-    }
+    let newMemory: Memory;
+    try { newMemory = createApprovedMemory(req.body); }
+    catch (error: any) { return res.status(400).json({ error: error.message }); }
     const memories = await loadMemories("mobile");
-    const timestamp = new Date().toISOString();
-    const newMemory: Memory = {
-      id: Math.random().toString(36).substring(2, 11),
-      category,
-      text,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
     memories.push(newMemory);
     await saveMemories(memories, "mobile");
     res.status(201).json(newMemory);
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to save mobile memory." });
   }
+});
+
+app.patch("/api/memories/:id", async (req, res) => {
+  try {
+    const memories = await loadMemories("mobile");
+    const index = memories.findIndex((memory) => memory.id === req.params.id);
+    if (index < 0) return res.status(404).json({ error: "Memory not found." });
+    try { memories[index] = reviseApprovedMemory(memories[index], req.body); }
+    catch (error: any) { return res.status(400).json({ error: error.message }); }
+    await saveMemories(memories, "mobile");
+    return res.json(memories[index]);
+  } catch { return res.status(500).json({ error: "Failed to update mobile memory." }); }
 });
 
 app.delete("/api/memories/:id", async (req, res) => {
@@ -156,7 +151,12 @@ app.delete("/api/memories/:id", async (req, res) => {
 });
 
 app.get("/api/config", (_req, res) => {
-  res.json({ hasApiKey: hasGeminiApiKey() });
+  res.json({ hasApiKey: hasGeminiApiKey(), textModel: textModels.status("chat"), voiceConfigured: hasGeminiApiKey() });
+});
+
+app.get("/api/models/status", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ chat: textModels.status("chat"), planning: textModels.status("planning"), coding: textModels.status("coding"), voiceConfigured: hasGeminiApiKey() });
 });
 
 app.post("/api/config/apikey", async (req, res) => {
@@ -189,23 +189,23 @@ app.post("/api/chat", async (req, res) => {
     if (!text) {
       return res.status(400).json({ error: "Message text is required." });
     }
-    const apiKey = getGeminiApiKey();
-    if (!apiKey) {
-      return res.status(500).json({ error: "Gemini API key is not configured." });
+    if (!textModels.status("chat").configured) {
+      return res.status(503).json({ error: "The selected text model is not configured.", code: "NOT_CONFIGURED" });
     }
-    const normalizedHistory = history
-      .map((item: any) => ({
-        role: item.role === "assistant" ? "assistant" : "user",
-        text: String(item.text ?? "").trim(),
-      }))
-      .filter((item: any) => item.text.length > 0);
+    const normalizedHistory = recentChatHistory(history);
 
-    const relevantMemories = await searchMemories(text, "mobile", 10);
-    const reply = await generateMobileChatResponse(apiKey, normalizedHistory, text, relevantMemories);
-    await processConversationSlice(apiKey, [...normalizedHistory, { role: "user", text }, { role: "assistant", text: reply }], "mobile");
+    const reply = await generateMobileChatResponse(normalizedHistory, text);
     res.json({ ok: true, text: reply });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to generate chat response." });
+    if (process.env.SARA_AUTO_MEMORY === "true") {
+      const geminiKey = getGeminiApiKey();
+      if (geminiKey) {
+        const slice = [...normalizedHistory, { role: "user", text }, { role: "assistant", text: reply }];
+        scheduleMemoryExtraction(() => processConversationSlice(geminiKey, slice, "mobile"));
+      }
+    }
+  } catch (error) {
+    if (error instanceof ModelError) return res.status(error.code === "BUDGET_EXCEEDED" ? 429 : 503).json({ error: error.message, code: error.code });
+    return res.status(500).json({ error: "Failed to generate chat response." });
   }
 });
 

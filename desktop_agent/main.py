@@ -12,6 +12,7 @@ or:
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import inspect
 import ipaddress
@@ -31,6 +32,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from . import __version__
+from .identity_guard import agent_route_allowed, protected_mode_active
 from .android_companion import ANDROID_COMPANION_MANAGER
 from .agents import MANAGER
 from .platform_core import HEALTH
@@ -59,6 +61,8 @@ async def lifespan(app: FastAPI):
         from .tools_browser import shutdown_browser
 
         shutdown_browser()
+        from .tools_browser_workflow import shutdown_browser_workflows
+        shutdown_browser_workflows()
     except Exception as e:  # noqa: BLE001
         log.warning("Browser shutdown error: %s", e)
     log.info("SARA Desktop Control Agent stopped.")
@@ -91,6 +95,20 @@ app.add_middleware(
 
 @app.middleware("http")
 async def require_remote_agent_token(request: Request, call_next):
+    # A companion device token or loopback client does not identify a person.
+    # Until signed per-user capabilities reach this dispatch boundary, lock ALL
+    # agent actions and data (including direct /execute) while multi-user mode
+    # is active. Health is the only intentionally public route.
+    if protected_mode_active():
+        # Even /health triggers stop after account protection activates.
+        from .visual_access import VISUAL_ACCESS
+        from .screen_monitor import SCREEN_MONITOR
+        from .visual_actions import VISUAL_ACTIONS
+        VISUAL_ACCESS.force_revoke()
+        SCREEN_MONITOR.stop()
+        VISUAL_ACTIONS.cancel_all()
+    if not agent_route_allowed(request.url.path):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Desktop agent is locked in multi-user mode until per-user authorization is integrated."})
     peer = request.client.host if request.client else ""
     try:
         is_local = ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback
@@ -319,7 +337,7 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
             tool=tool,
         )
 
-    log.info("EXEC tool=%s args=%s", tool, _short_args(args))
+    log.info("EXEC tool=%s arg_keys=%s", tool, sorted(args.keys()))
 
     if tool not in TOOLS:
         known = ", ".join(sorted(TOOLS.keys()))
@@ -334,26 +352,29 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
     handler = TOOLS[tool]
     started_at = time.perf_counter()
     try:
-        out = handler(args)
-        if inspect.isawaitable(out):
-            out = await out
+        # Office COM and file read-back can be slow. Do not block the FastAPI
+        # event loop (and therefore unrelated conversation/status requests).
+        if tool in {"saraDocumentCreate", "saraDocumentEdit", "saraDocumentInspect", "saraDocumentOpen",
+                    "saraVisualObserve", "saraVisualClick", "saraVisualDisplays",
+                    "takeScreenshot", "saveScreenshot", "analyzeScreenshot", "readScreen", "detectUiElements"}:
+            out = await asyncio.to_thread(handler, args)
+        else:
+            out = handler(args)
+            if inspect.isawaitable(out):
+                out = await out
     except ToolError as e:
-        log.warning("ToolError in %s: %s", tool, e.message)
+        log.warning("ToolError in %s (details withheld from logs)", tool)
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=e.message, tool=tool)
-    except Exception as e:  # noqa: BLE001
-        log.error("Unhandled error in %s: %s\n%s", tool, e, traceback.format_exc())
-        message = f"Internal error in {tool}: {e}"
+    except Exception:  # noqa: BLE001
+        log.error("Unhandled error in %s (details withheld from logs)", tool)
+        message = f"Internal error in {tool}."
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=message, tool=tool)
 
-    # Handlers return dicts like {"result": "..."}; pass the whole payload.
-    result_text = ""
-    if isinstance(out, dict):
-        result_text = str(out.get("result", out))
-    else:
-        result_text = str(out)
-    log.info("DONE tool=%s -> %s", tool, result_text[:160])
-
-    return ExecuteResponse(ok=True, result=out, canonical=_canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), tool=tool)
+    # Never print handler output; page text, clipboard data or model replies can
+    # contain secrets. A returned payload is not itself verified success.
+    log.info("DONE tool=%s status=returned", tool)
+    canonical = _canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000))
+    return ExecuteResponse(ok=not (isinstance(out, dict) and out.get("ok") is False), result=out, canonical=canonical, tool=tool)
 
 
 @app.post("/companion/pair")

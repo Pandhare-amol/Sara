@@ -230,7 +230,7 @@ class ApplicationAutomationSuite:
         return {"plan": plan, "execution": result, "result": result["result"]}
 
     def _execute_safe(self, plugin: ApplicationPlugin, action: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        if action in {"open", "launch"}:
+        if action in {"open", "launch"} and not (plugin.category == "Office" and args.get("path")):
             return self._open(plugin)
         if plugin.name == "YouTube":
             if plugin.official_api:
@@ -335,7 +335,27 @@ class ApplicationAutomationSuite:
             if action in {"open", "open_project", "run_tests", "find"}:
                 return self._open(plugin)
         if plugin.category == "Office":
-            return self._open(plugin)
+            # Opening Word is NOT creating or editing a file. Delegate only
+            # structured, scoped edits to the document tool; natural-language
+            # goals without an exact path must fail rather than claim success.
+            from .tools_documents import document_create, document_edit, document_inspect, document_open
+            if action == "open":
+                return document_open(args) if args.get("path") else self._open(plugin)
+            if plugin.name not in {"Word", "Excel", "PowerPoint"}:
+                raise ToolError(f"{plugin.name}.{action} needs a supported document integration; no file was changed.")
+            if not args.get("path"):
+                raise ToolError("Provide an exact path and structured contents or edit using SARA's document tools.")
+            suffix = {"Word": ".docx", "Excel": ".xlsx", "PowerPoint": ".pptx"}[plugin.name]
+            if not str(args["path"]).lower().endswith(suffix):
+                raise ToolError(f"{plugin.name} requires a {suffix} path; no other application was opened.")
+            if action in {"create_document", "create_workbook", "create_presentation"}:
+                return document_create(args)
+            if action in {"edit", "edit_cells", "add_slide"}:
+                operation = args.get("edit_action") or {"edit_cells": "set_cell", "add_slide": "add_slide"}.get(action)
+                return document_edit({**args, "action": operation})
+            if action in {"read_sheet", "read"}:
+                return document_inspect(args)
+            raise ToolError(f"{plugin.name}.{action} is not implemented; opening the application would not complete it.")
         if plugin.name == "VLC":
             if action == "open":
                 return self._open(plugin)
@@ -369,6 +389,18 @@ class ApplicationAutomationSuite:
 
     def _detect_plugin(self, goal: str) -> ApplicationPlugin:
         goal_l = goal.lower()
+        # An explicit named application takes precedence over generic words in
+        # the goal: "report" must never route to GitHub because it contains
+        # the letters "repo", or to a browser instead of Microsoft Word.
+        for name, labels in {
+            "Word": ("microsoft word", "word"),
+            "Excel": ("microsoft excel", "excel"),
+            "PowerPoint": ("microsoft powerpoint", "powerpoint", "power point"),
+            "OneNote": ("onenote",),
+            "LibreOffice": ("libreoffice", "libre office"),
+        }.items():
+            if any(re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", goal_l) for label in labels):
+                return self.find(name)
         keyword_map = {
             "whatsapp": ["whatsapp", "chat", "message", "john"],
             "gmail": ["gmail", "mail", "email"],
@@ -382,7 +414,7 @@ class ApplicationAutomationSuite:
             "notion": ["notion", "note"],
         }
         for plugin_name, keywords in keyword_map.items():
-            if any(keyword in goal_l for keyword in keywords):
+            if any(re.search(r"(?<!\w)" + re.escape(keyword) + r"(?!\w)", goal_l) for keyword in keywords):
                 try:
                     return self.find(plugin_name)
                 except ToolError:
@@ -394,6 +426,11 @@ class ApplicationAutomationSuite:
 
     def _detect_action(self, goal: str, plugin: ApplicationPlugin) -> str:
         low = goal.lower()
+        if plugin.name in {"Word", "Excel", "PowerPoint"}:
+            if any(word in low for word in ("create", "make a", "write a", "new document", "new spreadsheet", "new presentation")):
+                return {"Word": "create_document", "Excel": "create_workbook", "PowerPoint": "create_presentation"}[plugin.name]
+            if any(word in low for word in ("edit", "change", "update", "font size", "add slide")):
+                return {"Word": "edit", "Excel": "edit_cells", "PowerPoint": "add_slide" if "add slide" in low else "edit"}[plugin.name]
         checks = [
             ("send_email", ("email ", "send email")),
             ("send_message", ("send ", "message ", "reply ", "respond")),
@@ -487,8 +524,8 @@ def _builtin_plugins() -> List[ApplicationPlugin]:
         ApplicationPlugin("Docker Desktop", "Development", ["docker"], ["open", "start_container", "stop_container", "logs"], fallback="app", launch={"tool": "openApplication", "name": "docker desktop"}),
         ApplicationPlugin("PowerShell", "Development", ["terminal", "cmd", "command prompt"], ["open", "run_command"], fallback="app", launch={"tool": "openApplication", "name": "powershell"}),
         ApplicationPlugin("Word", "Office", ["microsoft word"], ["open", "create_document", "edit", "export_pdf"], fallback="app", launch={"tool": "openApplication", "name": "word"}),
-        ApplicationPlugin("Excel", "Office", ["microsoft excel"], ["open", "read_sheet", "edit_cells", "chart", "analyze"], fallback="app", launch={"tool": "openApplication", "name": "excel"}),
-        ApplicationPlugin("PowerPoint", "Office", ["ppt", "microsoft powerpoint"], ["open", "create_presentation", "add_slide", "export_pdf"], fallback="app", launch={"tool": "openApplication", "name": "powerpoint"}),
+        ApplicationPlugin("Excel", "Office", ["microsoft excel"], ["open", "create_workbook", "read_sheet", "edit_cells", "chart", "analyze"], fallback="app", launch={"tool": "openApplication", "name": "excel"}),
+        ApplicationPlugin("PowerPoint", "Office", ["ppt", "microsoft powerpoint"], ["open", "create_presentation", "add_slide", "edit", "export_pdf"], fallback="app", launch={"tool": "openApplication", "name": "powerpoint"}),
         ApplicationPlugin("OneNote", "Office", ["onenote"], ["open", "create_note", "search"], fallback="app", launch={"tool": "openApplication", "name": "onenote"}),
         ApplicationPlugin("LibreOffice", "Office", ["libre office"], ["open", "create_document", "edit"], fallback="app", launch={"tool": "openApplication", "name": "libreoffice"}),
         ApplicationPlugin("Chrome", "Web", ["google chrome"], ["open", "search", "tabs"], fallback="app", launch={"tool": "openApplication", "name": "chrome"}),

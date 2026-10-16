@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import type {IncomingMessage} from 'node:http';
 import {defineConfig} from 'vite';
+import {isPrivateStaticPath} from './src/security/privateStaticPaths';
 
 export default defineConfig(() => {
   const previewHost = process.env.SARA_PREVIEW_HOST?.trim();
@@ -41,7 +42,23 @@ export default defineConfig(() => {
     : undefined;
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), {
+      name: 'sara-private-runtime-files',
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          if (!isPrivateStaticPath(request.url || '/')) return next();
+          response.statusCode = 403;
+          response.end('Private runtime files are not served.');
+        });
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use((request, response, next) => {
+          if (!isPrivateStaticPath(request.url || '/')) return next();
+          response.statusCode = 403;
+          response.end('Private runtime files are not served.');
+        });
+      },
+    }],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

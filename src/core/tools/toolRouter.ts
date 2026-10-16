@@ -34,26 +34,15 @@ export class ToolRouter {
       return false;
     }
 
-    this.registry.register({
-      name: tool,
-      owner: "node",
-      category: "RUNTIME",
-      metadata: {
-        riskLevel: "READ_ONLY",
-        requiresConfirmation: false,
-        supportsCancellation: true,
-        supportsRetry: true,
-        retryPolicy: { supportsRetry: true, maxAttempts: 2 },
-        timeoutMs: 25000,
-        version: "1.0",
-        idempotent: true,
-      },
-    });
+    // Never classify a dynamically discovered tool as read-only. Use the
+    // registry's conservative name-based risk inference until an owner supplies
+    // explicit metadata (the runtime allowlist alone is not a permission grant).
+    this.registry.register({ name: tool, owner: "node", category: "RUNTIME" });
 
     return this.registry.has(tool);
   }
 
-  async execute(tool: string, args: Record<string, unknown>): Promise<RoutedToolResult> {
+  async execute(tool: string, args: Record<string, unknown>, policyContext: PolicyContext = {}): Promise<RoutedToolResult> {
     const knownTool = this.ensureToolRegistered(tool);
     let route = this.registry.get(tool);
 
@@ -68,12 +57,10 @@ export class ToolRouter {
       return { ok: false, result: canonical, error: canonical.message, canonical };
     }
 
-    // Policy middleware enforcement
-    // For now we extract any confirmation token from args or context
-    const policyCtx: PolicyContext = {
-      confirmed: args.user_confirmed === true || args.policy_override === true
-    };
-    const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyCtx);
+    // Approval must come from the server's trusted policy context, never from
+    // model/client-supplied tool arguments. The second check protects direct
+    // callers of ToolRouter as well as callers of ExecutionOrchestrator.
+    const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyContext);
     
     if (policyOutcome.decision === "DENY") {
       const canonical = normalizeToolExecutionResult(tool, {
@@ -104,7 +91,11 @@ export class ToolRouter {
       throw new Error("Tool Router execution adapter is not configured.");
     }
 
-    const response = await this.adapter(tool, args);
+    // Strip pseudo-authorization fields before forwarding to the Python agent.
+    // Only the backend may set a trusted policyContext; forwarding these fields
+    // would let a lower layer independently mistake model output for consent.
+    const { confirmed, user_confirmed, policy_override, authorized, ...safeArgs } = args;
+    const response = await this.adapter(tool, safeArgs);
     const canonical = normalizeToolExecutionResult(tool, response.result, response.error);
     return { ...response, route, canonical, result: canonical };
   }

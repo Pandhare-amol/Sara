@@ -7,6 +7,7 @@ import { ExecutionOrchestrator } from "./execution/executionOrchestrator";
 import { ToolRouter } from "./toolRouter";
 import { VerificationRegistry } from "./verification/verificationRegistry";
 import { FilesystemVerifier } from "./verification/filesystemVerifier";
+import { DocumentVerifier } from "./verification/documentVerifier";
 import { WindowVerifier } from "./verification/windowVerifier";
 import { ScreenVerifier } from "./verification/screenVerifier";
 
@@ -32,6 +33,24 @@ export function initializeToolExecution(
   verificationRegistry.registerVerifier("filesystem", fsVerifier);
   for (const tool of ["copyFile", "duplicateFile", "moveFile", "deleteFile", "createFile", "createFolder", "renameFile", "writeFile"]) {
     verificationRegistry.mapToolToVerifier(tool, ["filesystem"]);
+  }
+
+  // Document writes require a *second* read-only open (plus disk comparison).
+  // Do not accept the first handler's verified flag as independent evidence.
+  const documentVerifier = new DocumentVerifier(async (tool, args) => {
+    const response = await fetch(`${desktopAgentUrl}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool, args }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) return { ok: false };
+    const data = await response.json() as { ok: boolean; result?: unknown };
+    return { ok: data.ok === true, result: data.result };
+  });
+  verificationRegistry.registerVerifier("document", documentVerifier);
+  for (const tool of ["saraDocumentCreate", "saraDocumentEdit", "saraDocumentInspect", "saraDocumentOpen"]) {
+    verificationRegistry.mapToolToVerifier(tool, ["document"]);
   }
 
   // Register window verifier

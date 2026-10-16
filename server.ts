@@ -541,7 +541,16 @@ async function generateSaraChatResponse(
   return String(response.text ?? "").trim();
 }
 
+// The older standalone entry point is not user-scoped. Do not let manually
+// running `tsx server.ts` reopen legacy APIs against the protected datastore.
+function protectedAccountModeActive(): boolean {
+  return process.env.SARA_MULTIUSER_REQUIRED === "true" ||
+    fs.existsSync(path.join(DATA_DIR, "security", "multiuser.json")) ||
+    fs.existsSync(path.join(DATA_DIR, "security", "multiuser.pending"));
+}
+
 async function startServer() {
+  if (protectedAccountModeActive()) throw new Error("Use server_full.ts for multi-user mode; this legacy server cannot safely access protected data.");
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
   const SERVER_HOST = String(process.env.SARA_BIND_HOST || "127.0.0.1").trim();
@@ -556,6 +565,10 @@ async function startServer() {
   const allowedHosts = new Set(["localhost", "127.0.0.1", "::1", ...parseCsvSet(process.env.SARA_ALLOWED_HOSTS)]);
   const allowedOrigins = parseCsvSet(process.env.SARA_ALLOWED_ORIGINS);
   app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    if (protectedAccountModeActive()) return res.status(503).json({ error: "Legacy server stopped for protected accounts." });
+    next();
+  });
   app.use((req, res, next) => {
     const hostHeader = String(req.headers.host || "");
     if (!isHostAllowed(hostHeader, allowedHosts)) return res.status(403).json({ error: "Unrecognized Host header." });
@@ -1568,6 +1581,7 @@ async function startServer() {
   const wss = new WebSocketServer({ noServer: true });
   
   server.on("upgrade", (request, socket, head) => {
+    if (protectedAccountModeActive()) { socket.destroy(); return; }
     let pathname = "";
     try { pathname = new URL(request.url || "", `http://${request.headers.host}`).pathname; } catch {}
     const hostHeader = String(request.headers.host || "");
@@ -2557,6 +2571,7 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
       clientWs.send(JSON.stringify({ type: "status", status: "connected", conversationId: conversation.id, sessionId }));
       
       clientWs.on("message", (rawMsg) => {
+        if (protectedAccountModeActive()) { clientWs.close(1008, "Protected account mode enabled"); return; }
         try {
           const msg = JSON.parse(rawMsg.toString());
 
@@ -2714,7 +2729,16 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
   }
 
   const serverScheme = remoteBind ? "https" : "http";
+  const protectionWatch = setInterval(() => {
+    if (!protectedAccountModeActive()) return;
+    for (const client of wss.clients) client.terminate();
+    console.error("Legacy standalone server stopping: multi-user mode requires the protected server_full.ts entry point.");
+    process.exit(1);
+  }, 500);
+  protectionWatch.unref();
   server.listen(PORT, SERVER_HOST, () => {
+    if (protectedAccountModeActive()) { process.exitCode = 1; server.close(); return; }
+
     logStartup(`SARA V2 server started on ${serverScheme}://${SERVER_HOST}:${PORT}`);
     console.log(`[Server] Running on ${serverScheme}://${SERVER_HOST}:${PORT}`);
     // Kick off the desktop agent (probe + auto-spawn) immediately on boot.
@@ -2726,6 +2750,8 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
 
 startServer().catch((error) => {
   console.error("Failed to start server startup sequence:", error);
-  process.exitCode = 1;
+  // Top-level legacy imports may have live timers even when startup refused.
+  // Never leave an unsafe process idling against a protected datastore.
+  process.exit(1);
 });
 

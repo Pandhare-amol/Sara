@@ -53,15 +53,26 @@ export class ToolPolicyEngine {
     }
 
     const explicitlyAuthorized = context.authorized === true || context.confirmed === true;
-    const tokenConfirmed = tool === "executePowerAction" && typeof args.execute_token === "string" && args.execute_token.length > 0;
+    // A token returned by requestPowerAction can be seen by a model; its
+    // presence in *arguments* does not establish a human approval. The Python
+    // agent must still validate that token after this independent policy gate.
     if (metadata.riskLevel === "DESTRUCTIVE_SYSTEM" || metadata.requiresConfirmation) {
-      if (!explicitlyAuthorized && !tokenConfirmed) {
+      if (!explicitlyAuthorized) {
         return { decision: "ASK_USER", reason: `Explicit confirmation is required before '${tool}'.`, riskLevel: metadata.riskLevel, metadata };
       }
     }
 
     if (metadata.riskLevel === "EXTERNAL_SIDE_EFFECT" && !explicitlyAuthorized) {
       return { decision: "ASK_USER", reason: `User confirmation is required before external side effect '${tool}'.`, riskLevel: metadata.riskLevel, metadata };
+    }
+
+    // A form fill with a submit selector is an external action, not merely
+    // typing. Browser clicks can likewise submit/purchase even when their tool
+    // name looks harmless; do not silently send one from a generated plan.
+    if (!explicitlyAuthorized &&
+        ((/fillform/i.test(tool) && args.submit != null) ||
+         /browserclick/i.test(tool))) {
+      return { decision: "ASK_USER", reason: `Confirm the exact browser action and target before '${tool}'.`, riskLevel: "EXTERNAL_SIDE_EFFECT", metadata };
     }
 
     return { decision: "ALLOW", reason: "Tool is allowed by the current policy.", riskLevel: metadata.riskLevel, metadata };
