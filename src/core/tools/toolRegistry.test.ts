@@ -4,12 +4,15 @@ import { normalizeToolExecutionResult } from "./toolExecutor";
 describe("SARA tool contract compatibility", () => {
   it("derives conservative metadata for runtime tools", () => {
     const registry = new ToolRegistry();
-    registry.registerRuntimeTools(["readFile", "copyFile", "whatsapp_send", "executePowerAction"]);
+    registry.registerRuntimeTools(["readFile", "copyFile", "whatsapp_send", "executePowerAction", "runPythonScript", "saraVoiceExecuteCommand"]);
 
     expect(registry.getMetadata("readFile")?.riskLevel).toBe("READ_ONLY");
     expect(registry.getMetadata("copyFile")?.riskLevel).toBe("REVERSIBLE_WRITE");
     expect(registry.getMetadata("whatsapp_send")?.riskLevel).toBe("EXTERNAL_SIDE_EFFECT");
     expect(registry.getMetadata("executePowerAction")?.requiresConfirmation).toBe(true);
+    expect(registry.getMetadata("runPythonScript")?.riskLevel).toBe("DESTRUCTIVE_SYSTEM");
+    expect(registry.getMetadata("saraVoiceExecuteCommand")?.riskLevel).toBe("DESTRUCTIVE_SYSTEM");
+    expect(registry.getMetadata("saraVoiceExecuteCommand")?.requiresConfirmation).toBe(true);
     expect(registry.getMetadata("whatsapp_send")?.supportsRetry).toBe(false);
   });
 

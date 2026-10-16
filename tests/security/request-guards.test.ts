@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   constantTimeStringEqual,
+  getWebAuthnRequestContext,
   hostFromHeader,
   isHostAllowed,
   isLoopbackAddress,
@@ -26,6 +27,24 @@ test('request guard accepts only same-origin or explicitly allowlisted browser o
   assert.equal(isOriginAllowed('https://evil.example', '127.0.0.1:3000', new Set(), '3000'), false);
   assert.equal(isOriginAllowed('null', '127.0.0.1:3000', new Set(), '3000'), false);
   assert.equal(isOriginAllowed('https://ui.example', '127.0.0.1:3000', explicit, '3000'), true);
+});
+
+test('WebAuthn request context accepts localhost and rejects numeric relying-party IDs', () => {
+  assert.deepEqual(getWebAuthnRequestContext('http://localhost:3000'), {
+    rpID: 'localhost',
+    origin: 'http://localhost:3000',
+  });
+  assert.throws(
+    () => getWebAuthnRequestContext('http://127.0.0.1:3000'),
+    /Use http:\/\/localhost:3000 for local passkeys/,
+  );
+  assert.deepEqual(getWebAuthnRequestContext('https://login.example.com', 'example.com'), {
+    rpID: 'example.com',
+    origin: 'https://login.example.com',
+  });
+  assert.throws(() => getWebAuthnRequestContext('http://login.example.com'), /require HTTPS/);
+  assert.throws(() => getWebAuthnRequestContext('https://login.example.com/path'), /Invalid passkey origin/);
+  assert.throws(() => getWebAuthnRequestContext('https://login.example.com', 'other.example'), /must match/);
 });
 
 test('loopback checks cover IPv4, mapped IPv4 and IPv6 loopback', () => {

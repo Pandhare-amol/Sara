@@ -1,4 +1,8 @@
 import http from "http";
+import {
+  getDesktopAgentAuthHeaders,
+  hasAuthenticatedDesktopAgentProtocol,
+} from "../src/security/desktopAgentAuth.js";
 
 // ============================================================
 // SARA Service Health Checks
@@ -49,17 +53,39 @@ export async function checkBackend(port = 3000): Promise<HealthStatus> {
  */
 export async function checkDesktopAgent(port = 8765): Promise<HealthStatus> {
   const start = Date.now();
-  const health = await checkHttp("Desktop Agent", `http://127.0.0.1:${port}/health`);
-  if (!health.ok) {
-    return health;
-  }
-
+  const url = `http://127.0.0.1:${port}`;
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`http://127.0.0.1:${port}/execute`, {
+    const healthResponse = await fetch(`${url}/health`, { signal: controller.signal });
+    if (!healthResponse.ok) {
+      clearTimeout(timer);
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: `Health HTTP ${healthResponse.status}` };
+    }
+    const health = await healthResponse.json().catch(() => null);
+    if (health?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(health)) {
+      clearTimeout(timer);
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: "Authenticated agent protocol v1 is required; stop/restart an older agent." };
+    }
+
+    const headers = getDesktopAgentAuthHeaders(url, process.env, "application/json");
+    const authResponse = await fetch(`${url}/auth/check`, {
+      headers,
+      signal: controller.signal,
+    });
+    if (!authResponse.ok) {
+      clearTimeout(timer);
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: `Authenticated handshake HTTP ${authResponse.status}` };
+    }
+    const authResult = await authResponse.json().catch(() => null);
+    if (authResult?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(authResult)) {
+      clearTimeout(timer);
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: "Agent token handshake did not verify." };
+    }
+
+    const res = await fetch(`${url}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       signal: controller.signal,
       body: JSON.stringify({
         tool: "desktopAgentDiagnostic",
@@ -68,7 +94,7 @@ export async function checkDesktopAgent(port = 8765): Promise<HealthStatus> {
     });
     clearTimeout(timer);
     if (!res.ok) {
-      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: `HTTP ${res.status}` };
+      return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: `Diagnostic HTTP ${res.status}` };
     }
     const payload = await res.json().catch(() => ({}));
     const result = payload?.result ?? payload?.data?.result ?? payload;
@@ -80,7 +106,7 @@ export async function checkDesktopAgent(port = 8765): Promise<HealthStatus> {
       reason: verified ? undefined : "desktopAgentDiagnostic did not verify",
     };
   } catch (e: any) {
-    return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: e.message };
+    return { service: "Desktop Agent", ok: false, latencyMs: Date.now() - start, reason: e.message || String(e) };
   }
 }
 

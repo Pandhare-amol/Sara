@@ -11,6 +11,7 @@ import json
 import os
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -22,7 +23,7 @@ _STATES = {
     "SERIOUS", "QUIET", "SUPPORTIVE", "EXCITED", "RELIEVED",
 }
 _ACTIVE_LEVELS = {"high", "medium", "typing", "coding", "presenting", "gaming", "working"}
-_MIN_COOLDOWN_SECONDS = 30 * 60
+_DEFAULT_COOLDOWN_SECONDS = 45 * 60
 _EMOTION_HALF_LIFE_SECONDS = 45 * 60
 
 
@@ -33,14 +34,17 @@ def _state_path() -> Path:
 
 
 class ProactiveInteractionEngine:
-    """One owner for opportunity scoring, cooldowns, privacy, and emotion."""
+    """One owner for opportunity scoring, timing limits, privacy, and emotion."""
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._state: Dict[str, Any] = {
             "quiet_mode": False,
             "last_proactive_at": 0.0,
+            "daily_proactive_date": "",
+            "daily_proactive_count": 0,
             "last_topic": "",
+            "recent_proactive_topics": [],
             "ignored_count": 0,
             "current_mode": "NORMAL",  # PERSONAL, PROFESSIONAL, FRIENDLY, COMPANION
             "business_priorities": [],  # Business goals being tracked
@@ -134,20 +138,86 @@ class ProactiveInteractionEngine:
         privacy = str(context.get("privacy_level") or "").upper()
         if privacy in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"} or context.get("do_not_store"):
             return ""
-        for key in ("unfinished_topic", "previous_topic", "current_task", "relevant_memory", "user_goal"):
+        for key in ("unfinished_topic", "relevant_memory", "previous_topic", "current_task", "user_goal"):
             value = context.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()[:160]
         return ""
 
     def select_topic(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        privacy = str(context.get("privacy_level") or "").upper()
         topic = self._safe_topic(context)
+        memory = ""
+        if privacy not in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"} and not context.get("do_not_store"):
+            candidate = context.get("relevant_memory")
+            if isinstance(candidate, str) and candidate.strip():
+                memory = candidate.strip()[:320]
         return {
             "topic": topic,
-            "grounded": bool(topic),
-            "source": "context" if topic else None,
-            "privacy_filtered": not bool(topic) and str(context.get("privacy_level") or "").upper() in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"},
+            "memory": memory,
+            "grounded": bool(topic or memory),
+            "source": "memory" if memory else "context" if topic else None,
+            "privacy_filtered": not bool(topic or memory) and privacy in {"PRIVATE", "SENSITIVE", "DO_NOT_STORE"},
         }
+
+    def _remember_topic(self, topic: str) -> None:
+        normalized = " ".join(str(topic).strip().split())[:160]
+        if not normalized:
+            return
+        recent = self._state.get("recent_proactive_topics", [])
+        recent = [str(value) for value in recent if str(value).casefold() != normalized.casefold()]
+        recent.append(normalized)
+        self._state["recent_proactive_topics"] = recent[-8:]
+        self._state["last_topic"] = normalized
+
+    @staticmethod
+    def _local_date_key(timestamp: float) -> str:
+        return time.strftime("%Y-%m-%d", time.localtime(timestamp))
+
+    @staticmethod
+    def _minutes_since_midnight(value: Any, fallback: str) -> int:
+        try:
+            hour_text, minute_text = str(value).split(":", 1)
+            hour, minute = int(hour_text), int(minute_text)
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                return hour * 60 + minute
+        except (TypeError, ValueError):
+            pass
+        fallback_hour, fallback_minute = (int(part) for part in fallback.split(":"))
+        return fallback_hour * 60 + fallback_minute
+
+    @classmethod
+    def _is_within_quiet_hours(cls, current_local_time: datetime, start: Any, end: Any) -> bool:
+        """Handle both ordinary and overnight local quiet-hour windows."""
+        start_minute = cls._minutes_since_midnight(start, "22:00")
+        end_minute = cls._minutes_since_midnight(end, "08:00")
+        current_minute = current_local_time.hour * 60 + current_local_time.minute
+        if start_minute == end_minute:
+            return True
+        if start_minute < end_minute:
+            return start_minute <= current_minute < end_minute
+        return current_minute >= start_minute or current_minute < end_minute
+
+    def _daily_count(self, now: float) -> int:
+        if self._state.get("daily_proactive_date") != self._local_date_key(now):
+            return 0
+        try:
+            return max(0, int(self._state.get("daily_proactive_count", 0)))
+        except (TypeError, ValueError):
+            return 0
+
+    def record_proactive_sent(self, topic: str = "") -> Dict[str, Any]:
+        """Persist a sent check-in so reconnects honor cooldown, topic variety, and daily limits."""
+        with self._lock:
+            now = time.time()
+            today = self._local_date_key(now)
+            current_count = self._daily_count(now) if self._state.get("daily_proactive_date") == today else 0
+            self._state["last_proactive_at"] = now
+            self._state["daily_proactive_date"] = today
+            self._state["daily_proactive_count"] = current_count + 1
+            self._remember_topic(topic)
+            self._save()
+            return self.snapshot()
 
     def update_emotion(self, event: str, confidence: float = 0.6) -> Dict[str, Any]:
         mapping = {
@@ -178,7 +248,27 @@ class ProactiveInteractionEngine:
             unfinished = bool(context.get("unfinished_topic") or context.get("current_task"))
             relevant_memory = bool(context.get("relevant_memory") or context.get("previous_topic"))
             ignored = int(self._state.get("ignored_count", 0))
-            cooldown_left = max(0.0, _MIN_COOLDOWN_SECONDS - (now - float(self._state.get("last_proactive_at", 0))))
+
+            try:
+                cooldown_seconds = max(0, int(context.get("conversation_cooldown_seconds", _DEFAULT_COOLDOWN_SECONDS)))
+            except (TypeError, ValueError):
+                cooldown_seconds = _DEFAULT_COOLDOWN_SECONDS
+            cooldown_left = max(0.0, cooldown_seconds - (now - float(self._state.get("last_proactive_at", 0))))
+
+            try:
+                daily_limit = max(0, int(context.get("max_proactive_conversations_per_day", 3)))
+            except (TypeError, ValueError):
+                daily_limit = 3
+            daily_count = self._daily_count(now)
+            daily_limit_reached = daily_count >= daily_limit
+
+            quiet_hours_enabled = bool(context.get("quiet_hours_enabled", True))
+            local_now = datetime.fromtimestamp(now).astimezone()
+            in_quiet_hours = quiet_hours_enabled and self._is_within_quiet_hours(
+                local_now,
+                context.get("quiet_hours_start", "22:00"),
+                context.get("quiet_hours_end", "08:00"),
+            )
 
             # Business context: in PROFESSIONAL mode, questions and decisions take priority
             current_mode = str(context.get("mode") or self._state.get("current_mode", "NORMAL")).upper()
@@ -200,20 +290,38 @@ class ProactiveInteractionEngine:
             score -= min(0.25, ignored * 0.05)
             score = max(0.0, min(1.0, score))
 
-            allowed = not quiet and (cooldown_left <= 0 or important) and (not focused or important or has_unanswered_questions)
+            allowed = (
+                not quiet
+                and not in_quiet_hours
+                and not daily_limit_reached
+                and (cooldown_left <= 0 or important)
+                and (not focused or important or has_unanswered_questions)
+            )
             action = "SAY" if allowed and score >= 0.72 else "ASK" if allowed and score >= 0.5 else "WAIT"
-            
-            # In PROFESSIONAL mode with questions, escalate to ASK
-            if current_mode == "PROFESSIONAL" and has_unanswered_questions and score >= 0.4:
+
+            # In PROFESSIONAL mode with questions, escalate only when all safety gates pass.
+            if allowed and current_mode == "PROFESSIONAL" and has_unanswered_questions and score >= 0.4:
                 action = "ASK"
-            
+
+            policy_reason = (
+                "quiet_mode" if quiet else
+                "quiet_hours" if in_quiet_hours else
+                "daily_limit_reached" if daily_limit_reached else
+                "conversation_cooldown" if cooldown_left > 0 and not important else
+                "user_focused" if focused and not important and not has_unanswered_questions else
+                None
+            )
             reason = "important_event" if important else "relevant_context" if relevant_memory or unfinished else "unanswered_questions" if has_unanswered_questions else "business_goal" if has_business_goals else "user_idle" if idle_seconds >= 180 else "low_signal"
             return {
                 "action": action,
                 "conversation_score": round(score, 3),
                 "reason": reason,
+                "policy_reason": policy_reason,
                 "cooldown_seconds": round(cooldown_left, 1),
+                "daily_count": daily_count,
+                "daily_limit": daily_limit,
                 "quiet_mode": quiet,
+                "quiet_hours": in_quiet_hours,
                 "focused_work": focused,
                 "current_mode": current_mode,
                 "emotional_state": dict(self._state["emotional_state"]),
@@ -224,19 +332,24 @@ class ProactiveInteractionEngine:
     def record_outcome(self, accepted: bool, topic: str = "") -> Dict[str, Any]:
         with self._lock:
             topic = str(topic)[:160]
+            if accepted and topic:
+                self._remember_topic(topic)
             if accepted:
                 self._state["last_proactive_at"] = time.time()
                 self._state["ignored_count"] = 0
-                self._state["last_topic"] = topic
             else:
                 self._state["ignored_count"] = min(10, int(self._state.get("ignored_count", 0)) + 1)
             self._save()
             return self.snapshot()
 
     def snapshot(self) -> Dict[str, Any]:
+        now = time.time()
         return {
             "quiet_mode": bool(self._state.get("quiet_mode", False)),
+            "daily_proactive_date": self._local_date_key(now),
+            "daily_proactive_count": self._daily_count(now),
             "last_topic": self._state.get("last_topic", ""),
+            "recent_proactive_topics": list(self._state.get("recent_proactive_topics", []))[-8:],
             "ignored_count": int(self._state.get("ignored_count", 0)),
             "current_mode": self._state.get("current_mode", "NORMAL"),
             "business_priorities": self._state.get("business_priorities", []),
@@ -255,7 +368,10 @@ def sara_proactive_evaluate(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("saraProactiveRecordOutcome")
 def sara_proactive_record_outcome(args: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": ENGINE.record_outcome(bool(args.get("accepted")), str(args.get("topic") or ""))}
+    topic = str(args.get("topic") or "")
+    if args.get("sent") is True:
+        return {"result": ENGINE.record_proactive_sent(topic)}
+    return {"result": ENGINE.record_outcome(bool(args.get("accepted")), topic)}
 
 
 @register("saraEmotionalState")

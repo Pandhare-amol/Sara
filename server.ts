@@ -60,8 +60,14 @@ import { ToolRouter } from "./src/core/tools/toolRouter";
 import { getDesktopAgentPythonCandidates } from "./src/core/pythonRuntime";
 import { initializeToolExecution, getExecutionOrchestrator } from "./src/core/tools/initialization";
 import { handleLocalMemoryCommand } from "./src/services/localMemoryCommands";
+import {
+  ensureDesktopAgentInternalToken,
+  getDesktopAgentAuthHeaders,
+  hasAuthenticatedDesktopAgentProtocol,
+} from "./src/security/desktopAgentAuth";
 
 dotenv.config();
+const DESKTOP_AGENT_INTERNAL_TOKEN = ensureDesktopAgentInternalToken(process.env);
 
 const SARA_SYSTEM_PROMPT_BASE = `You are SARA, an AI assistant with a warm, feminine, friendly conversational style. Be kind, attentive, respectful, and lightly playful without implying that you are human, a romantic partner, or a particular age. Be transparent about your AI identity and actual capabilities when asked. Do not claim AGI/ASI, consciousness, independent will, universal operating-system control, or continuous availability. Use only tools that are actually available and supported by this installation. Verify task results, obtain explicit approval before destructive, sensitive, or externally visible actions, and explain errors or limitations plainly. Persistent memory and task recovery depend on what this installation successfully saves; never claim unsaved information will persist.`;
 
@@ -209,12 +215,12 @@ const DESKTOP_TOOLS: Set<string> = new Set([
  * If false, callDesktopAgent will probe /health and attempt an auto-spawn.
  */
 let desktopAgentVerified = false;
+let desktopAgentProtocolUnsupported = false;
 
 /**
  * Auto-spawn the Python desktop agent as a detached child process if it is not
- * already listening. Looks for the project's bundled Python interpreter first,
- * falling back to `python` / `python3` on PATH. Runs detached so it survives
- * even if SARA's node process is killed.
+ * already listening. It is adopted only after its authenticated protocol and
+ * shared-token handshake have been verified.
  */
 function spawnDesktopAgent(): void {
   if (process.env.SARA_SUPERVISOR) {
@@ -225,6 +231,7 @@ function spawnDesktopAgent(): void {
     ...process.env,
     SARA_AGENT_HOST: "127.0.0.1",
     SARA_AGENT_PORT: "8765",
+    SARA_AGENT_INTERNAL_TOKEN: DESKTOP_AGENT_INTERNAL_TOKEN,
   };
 
   // Preferred path (packaged app): a PyInstaller-frozen agent exe that embeds
@@ -283,30 +290,55 @@ function spawnDesktopAgent(): void {
  * Probe the desktop agent /health endpoint. Returns true if it responds 200.
  */
 async function isDesktopAgentAlive(): Promise<boolean> {
+  desktopAgentProtocolUnsupported = false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${DESKTOP_AGENT_URL}/health`, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
+    const headers = getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env);
+    const healthResponse = await fetch(`${DESKTOP_AGENT_URL}/health`, { headers, signal: controller.signal });
+    if (!healthResponse.ok) return false;
+    const health = await healthResponse.json().catch(() => null);
+    if (health?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(health)) {
+      desktopAgentProtocolUnsupported = true;
+      return false;
+    }
+    const authResponse = await fetch(`${DESKTOP_AGENT_URL}/auth/check`, { headers, signal: controller.signal });
+    if (!authResponse.ok) {
+      desktopAgentProtocolUnsupported = [401, 403, 404].includes(authResponse.status);
+      return false;
+    }
+    const auth = await authResponse.json().catch(() => null);
+    return auth?.service === "sara-desktop-agent" && hasAuthenticatedDesktopAgentProtocol(auth);
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-/**
- * Ensure the desktop agent is running. If not verified yet, probe health; if
- * down, auto-spawn and poll until it is ready (or timeout).
- */
+/** Ensure the agent protocol and shared token before any control request. */
 async function ensureDesktopAgent(): Promise<void> {
   if (desktopAgentVerified) return;
   if (await isDesktopAgentAlive()) {
     desktopAgentVerified = true;
-    console.log("[Desktop Agent] Already running — 52 tools available.");
+    console.log("[Desktop Agent] Authenticated agent channel is ready.");
+    return;
+  }
+  if (desktopAgentProtocolUnsupported) {
+    console.warn("[Desktop Agent] A listening agent has an incompatible protocol or token; it was not adopted.");
     return;
   }
   if (process.env.SARA_SUPERVISOR) {
     console.log("[Desktop Agent] Supervisor present — not auto-starting; agent may be managed externally.");
+    return;
+  }
+  try {
+    if (!isLoopbackHost(new URL(DESKTOP_AGENT_URL).hostname)) {
+      console.warn("[Desktop Agent] Remote agent is unavailable; refusing to start a local agent for a remote URL.");
+      return;
+    }
+  } catch {
+    console.warn("[Desktop Agent] DESKTOP_AGENT_URL is invalid; control is disabled.");
     return;
   }
   console.log("[Desktop Agent] Not detected. Auto-starting...");
@@ -315,28 +347,37 @@ async function ensureDesktopAgent(): Promise<void> {
     await new Promise((r) => setTimeout(r, 1000));
     if (await isDesktopAgentAlive()) {
       desktopAgentVerified = true;
-      console.log(`[Desktop Agent] Online after ${i}s — 52 tools available.`);
+      console.log(`[Desktop Agent] Authenticated channel online after ${i}s.`);
+      return;
+    }
+    if (desktopAgentProtocolUnsupported) {
+      console.warn("[Desktop Agent] An incompatible or differently keyed agent is listening; no control payload was sent.");
       return;
     }
   }
-  console.warn("[Desktop Agent] Did not come online within 20s. Desktop control will be unavailable.");
+  console.warn("[Desktop Agent] Did not establish an authenticated channel within 20s. Desktop control will be unavailable.");
 }
 
 async function verifyDesktopAgentReadiness(): Promise<boolean> {
   try {
+    const headers = getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env);
     const healthRes = await fetch(`${DESKTOP_AGENT_URL}/health`, {
+      headers,
       signal: AbortSignal.timeout(2000),
     });
-    if (!healthRes.ok) {
-      return false;
-    }
+    if (!healthRes.ok) return false;
 
-    const health = await healthRes.json().catch(() => ({}));
-    if (health?.service !== "sara-desktop-agent") {
-      return false;
-    }
+    const health = await healthRes.json().catch(() => null);
+    if (health?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(health)) return false;
+
+    const authRes = await fetch(`${DESKTOP_AGENT_URL}/auth/check`, {
+      headers,
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!authRes.ok || !hasAuthenticatedDesktopAgentProtocol(await authRes.json().catch(() => null))) return false;
 
     const capRes = await fetch(`${DESKTOP_AGENT_URL}/capabilities`, {
+      headers,
       signal: AbortSignal.timeout(2000),
     });
     if (!capRes.ok) {
@@ -359,7 +400,7 @@ async function verifyDesktopAgentReadiness(): Promise<boolean> {
 
     const diagRes = await fetch(`${DESKTOP_AGENT_URL}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env, "application/json"),
       signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         tool: "desktopAgentDiagnostic",
@@ -387,16 +428,19 @@ async function callDesktopAgentTransport(
   if (!desktopAgentVerified) {
     await ensureDesktopAgent();
   }
+  if (!desktopAgentVerified) {
+    return { ok: false, error: "Desktop agent is unavailable or failed its authenticated-protocol check; no control request was sent." };
+  }
   try {
     const requestId = String(args.request_id || args.requestId || crypto.randomUUID());
     const operationId = String(args.operation_id || args.operationId || `${requestId}-${tool}`);
     const correlatedArgs = { ...args, request_id: requestId, operation_id: operationId };
-    logCommand(`EXECUTE request_id=${requestId} operation_id=${operationId} tool=${tool} ${JSON.stringify(args)}`);
+    logCommand(`EXECUTE request_id=${requestId} operation_id=${operationId} tool=${tool} arg_keys=${Object.keys(args || {}).sort().join(",")}`);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DESKTOP_AGENT_TIMEOUT);
     const res = await fetch(`${DESKTOP_AGENT_URL}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env, "application/json"),
       body: JSON.stringify({ tool, args: correlatedArgs }),
       signal: controller.signal,
     });
@@ -408,8 +452,9 @@ async function callDesktopAgentTransport(
     const structuredResult = body?.result ?? body;
 
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403 || res.status === 404) desktopAgentVerified = false;
       const message = body?.detail || body?.error || text || `Desktop agent HTTP ${res.status}`;
-      logError(`AGENT_HTTP_${res.status} ${tool}: ${message.substring(0, 200)}`);
+      logError(`AGENT_HTTP_${res.status} ${tool}`);
       return {
         ok: false,
         result: structuredResult,
@@ -438,7 +483,7 @@ async function callDesktopAgentTransport(
     desktopAgentVerified = false; // mark stale so next call retries the spawn
     const msg = err?.name === "AbortError"
       ? "Desktop agent timed out."
-      : "Desktop agent is not running. Start it with: uvicorn desktop_agent.main:app --port 8765";
+      : "Desktop agent is not reachable. Start SARA with its managed launcher, or configure the same protected SARA_AGENT_INTERNAL_TOKEN for the backend and agent.";
     logError(`AGENT_UNREACHABLE ${tool}: ${msg}`);
     return { ok: false, error: msg };
   }
@@ -471,12 +516,16 @@ async function callCompanionEndpoint(
   path: string,
   payload: Record<string, unknown>,
 ): Promise<{ ok: boolean; status: number; result?: unknown; error?: string }> {
+  if (!desktopAgentVerified) await ensureDesktopAgent();
+  if (!desktopAgentVerified) {
+    return { ok: false, status: 503, error: "Desktop agent authenticated channel is unavailable." };
+  }
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DESKTOP_AGENT_TIMEOUT);
     const res = await fetch(`${DESKTOP_AGENT_URL}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env, "application/json"),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -623,7 +672,10 @@ async function startServer() {
 
   app.get("/api/desktop-agent/diagnostics", async (_req, res) => {
     try {
+      if (!desktopAgentVerified) await ensureDesktopAgent();
+      if (!desktopAgentVerified) return res.status(503).json({ error: "Desktop agent authenticated channel is unavailable." });
       const response = await fetch(`${DESKTOP_AGENT_URL}/capabilities/diagnostics`, {
+        headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env),
         signal: AbortSignal.timeout(2500),
       });
       const contract = await response.json().catch(() => ({}));
@@ -836,14 +888,24 @@ async function startServer() {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 3000);
-      const r = await fetch(`${DESKTOP_AGENT_URL}/health`, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (r.ok) {
-        const d = await r.json();
-        res.json({ online: true, tool_count: d.tool_count });
-      } else {
+      const headers = getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env);
+      const r = await fetch(`${DESKTOP_AGENT_URL}/health`, { headers, signal: ctrl.signal });
+      if (!r.ok) {
+        clearTimeout(timer);
         res.json({ online: false });
+        return;
       }
+      const d = await r.json();
+      if (d?.service !== "sara-desktop-agent" || !hasAuthenticatedDesktopAgentProtocol(d)) {
+        clearTimeout(timer);
+        res.json({ online: false });
+        return;
+      }
+      const auth = await fetch(`${DESKTOP_AGENT_URL}/auth/check`, { headers, signal: ctrl.signal });
+      clearTimeout(timer);
+      const authData = auth.ok ? await auth.json().catch(() => null) : null;
+      const online = auth.ok && authData?.service === "sara-desktop-agent" && hasAuthenticatedDesktopAgentProtocol(authData);
+      res.json({ online, agent_auth_verified: online, tool_count: online ? d.tool_count : undefined });
     } catch {
       res.json({ online: false });
     }
@@ -851,7 +913,11 @@ async function startServer() {
 
   app.get("/api/orchestrator/status", async (_req, res) => {
     try {
-      const r = await fetch(`${DESKTOP_AGENT_URL}/orchestrator/status`);
+      if (!desktopAgentVerified) await ensureDesktopAgent();
+      if (!desktopAgentVerified) return res.status(503).json({ error: "Desktop agent authenticated channel is unavailable." });
+      const r = await fetch(`${DESKTOP_AGENT_URL}/orchestrator/status`, {
+        headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env),
+      });
       const d = await r.json();
       res.json(d);
     } catch (e: any) {
@@ -861,7 +927,12 @@ async function startServer() {
 
   app.post("/api/orchestrator/emergency-stop", async (_req, res) => {
     try {
-      const r = await fetch(`${DESKTOP_AGENT_URL}/orchestrator/emergency-stop`, { method: "POST" });
+      if (!desktopAgentVerified) await ensureDesktopAgent();
+      if (!desktopAgentVerified) return res.status(503).json({ ok: false, error: "Desktop agent authenticated channel is unavailable." });
+      const r = await fetch(`${DESKTOP_AGENT_URL}/orchestrator/emergency-stop`, {
+        method: "POST",
+        headers: getDesktopAgentAuthHeaders(DESKTOP_AGENT_URL, process.env),
+      });
       const d = await r.json();
       res.json(d);
     } catch (e: any) {
@@ -2355,7 +2426,8 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
                   continue;
                 }
 
-                console.log(`[Function Call]: ${fc.name}`, fc.args);
+                const functionArgKeys = fc.args && typeof fc.args === "object" ? Object.keys(fc.args as Record<string, unknown>).sort() : [];
+                console.log(`[Function Call]: ${fc.name} arg_keys=${functionArgKeys.join(",")}`);
                 await appendToolCall({
                   id: fc.id || newToolCallId(),
                   sessionId,
@@ -2493,7 +2565,7 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
                       } else {
                         const structuredError = (agentResult.result ?? { status: "FAILED", error: agentResult.error || "Desktop agent tool execution failed." }) as any;
                         const errMsg = agentResult.error || structuredError?.error || structuredError?.message || "Desktop agent tool execution failed.";
-                        console.error(`[Desktop Agent] Error for ${toolName}:`, errMsg);
+                        console.error(`[Desktop Agent] Tool execution failed for ${toolName}; response details were withheld from logs.`);
                         session.sendToolResponse({
                           functionResponses: [{
                             name: toolName,
@@ -2506,7 +2578,7 @@ Keep simple spoken replies brief and natural. For complex work, share useful pro
                           }
                       }
                     } catch (err: any) {
-                      console.error(`[Desktop Agent] Exception for ${toolName}:`, err);
+                      console.error(`[Desktop Agent] Exception for ${toolName} (type=${err?.name || typeof err}); response details were withheld from logs.`);
                       session.sendToolResponse({
                         functionResponses: [{
                           name: toolName,

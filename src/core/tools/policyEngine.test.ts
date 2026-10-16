@@ -20,9 +20,19 @@ test("policy asks before external side effects", () => {
   assert.match(result.reason, /confirmation/i);
 });
 
-test("policy permits explicitly confirmed external side effects", () => {
+test("policy permits external side effects only with trusted internal context", () => {
   const result = new ToolPolicyEngine().evaluate("sendMessage", {}, registry(), { confirmed: true });
   assert.equal(result.decision, "ALLOW");
+});
+
+test("policy ignores consent-shaped fields in model or client arguments", () => {
+  const result = new ToolPolicyEngine().evaluate("sendMessage", {
+    confirmed: true,
+    authorized: true,
+    user_confirmed: true,
+    policy_override: true,
+  }, registry());
+  assert.equal(result.decision, "ASK_USER");
 });
 
 test("policy denies browser domains outside the allowlist", () => {
@@ -35,11 +45,10 @@ test("policy denies browser domains outside the allowlist", () => {
   assert.equal(result.decision, "DENY");
 });
 
-test("power execution accepts the existing single-use token flow", () => {
-  const result = new ToolPolicyEngine().evaluate(
-    "executePowerAction",
-    { execute_token: "token-from-confirmation" },
-    registry(),
-  );
-  assert.equal(result.decision, "ALLOW");
+test("power execution token does not itself count as human approval", () => {
+  const policy = new ToolPolicyEngine();
+  const result = policy.evaluate("executePowerAction", { execute_token: "token-from-request-tool" }, registry());
+  assert.equal(result.decision, "ASK_USER");
+  const approved = policy.evaluate("executePowerAction", { execute_token: "token-from-request-tool" }, registry(), { authorized: true });
+  assert.equal(approved.decision, "ALLOW");
 });

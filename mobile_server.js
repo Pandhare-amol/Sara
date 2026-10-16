@@ -42,7 +42,7 @@ var genai_1 = require("@google/genai");
 var server_memory_1 = require("./server_memory");
 var server_paths_1 = require("./server_paths");
 dotenv_1.default.config();
-var PORT = Number(process.env.MOBILE_SERVER_PORT || 3001);
+var PORT = Number(process.env.MOBILE_SERVER_PORT || 3002);
 var app = (0, express_1.default)();
 app.disable("x-powered-by");
 app.use(express_1.default.json());
@@ -254,6 +254,15 @@ app.post("/api/chat", function (req, res) { return __awaiter(void 0, void 0, voi
         }
     });
 }); });
-app.listen(PORT, "0.0.0.0", function () {
-    console.log("Mobile SARA server listening at http://0.0.0.0:".concat(PORT));
+var mobileServer = app.listen(PORT, "127.0.0.1", function () {
+    console.log("Mobile SARA server listening at http://127.0.0.1:".concat(PORT));
+});
+mobileServer.once("error", function (error) {
+    if ((error === null || error === void 0 ? void 0 : error.code) === "EADDRINUSE") {
+        console.error("[Mobile Server] Port conflict: 127.0.0.1:".concat(PORT, " is already in use. SARA left the existing process untouched. Choose a distinct MOBILE_SERVER_PORT; the mobile service defaults to 3002."));
+    }
+    else {
+        console.error("[Mobile Server] Could not listen on 127.0.0.1:".concat(PORT, ": ").concat((error === null || error === void 0 ? void 0 : error.message) || "unknown startup error"));
+    }
+    process.exit(1);
 });

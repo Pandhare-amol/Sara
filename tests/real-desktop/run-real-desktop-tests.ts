@@ -14,10 +14,13 @@ function logStatus(label: string, status: 'PASS' | 'FAIL' | 'NOT RUN', details?:
   console.log(`${label}: ${status}${details ? ` — ${details}` : ''}`);
 }
 
-async function fetchJson(url: string): Promise<{ ok: boolean; status?: number; body?: string }> {
+async function fetchJson(url: string): Promise<{ ok: boolean; status?: number; body?: string; data?: any }> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    return { ok: res.ok, status: res.status, body: await res.text() };
+    const body = await res.text();
+    let data: any = null;
+    try { data = body ? JSON.parse(body) : null; } catch { data = null; }
+    return { ok: res.ok, status: res.status, body, data };
   } catch (error) {
     return { ok: false, body: String(error) };
   }
@@ -41,16 +44,27 @@ async function checkWindowsPrereqs(): Promise<{ ok: boolean; reason?: string }> 
 
 async function checkServiceReachability() {
   const port = Number(process.env.PORT || 3000);
-  const backendUrl = `http://127.0.0.1:${port}/health`;
-  const agentUrl = `http://127.0.0.1:8765/health`;
-  const backend = await fetchJson(backendUrl);
-  const agent = await fetchJson(agentUrl);
+  const backendOrigin = `http://127.0.0.1:${port}`;
+  const backend = await fetchJson(`${backendOrigin}/health`);
+  const agent = await fetchJson("http://127.0.0.1:8765/health");
+  // /health is deliberately public liveness only. Ask the backend to report
+  // whether its protected token handshake succeeded before calling the agent ready.
+  const agentReadiness = backend.ok
+    ? await fetchJson(`${backendOrigin}/api/agent-health`)
+    : { ok: false, data: null };
+  const agentProtocolReady = agent.data?.service === "sara-desktop-agent" &&
+    agent.data?.agent_auth_required === true &&
+    Number(agent.data?.agent_auth_protocol_version) === 1;
+  const agentReady = agentProtocolReady &&
+    agentReadiness.ok && agentReadiness.data?.agent_auth_verified === true;
 
   return {
     backend,
     agent,
+    agentReadiness,
     backendReady: backend.ok,
-    agentReady: agent.ok,
+    agentLiveness: agent.ok,
+    agentReady,
   };
 }
 
@@ -179,8 +193,13 @@ async function runDiagnosticReport(): Promise<void> {
   }
 
   const services = await checkServiceReachability();
-  logStatus('Desktop Agent', services.agentReady ? 'PASS' : 'FAIL', services.agentReady ? 'Health endpoint responded.' : 'Agent health check failed.');
+  logStatus('Desktop Agent', services.agentReady ? 'PASS' : 'FAIL', services.agentReady ? 'Backend verified the authenticated agent protocol.' : services.agentLiveness ? 'Health endpoint responded, but authenticated readiness is unverified.' : 'Agent health check failed.');
   logStatus('Backend', services.backendReady ? 'PASS' : 'FAIL', services.backendReady ? 'Backend health endpoint responded.' : 'Backend health check failed.');
+  if (!services.backendReady || !services.agentReady) {
+    logStatus('Mouse movement', 'NOT RUN', 'Authenticated service readiness was not verified.');
+    logStatus('Notepad save', 'NOT RUN', 'Authenticated service readiness was not verified.');
+    return;
+  }
 
   const mouse = await runMouseTest();
   logStatus('Mouse movement', mouse.status, mouse.details);
@@ -207,7 +226,7 @@ async function main(): Promise<void> {
   const services = await checkServiceReachability();
   if (!services.backendReady || !services.agentReady) {
     console.log('REAL DESKTOP TEST: NOT RUN');
-    console.log(`Backend health: ${services.backendReady ? 'PASS' : 'FAIL'}; Desktop agent health: ${services.agentReady ? 'PASS' : 'FAIL'}`);
+    console.log(`Backend health: ${services.backendReady ? 'PASS' : 'FAIL'}; Desktop agent authenticated readiness: ${services.agentReady ? 'PASS' : 'FAIL'} (public /health is liveness only).`);
     return;
   }
 

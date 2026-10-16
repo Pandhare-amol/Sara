@@ -61,6 +61,7 @@ class AgentTask:
     result: Any = None
     error: Optional[str] = None
     confidence: float = 0.0
+    cancellation_requested: bool = False
 
 
 class BaseAgent:
@@ -273,6 +274,7 @@ class AgentManager:
         self._lock = threading.RLock()
         self._agents: Dict[str, BaseAgent] = {}
         self._tasks: Dict[str, AgentTask] = {}
+        self._active_workflows: Dict[str, threading.Event] = {}
         self._events: List[Dict[str, Any]] = []
         self._store_path = self._default_store_path()
         self._load_state()
@@ -502,6 +504,18 @@ class AgentManager:
 
     def execute_for_sara(self, goal: str, priority: int = 5) -> Dict[str, Any]:
         root_id = self._new_id()
+        stop_event = threading.Event()
+        with self._lock:
+            self._active_workflows[root_id] = stop_event
+        try:
+            return self._execute_for_sara(goal, priority, root_id, stop_event)
+        finally:
+            with self._lock:
+                self._active_workflows.pop(root_id, None)
+
+    def _execute_for_sara(
+        self, goal: str, priority: int, root_id: str, stop_event: threading.Event
+    ) -> Dict[str, Any]:
         plan = plan_goal(goal)
         checkpoint = RECOVERY.latest_incomplete_for_goal(goal)
         resume_from = str((checkpoint or {}).get("payload", {}).get("resume_from") or "")
@@ -520,14 +534,48 @@ class AgentManager:
                     start_layer = idx
                     break
         for layer_index, layer in enumerate(layers[start_layer:], start=start_layer):
-            layer_results = self._execute_step_group(goal, root_id, layer, priority)
+            if stop_event.is_set():
+                status = "cancelled"
+                RECOVERY.save(root_id, f"layer-{layer_index}", {
+                    "goal": goal,
+                    "resume_from": next((step.get("checkpoint") for step in layer if step.get("checkpoint")), ""),
+                    "status": "cancelled",
+                    "checkpointPreserved": True,
+                    "automaticReplay": False,
+                    "actionMayHaveCompleted": True,
+                    "progress": layer_index,
+                })
+                break
+            layer_results = self._execute_step_group(goal, root_id, layer, priority, stop_event)
             results.extend(layer_results)
+            if stop_event.is_set() or any(item["agent_result"]["status"] == "cancelled" for item in layer_results):
+                status = "cancelled"
+                RECOVERY.save(root_id, f"layer-{layer_index}", {
+                    "goal": goal,
+                    "resume_from": next((step.get("checkpoint") for step in layer if step.get("checkpoint")), ""),
+                    "status": "cancelled",
+                    "checkpointPreserved": True,
+                    "automaticReplay": False,
+                    "actionMayHaveCompleted": True,
+                    "progress": layer_index,
+                })
+                break
             if any(item["agent_result"]["status"] != "completed" for item in layer_results):
                 status = "failed"
                 RECOVERY.save(root_id, f"layer-{layer_index}", {"goal": goal, "resume_from": next((step.get("checkpoint") for step in layer if step.get("checkpoint")), ""), "status": "failed", "progress": layer_index})
                 break
             RECOVERY.save(root_id, f"layer-{layer_index}", {"goal": goal, "resume_from": next((step.get("checkpoint") for step in layer if step.get("checkpoint")), ""), "status": "completed", "progress": layer_index})
-        if status == "completed":
+        if status == "completed" and stop_event.is_set():
+            status = "cancelled"
+            RECOVERY.save(root_id, "stop_requested", {
+                "goal": goal,
+                "status": "cancelled",
+                "checkpointPreserved": True,
+                "automaticReplay": False,
+                "actionMayHaveCompleted": True,
+                "progress": len(results),
+            })
+        elif status == "completed":
             RECOVERY.save(root_id, "complete", {"goal": goal, "status": status, "plan_length": len(plan), "results": len(results)})
         self.unload_idle_agents(force=False)
         MEMORY.remember(
@@ -535,27 +583,28 @@ class AgentManager:
             summarize_for_sara(goal, results, status),
             {"workflow_id": root_id, "goal": goal, "status": status, "plan": plan},
         )
-        WORKFLOWS.learn(goal, plan, {"status": status, "workflow_id": root_id})
-        if status == "completed":
-            SKILLS.learn_from_workflow(goal, f"Learned workflow for {goal}", plan, {"workflow_id": root_id})
-        REINFORCEMENT.record(goal, status, [item["task"] for item in results])
-        total_duration = sum(int(item["task"].duration_ms or 0) for item in results)
-        EXPERIENCES.record(
-            task=goal,
-            action="saraAgentExecute",
-            result=status,
-            success=status == "completed",
-            execution_time_ms=total_duration,
-            error="" if status == "completed" else summarize_for_sara(goal, results, status),
-            recovery="resume from checkpoint" if status != "completed" else "",
-            metadata={
-                "workflow_id": root_id,
-                "plan": plan,
-                "matched_skill": skill_matches[0] if skill_matches else None,
-                "matched_strategy": strategy_matches[0] if strategy_matches else None,
-            },
-        )
-        if status != "completed" or any((task["task"].get("retry_count") or 0) > 0 for task in results):
+        if status != "cancelled":
+            WORKFLOWS.learn(goal, plan, {"status": status, "workflow_id": root_id})
+            if status == "completed":
+                SKILLS.learn_from_workflow(goal, f"Learned workflow for {goal}", plan, {"workflow_id": root_id})
+            REINFORCEMENT.record(goal, status, [item["task"] for item in results])
+            total_duration = sum(int(item["task"].get("duration_ms") or 0) for item in results)
+            EXPERIENCES.record(
+                task=goal,
+                action="saraAgentExecute",
+                result=status,
+                success=status == "completed",
+                execution_time_ms=total_duration,
+                error="" if status == "completed" else summarize_for_sara(goal, results, status),
+                recovery="resume from checkpoint" if status != "completed" else "",
+                metadata={
+                    "workflow_id": root_id,
+                    "plan": plan,
+                    "matched_skill": skill_matches[0] if skill_matches else None,
+                    "matched_strategy": strategy_matches[0] if strategy_matches else None,
+                },
+            )
+        if status != "cancelled" and (status != "completed" or any((task["task"].get("retry_count") or 0) > 0 for task in results)):
             EVOLUTION.propose(
                 f"Improve workflow execution for: {goal}",
                 {
@@ -579,7 +628,11 @@ class AgentManager:
             "sara_summary": summarize_for_sara(goal, results, status),
         }
 
-    def _execute_step_group(self, goal: str, root_id: str, group: List[Dict[str, Any]], priority: int) -> List[Dict[str, Any]]:
+    def _execute_step_group(
+        self, goal: str, root_id: str, group: List[Dict[str, Any]], priority: int, stop_event: threading.Event
+    ) -> List[Dict[str, Any]]:
+        if stop_event.is_set():
+            return []
         if len(group) <= 1 or not all(step.get("parallel", False) for step in group):
             step = group[0]
             task = AgentTask(
@@ -627,13 +680,35 @@ class AgentManager:
     def _execute_task(self, task: AgentTask) -> AgentResult:
         with self._lock:
             self._tasks[task.id] = task
+            stop_event = self._active_workflows.get(task.parent_id or "")
         agent = self._agents.get(task.agent)
         if agent is None:
             task.status = "failed"
             task.error = f"Agent '{task.agent}' is not registered"
             return AgentResult(status="failed", errors=[task.error], confidence=0.0)
-        task.status = "running"
-        task.started_at = time.time()
+        with self._lock:
+            if stop_event and stop_event.is_set():
+                task.status = "cancelled"
+                task.cancellation_requested = True
+                task.error = "Cancelled before this workflow step started."
+                task.finished_at = time.time()
+                cancelled_before_start = True
+            else:
+                task.status = "running"
+                task.started_at = time.time()
+                cancelled_before_start = False
+        if cancelled_before_start:
+            self._event("task_finished", {"task": task.id, "agent": task.agent, "status": task.status, "duration_ms": 0})
+            self._persist_state()
+            return AgentResult(status="cancelled", errors=[task.error or "Cancelled before execution."], confidence=0.0)
+        if stop_event and stop_event.is_set():
+            task.status = "cancelled"
+            task.cancellation_requested = True
+            task.error = "Cancelled before the agent call began."
+            task.finished_at = time.time()
+            self._event("task_finished", {"task": task.id, "agent": task.agent, "status": task.status, "duration_ms": 0})
+            self._persist_state()
+            return AgentResult(status="cancelled", errors=[task.error], confidence=0.0)
         self._event("task_started", {"task": task.id, "agent": task.agent, "action": task.action})
         try:
             result = agent.execute(task)
@@ -648,7 +723,20 @@ class AgentManager:
         task.progress = result.progress
         task.result = result.result
         task.confidence = result.confidence
-        if result.status == "completed":
+        if stop_event and stop_event.is_set():
+            task.status = "cancelled"
+            task.cancellation_requested = True
+            task.error = "Stop requested while the tool call was running. It may have completed external effects; review before retrying."
+            result = AgentResult(
+                status="cancelled",
+                progress=result.progress,
+                result=result.result,
+                errors=[task.error],
+                logs=result.logs,
+                resource_usage=result.resource_usage,
+                confidence=result.confidence,
+            )
+        elif result.status == "completed":
             task.status = "completed"
         else:
             task.status = "failed"
@@ -673,6 +761,8 @@ class AgentManager:
             task.retry_count = attempts - 1
             result = self._execute_task(task)
             last_result = result
+            if result.status == "cancelled":
+                return result
             if result.status == "completed" and self._verify_result(task, result):
                 return result
             if result.status == "completed":
@@ -728,19 +818,46 @@ class AgentManager:
 
     def emergency_stop(self) -> Dict[str, Any]:
         with self._lock:
-            active_tasks = [task_id for task_id, task in self._tasks.items() if task.status in {"created", "scheduled", "running"}]
-            for task_id in active_tasks:
-                task = self._tasks[task_id]
-                task.status = "cancelled"
-                task.error = "Cancelled by emergency stop"
-                task.finished_at = time.time()
+            active_workflows = list(self._active_workflows)
+            for stop_event in self._active_workflows.values():
+                stop_event.set()
+
+            cancelled_before_start: List[str] = []
+            cancellation_requested: List[str] = []
+            for task_id, task in self._tasks.items():
+                if task.status in {"created", "scheduled"}:
+                    task.status = "cancelled"
+                    task.cancellation_requested = True
+                    task.error = "Cancelled by emergency stop before this step started."
+                    task.finished_at = time.time()
+                    cancelled_before_start.append(task_id)
+                elif task.status == "running":
+                    task.cancellation_requested = True
+                    task.error = "Stop requested; the current tool call may finish. Review external effects before retrying."
+                    cancellation_requested.append(task_id)
+
+            agents_stopped: List[str] = []
+            agents_left_running: List[str] = []
             for agent in self._agents.values():
                 if agent.name == "task_planner":
                     continue
+                if agent.status == "running":
+                    agents_left_running.append(agent.name)
+                    continue
                 agent.shutdown()
-            self._event("emergency_stop", {"cancelled_tasks": active_tasks, "agents": list(self._agents)})
+                agents_stopped.append(agent.name)
+            result = {
+                "cancelled_tasks": cancelled_before_start,
+                "cancellation_requested_tasks": cancellation_requested,
+                "active_workflows_stop_requested": active_workflows,
+                "running_tool_calls_may_finish": bool(cancellation_requested or active_workflows),
+                "agents_stopped": agents_stopped,
+                "agents_left_running": agents_left_running,
+                "idle_state": not bool(cancellation_requested or active_workflows),
+            }
+            self._event("emergency_stop", result)
             self._persist_state()
-        return {"cancelled_tasks": active_tasks, "agents_stopped": [name for name in self._agents if name != "task_planner"], "idle_state": True}
+        return result
 
     def status(self) -> Dict[str, Any]:
         with self._lock:
@@ -922,6 +1039,8 @@ def _build_execution_layers(steps: List[Dict[str, Any]]) -> List[List[Dict[str, 
 
 
 def summarize_for_sara(goal: str, results: List[Dict[str, Any]], status: TaskStatus) -> str:
+    if status == "cancelled":
+        return "Stop requested. Work was halted between workflow steps; an in-flight tool call may have completed, so review the external state before retrying."
     if not results:
         return f"I analyzed the request but did not need to run an external agent: {goal}"
     if status == "completed":

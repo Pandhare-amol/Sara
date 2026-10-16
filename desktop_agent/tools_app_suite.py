@@ -32,4 +32,9 @@ def sara_app_execute(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("saraAppExecuteGoal")
 def sara_app_execute_goal(args: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": APP_SUITE.execute_goal(str(args.get("goal") or args.get("request") or ""), bool(args.get("confirmed", False)))}
+    task_id = str(args.get("automation_task_id") or args.get("taskId") or "").strip() or None
+    return APP_SUITE.execute_goal(
+        str(args.get("goal") or args.get("request") or ""),
+        bool(args.get("confirmed", False)),
+        automation_task_id=task_id,
+    )

@@ -12,6 +12,18 @@ test("admin auth abuse tracker warns and recommends a single lock per active fai
   assert.equal(tracker.record("127.0.0.1", 6000).shouldLock, false);
 });
 
+test("repeated failures block admin authentication until the sliding window expires", () => {
+  const tracker = new AdminAuthAbuseTracker(3, 5, 100);
+  for (let attempt = 0; attempt < 4; attempt++) tracker.record("local", 1000 + attempt);
+  assert.equal(tracker.isBlocked("local", 1004), false);
+  tracker.record("local", 1004);
+  assert.equal(tracker.isBlocked("local", 1004), true);
+  assert.ok(tracker.getRetryAfterSeconds("local", 1004) > 0);
+  assert.equal(tracker.isBlocked("another-source", 1004), false);
+  assert.equal(tracker.isBlocked("local", 1105), false, "lockout ends as failed attempts age out of the window");
+  assert.equal(tracker.getRetryAfterSeconds("local", 1105), 0);
+});
+
 test("warning and lock state reset after the failure window expires", () => {
   const tracker = new AdminAuthAbuseTracker(2, 3, 100);
   tracker.record("local", 1000);
@@ -40,6 +52,9 @@ test("successful admin authentication clears that source's failure history", () 
   const tracker = new AdminAuthAbuseTracker(2, 3, 100);
   tracker.record("local", 1000);
   tracker.record("local", 1050);
+  tracker.record("local", 1060);
+  assert.equal(tracker.isBlocked("local", 1060), true);
   tracker.clear("local");
-  assert.deepEqual(tracker.record("local", 1060), { attempts: 1, warn: false, shouldLock: false });
+  assert.equal(tracker.isBlocked("local", 1060), false);
+  assert.deepEqual(tracker.record("local", 1070), { attempts: 1, warn: false, shouldLock: false });
 });

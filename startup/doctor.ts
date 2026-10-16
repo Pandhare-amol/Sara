@@ -2,15 +2,17 @@ import { spawn, execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findSaraOwnedPids, terminateSaraOwnedProcesses, isSaraOwnedPid } from "./processGuard.js";
+import { hasAuthenticatedDesktopAgentProtocol } from "../src/security/desktopAgentAuth.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const mode = args.find((arg) => arg === "--status" || arg === "--doctor" || arg === "--stop" || arg === "--restart") || "--doctor";
 
-async function healthCheck(url: string): Promise<{ ok: boolean; status?: number; error?: string }> {
+async function healthCheck(url: string): Promise<{ ok: boolean; status?: number; error?: string; data?: any }> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
-    return { ok: res.ok, status: res.status };
+    const data = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, data };
   } catch (error: any) {
     return { ok: false, error: error?.message || String(error) };
   }
@@ -19,12 +21,28 @@ async function healthCheck(url: string): Promise<{ ok: boolean; status?: number;
 async function reportStatus(): Promise<void> {
   const backend = await healthCheck("http://127.0.0.1:3000/health");
   const agent = await healthCheck("http://127.0.0.1:8765/health");
+  // The doctor may be a separate process and intentionally does not guess or
+  // persist the backend's ephemeral token. Ask the backend to report whether
+  // it completed the protected agent handshake; /health alone is liveness only.
+  const authenticatedReadiness = backend.ok
+    ? await healthCheck("http://127.0.0.1:3000/api/agent-health")
+    : { ok: false, data: null };
+  const agentAuthenticated = authenticatedReadiness.ok &&
+    authenticatedReadiness.data?.agent_auth_verified === true;
+  const agentProtocol = hasAuthenticatedDesktopAgentProtocol(agent.data);
+  const agentStatus = agentAuthenticated
+    ? "AUTHENTICATED READY"
+    : agent.ok && agentProtocol
+      ? "LISTENING; AUTHENTICATION UNVERIFIED"
+      : agent.ok
+        ? "INCOMPATIBLE PROTOCOL"
+        : "DOWN";
   const pids = findSaraOwnedPids();
   console.log("[SARA][DOCTOR] status");
   console.log(`Backend: ${backend.ok ? "HEALTHY" : "DOWN"}${backend.status ? ` (${backend.status})` : ""}`);
-  console.log(`Desktop Agent: ${agent.ok ? "HEALTHY" : "DOWN"}${agent.status ? ` (${agent.status})` : ""}`);
+  console.log(`Desktop Agent: ${agentStatus}${agent.status ? ` (${agent.status})` : ""}`);
   console.log(`SARA-owned PIDs: ${pids.length ? pids.join(", ") : "none"}`);
-  if (!backend.ok || !agent.ok) {
+  if (!backend.ok || !agentAuthenticated) {
     process.exitCode = 1;
   }
 }

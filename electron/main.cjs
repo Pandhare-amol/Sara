@@ -3,11 +3,11 @@
  * ---------------------------------------------------------------------------
  * Responsibilities in this phase:
  *   1. Enforce a single running instance.
- *   2. Launch the existing Node backend (server.ts, bundled to dist/server.cjs)
+ *   2. Launch the existing Node backend (server_full.ts, bundled to dist/server.cjs)
  *      when running standalone. The production supervisor owns the backend
  *      when it launches Electron.
  *   3. Show a splash window while the backend boots, then load the real UI
- *      (http://localhost:3000) into the main application window.
+ *      from the configured loopback SERVER_ORIGIN into the main application window.
  *   4. Clean up the backend (and its child Python agent) on quit.
  *
  * Tray, window-state persistence, close-to-tray and notifications arrive in
@@ -29,16 +29,30 @@ const {
 } = require('electron');
 const path = require('path');
 const http = require('http');
+const net = require('net');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
 // --- Constants -------------------------------------------------------------
-const SERVER_PORT = 3000;
-const SERVER_ORIGIN = `http://127.0.0.1:${SERVER_PORT}`;
+const SERVER_PORT = Number(process.env.SARA_ELECTRON_PORT || 3000);
+if (!Number.isInteger(SERVER_PORT) || SERVER_PORT < 1 || SERVER_PORT > 65535) {
+  throw new Error('Invalid SARA_ELECTRON_PORT; use an integer between 1 and 65535.');
+}
+// WebAuthn rejects numeric IP relying-party IDs; localhost is a secure-context
+// exception and is required by the server's local passkey policy.
+const SERVER_ORIGIN = `http://localhost:${SERVER_PORT}`;
 const SERVER_READY_TIMEOUT_MS = 40_000;
 const SUPERVISOR_MANAGES_BACKEND =
   process.env.SARA_SUPERVISOR === '1' ||
   process.env.SARA_SERVICE_MANAGER === '1';
+const configuredAgentInternalToken = String(process.env.SARA_AGENT_INTERNAL_TOKEN || '').trim();
+if (configuredAgentInternalToken && Buffer.byteLength(configuredAgentInternalToken, 'utf8') < 32) {
+  throw new Error('SARA_AGENT_INTERNAL_TOKEN must contain at least 32 UTF-8 bytes.');
+}
+// Share an in-memory token across this Electron process and its backend. The
+// production supervisor supplies its own process-scoped token when present.
+const SARA_AGENT_INTERNAL_TOKEN = configuredAgentInternalToken || crypto.randomBytes(32).toString('base64url');
 
 // In development we run from the repo root; when packaged the app files live in
 // resources/app (asar-unpacked handling is added in the packaging phase).
@@ -50,6 +64,8 @@ const SERVER_ENTRY = path.join(APP_ROOT, 'dist', 'server.cjs');
 
 /** @type {import('child_process').ChildProcess | null} */
 let serverProcess = null;
+let backendStderrTail = '';
+let backendFailureReported = false;
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
 /** @type {BrowserWindow | null} */
@@ -193,9 +209,15 @@ function startBackend() {
     ...process.env,
     NODE_ENV: 'production',
     ELECTRON_RUN_AS_NODE: '1',
+    // Electron owns this backend port; ignore PORT/SARA_BIND_HOST from .env so
+    // `npm run app` stays on a known, private loopback endpoint.
+    PORT: String(SERVER_PORT),
+    SARA_BIND_HOST: '127.0.0.1',
     SARA_LAUNCHED_BY: 'electron',
     SARA_DATA_DIR: dataDir,
     SARA_APP_ROOT: APP_ROOT,
+    SARA_AGENT_INTERNAL_TOKEN,
+
   };
   if (fs.existsSync(agentExe)) {
     env.SARA_AGENT_EXE = agentExe;
@@ -209,12 +231,25 @@ function startBackend() {
   });
 
   serverProcess.stdout?.on('data', (d) => process.stdout.write(`[server] ${d}`));
-  serverProcess.stderr?.on('data', (d) => process.stderr.write(`[server] ${d}`));
+  serverProcess.stderr?.on('data', (d) => {
+    const text = String(d);
+    backendStderrTail = `${backendStderrTail}${text}`.slice(-4000);
+    process.stderr.write(`[server] ${text}`);
+  });
+  serverProcess.on('error', (error) => {
+    if (!isQuitting && !backendFailureReported) {
+      backendFailureReported = true;
+      dialog.showErrorBox('SARA backend failed to launch', error?.message || String(error));
+      app.quit();
+    }
+  });
   serverProcess.on('exit', (code, signal) => {
-    if (!isQuitting) {
+    if (!isQuitting && !backendFailureReported) {
+      backendFailureReported = true;
+      const detail = backendStderrTail.trim();
       dialog.showErrorBox(
         'SARA backend stopped',
-        `The SARA backend process exited unexpectedly (code ${code}, signal ${signal}).`,
+        `The SARA backend process exited unexpectedly (code ${code}, signal ${signal}).${detail ? `\n\nLast backend output:\n${detail}` : ''}`,
       );
       app.quit();
     }
@@ -237,22 +272,55 @@ function stopBackend() {
   serverProcess = null;
 }
 
-/** Poll the backend until it answers, or reject on timeout. */
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: '127.0.0.1', port });
+    let settled = false;
+    const finish = (available) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(available);
+    };
+    socket.once('connect', () => finish(false));
+    socket.once('error', (error) => finish(error?.code === 'ECONNREFUSED'));
+    socket.setTimeout(1200, () => finish(false));
+  });
+}
+
+/** Poll until the port serves SARA's config endpoint, not merely any HTTP app. */
 function waitForBackend(timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
+    let finished = false;
+    const retry = () => {
+      if (finished) return;
+      if (Date.now() >= deadline) {
+        finished = true;
+        reject(new Error(`SARA backend did not become ready at ${SERVER_ORIGIN}.`));
+      } else {
+        setTimeout(tryOnce, 400);
+      }
+    };
     const tryOnce = () => {
-      const req = http.get(SERVER_ORIGIN, (res) => {
-        res.resume();
-        resolve();
+      if (finished) return;
+      const req = http.get(`${SERVER_ORIGIN}/api/config`, (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { body = `${body}${chunk}`.slice(0, 4096); });
+        res.on('end', () => {
+          try {
+            const payload = JSON.parse(body);
+            if (res.statusCode === 200 && typeof payload?.hasApiKey === 'boolean') {
+              finished = true;
+              resolve();
+              return;
+            }
+          } catch { /* a different service is listening, so keep waiting */ }
+          retry();
+        });
       });
-      req.on('error', () => {
-        if (Date.now() > deadline) {
-          reject(new Error('Backend did not become ready in time.'));
-        } else {
-          setTimeout(tryOnce, 400);
-        }
-      });
+      req.on('error', retry);
       req.setTimeout(2000, () => req.destroy());
     };
     tryOnce();
@@ -347,6 +415,10 @@ async function bootstrap() {
 
   try {
     if (!SUPERVISOR_MANAGES_BACKEND) {
+      const available = await isPortAvailable(SERVER_PORT);
+      if (!available) {
+        throw new Error(`Port ${SERVER_PORT} on 127.0.0.1 is already occupied. SARA did not stop the existing process. Close the service that owns it, or launch with SARA_ELECTRON_PORT set to an unused port.`);
+      }
       startBackend();
     }
     await waitForBackend(SERVER_READY_TIMEOUT_MS);

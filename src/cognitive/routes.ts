@@ -15,6 +15,15 @@ import {
 } from "./index";
 import type { TaskExecutionContext } from "./integrationBridge";
 import { callDesktopAgent } from "../../desktop_agent_bridge";
+import {
+  beginCognitiveTask,
+  endCognitiveTask,
+  requestCognitiveEmergencyStop,
+  requestCognitiveTaskCancellation,
+  runCognitiveStepsUntilCancelled,
+} from "./taskCancellation";
+
+export { requestCognitiveEmergencyStop };
 
 const router = Router();
 const bridge = getCognitiveIntegrationBridge();
@@ -235,6 +244,27 @@ router.post(
   }
 );
 
+/** Request a cooperative stop for one active cognitive workflow. */
+router.post(
+  "/cognitive/task/:taskId/cancel",
+  async (req: Request, res: Response) => {
+    const taskId = String(req.params.taskId || "").trim();
+    if (!taskId) {
+      return res.status(400).json({ ok: false, error: "taskId is required." });
+    }
+    const accepted = requestCognitiveTaskCancellation(taskId);
+    if (!accepted) {
+      return res.status(404).json({ ok: false, error: "No active cognitive task was found." });
+    }
+    return res.json({
+      ok: true,
+      status: "stop_requested",
+      taskId,
+      message: "A cooperative stop was requested. The current tool call may finish; later plan steps will not start.",
+    });
+  }
+);
+
 /**
  * POST /cognitive/task/execute
  * Execute a task with full cognitive flow:
@@ -260,10 +290,17 @@ router.post(
         });
       }
 
+      const requestedTaskId = String(taskId || "").trim();
+      const cognitiveTaskId = requestedTaskId || `cognitive-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const cancellation = beginCognitiveTask(cognitiveTaskId);
+      if (!cancellation) {
+        return res.status(409).json({ ok: false, error: "An active cognitive task already uses this taskId." });
+      }
+
       // Execute task using desktop agent with real tool calls
       const executionResult = await bridge.executeTaskWithCognition(
         {
-          taskId: taskId || `task-${Date.now()}`,
+          taskId: cognitiveTaskId,
           conversationId,
           goal,
           userInput,
@@ -271,68 +308,75 @@ router.post(
           maxDuration,
           startTime: Date.now(),
         },
-        async (plan, context) => {
+        async (plan, _context) => {
           const actions = [];
           const errors = [];
           const corrections = [];
 
-          // Execute each plan step using the desktop agent
-          for (const step of plan.steps) {
-            try {
-              // Use the tool from the plan step, or fallback to the action name
-              const toolName = step.tool || step.action;
-              const toolArgs = step.args || {};
+          // Execute steps sequentially, checking cancellation before each one.
+          await runCognitiveStepsUntilCancelled(
+            plan.steps,
+            cancellation,
+            async (step) => {
+              try {
+                // Use the tool from the plan step, or fallback to the action name
+                const toolName = step.tool || step.action;
+                const toolArgs = step.args || {};
 
-              console.debug(`[CognitiveRoutes] Executing tool: ${toolName}`, toolArgs);
+                console.debug(`[CognitiveRoutes] Executing tool: ${toolName}`, toolArgs);
 
-              // Call the desktop agent with the tool and arguments
-              const agentResult = await callDesktopAgent(toolName, toolArgs);
+                // Call the desktop agent with the tool and arguments
+                const agentResult = await callDesktopAgent(toolName, toolArgs);
 
-              // Record the action
-              actions.push({
-                id: step.id,
-                index: step.index,
-                tool: toolName,
-                args: toolArgs,
-                success: agentResult.ok,
-                output: agentResult.result || agentResult.error || "No output",
-                duration: 0, // Desktop agent doesn't report timing
-              });
+                // Record the action
+                actions.push({
+                  id: step.id,
+                  index: step.index,
+                  tool: toolName,
+                  args: toolArgs,
+                  success: agentResult.ok,
+                  output: agentResult.result || agentResult.error || "No output",
+                  duration: 0, // Desktop agent doesn't report timing
+                });
 
-              // If tool failed, record as error
-              if (!agentResult.ok) {
+                // If tool failed, record as error
+                if (!agentResult.ok) {
+                  errors.push({
+                    id: `error-${step.id}`,
+                    stepId: step.id,
+                    message: agentResult.error || "Unknown error",
+                    tool: toolName,
+                    args: toolArgs,
+                  });
+                }
+              } catch (error: any) {
+                console.error(
+                  `[CognitiveRoutes] Tool execution failed: ${step.tool || step.action}`,
+                  error
+                );
+
+                // Record the action as failed
+                actions.push({
+                  id: step.id,
+                  index: step.index,
+                  tool: step.tool || step.action,
+                  args: step.args || {},
+                  success: false,
+                  output: error.message || "Tool execution failed",
+                  duration: 0,
+                });
+
+                // Record the error
                 errors.push({
                   id: `error-${step.id}`,
                   stepId: step.id,
-                  message: agentResult.error || "Unknown error",
-                  tool: toolName,
-                  args: toolArgs,
+                  message: error.message || "Unknown error",
+                  tool: step.tool || step.action,
+                  args: step.args || {},
                 });
               }
-            } catch (error: any) {
-              console.error(`[CognitiveRoutes] Tool execution failed: ${step.tool}`, error);
-
-              // Record the action as failed
-              actions.push({
-                id: step.id,
-                index: step.index,
-                tool: step.tool || step.action,
-                args: step.args || {},
-                success: false,
-                output: error.message || "Tool execution failed",
-                duration: 0,
-              });
-
-              // Record the error
-              errors.push({
-                id: `error-${step.id}`,
-                stepId: step.id,
-                message: error.message || "Unknown error",
-                tool: step.tool || step.action,
-                args: step.args || {},
-              });
             }
-          }
+          );
 
           // Determine overall success from the actual execution outcome rather
           // than from the tool intent or a generated sentence.
@@ -343,17 +387,28 @@ router.post(
             actions,
             errors,
             corrections,
-            result: overallSuccess
-              ? (executionResult?.output || "Task completed successfully")
-              : (errors.length > 0
-                ? `Task failed: ${errors.map((e) => e.message || "Unknown error").join("; ")}`
-                : (executionResult?.output || "Task did not complete successfully")),
+            cancelled: cancellation.requested,
+            result: cancellation.requested
+              ? "Stop requested. The workflow was halted before starting another plan step. The current tool call may have completed external effects; review state before retrying."
+              : overallSuccess
+                ? (actions
+                    .map((action) => String(action.output || ""))
+                    .filter(Boolean)
+                    .join("; ") || "Task completed successfully")
+                : errors.length > 0
+                  ? `Task failed: ${errors.map((error) => error.message || "Unknown error").join("; ")}`
+                  : "Task did not complete successfully",
           };
         }
-      );
+      ).finally(() => endCognitiveTask(cognitiveTaskId));
 
       res.json({
         ok: true,
+        status: executionResult.cancelled
+          ? "cancelled"
+          : executionResult.success
+            ? "completed"
+            : "failed",
         result: executionResult,
       });
     } catch (error: any) {

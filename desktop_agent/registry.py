@@ -80,6 +80,7 @@ DESKTOP_TOOL_NAMES = [
     # applications / websites / search
     "openApplication",
     "closeApplication",
+    "closeLaunchedApplications",
     "openAnyApplication",
     "closeAnyApplication",
     "openWebsite",

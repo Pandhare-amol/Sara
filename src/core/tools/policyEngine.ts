@@ -3,6 +3,7 @@ import type { ToolMetadata, ToolRegistry, ToolRiskLevel } from "./toolRegistry";
 export type PolicyDecision = "ALLOW" | "ASK_USER" | "DENY";
 
 export interface PolicyContext {
+  /** Internal server context only; never derive these fields from tool arguments. */
   context?: string;
   confirmed?: boolean;
   authorized?: boolean;
@@ -53,9 +54,8 @@ export class ToolPolicyEngine {
     }
 
     const explicitlyAuthorized = context.authorized === true || context.confirmed === true;
-    const tokenConfirmed = tool === "executePowerAction" && typeof args.execute_token === "string" && args.execute_token.length > 0;
     if (metadata.riskLevel === "DESTRUCTIVE_SYSTEM" || metadata.requiresConfirmation) {
-      if (!explicitlyAuthorized && !tokenConfirmed) {
+      if (!explicitlyAuthorized) {
         return { decision: "ASK_USER", reason: `Explicit confirmation is required before '${tool}'.`, riskLevel: metadata.riskLevel, metadata };
       }
     }

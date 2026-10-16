@@ -30,9 +30,10 @@ _LOOP_THREAD: Optional[threading.Thread] = None
 _LOOP_LOCK = threading.Lock()
 _OPERATION_LOCK: Optional[asyncio.Lock] = None
 
-NAVIGATION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_NAVIGATION_TIMEOUT_MS", "8000"))
-ELEMENT_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_ELEMENT_TIMEOUT_MS", "4000"))
-QUICK_ACTION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_QUICK_ACTION_TIMEOUT_MS", "2500"))
+NAVIGATION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_NAVIGATION_TIMEOUT_MS", "20000"))
+ELEMENT_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_ELEMENT_TIMEOUT_MS", "8000"))
+QUICK_ACTION_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_QUICK_ACTION_TIMEOUT_MS", "5000"))
+MEDIA_START_TIMEOUT_MS = int(os.environ.get("SARA_BROWSER_MEDIA_START_TIMEOUT_MS", "15000"))
 HEADLESS = os.environ.get("SARA_BROWSER_HEADLESS", "true").strip().lower() not in {"0", "false", "no"}
 USER_DATA_DIR = os.environ.get(
     "SARA_BROWSER_USER_DATA_DIR",
@@ -41,10 +42,11 @@ USER_DATA_DIR = os.environ.get(
 
 
 def _get_loop() -> "asyncio.AbstractEventLoop":
-    global _LOOP, _LOOP_THREAD
+    global _LOOP, _LOOP_THREAD, _OPERATION_LOCK
     with _LOOP_LOCK:
         if _LOOP is None or _LOOP.is_closed():
             _LOOP = asyncio.new_event_loop()
+            _OPERATION_LOCK = None
             _LOOP_THREAD = threading.Thread(target=_run_loop, daemon=True)
             _LOOP_THREAD.start()
         return _LOOP
@@ -66,53 +68,149 @@ def _run_loop() -> None:
 def _run(coro):
     """Submit one serialized browser operation to the dedicated Playwright loop."""
     loop = _get_loop()
+
     async def serialized():
         global _OPERATION_LOCK
         if _OPERATION_LOCK is None:
             _OPERATION_LOCK = asyncio.Lock()
         async with _OPERATION_LOCK:
             return await coro
+
     future = asyncio.run_coroutine_threadsafe(serialized(), loop)
-    return future.result(timeout=max(NAVIGATION_TIMEOUT_MS, 15000) / 1000 + 10)
+    timeout_seconds = max(NAVIGATION_TIMEOUT_MS, ELEMENT_TIMEOUT_MS, MEDIA_START_TIMEOUT_MS) / 1000 + 15
+    try:
+        return future.result(timeout=timeout_seconds)
+    except TimeoutError:
+        # Do not leave an abandoned navigation holding the serialization lock.
+        future.cancel()
+        raise
 
 
 # --- Async Playwright lifecycle ---------------------------------------------
 
 
-async def _ensure_browser_async() -> Any:
-    if STATE.page is not None:
+async def _start_playwright_async() -> Any:
+    from playwright.async_api import async_playwright
+
+    return await async_playwright().start()
+
+
+async def _close_browser_session_async() -> None:
+    """Close this agent's Playwright resources without touching its profile data."""
+    context = STATE.context
+    browser = STATE.browser
+    playwright = STATE.playwright
+
+    context_closed = False
+    if context is not None:
         try:
-            # Health check: a cheap op; if the page died, recreate.
-            _ = STATE.page.url
-            return STATE.page
+            await context.close()
+            context_closed = True
         except Exception:
-            STATE.reset_playwright()
+            # A crashed browser/context may reject close; still stop Playwright.
+            pass
 
-    if STATE.playwright is None:
-        from playwright.async_api import async_playwright
+    if browser is not None and not context_closed:
+        try:
+            await browser.close()
+        except Exception:
+            pass
 
-        STATE.playwright = await async_playwright().start()
+    if playwright is not None:
+        try:
+            await playwright.stop()
+        except Exception:
+            pass
+
+    STATE.reset_playwright()
+
+
+def _page_is_open(page: Any) -> bool:
+    if page is None:
+        return False
+    try:
+        return not page.is_closed()
+    except Exception:
+        return False
+
+
+def _browser_is_connected(browser: Any) -> bool:
+    if browser is None:
+        return True
+    try:
+        return bool(browser.is_connected())
+    except Exception:
+        return False
+
+
+async def _ensure_browser_async() -> Any:
     if STATE.browser_state is None:
         STATE.browser_state = BrowserStateManager()
 
-    if STATE.browser is None:
+    # A closed tab is normal: keep the persistent context and profile, and use
+    # another live tab (or create a fresh one). A crashed/disconnected browser
+    # is different; close its Playwright resources before relaunching to avoid
+    # leaving a Chromium process holding the profile lock.
+    session_is_unhealthy = STATE.context is None and STATE.browser is not None
+    if STATE.browser is not None and not _browser_is_connected(STATE.browser):
+        session_is_unhealthy = True
+    if STATE.context is not None:
+        try:
+            _ = STATE.context.pages
+        except Exception:
+            session_is_unhealthy = True
+    if session_is_unhealthy:
+        await _close_browser_session_async()
+    if STATE.browser_state is None:
+        STATE.browser_state = BrowserStateManager()
+
+    if STATE.playwright is None:
+        try:
+            STATE.playwright = await _start_playwright_async()
+        except Exception as exc:
+            raise ToolError(f"Could not start Playwright: {exc}") from exc
+
+    # The persistent context is the primary browser handle. Do not use
+    # STATE.browser being None as a reason to launch a second context: that
+    # would collide with the existing profile lock.
+    if STATE.context is None:
         Path(USER_DATA_DIR).mkdir(parents=True, exist_ok=True)
-        STATE.context = await STATE.playwright.chromium.launch_persistent_context(
-            USER_DATA_DIR,
-            headless=HEADLESS,
-            args=["--no-sandbox"],
-        )
+        try:
+            STATE.context = await STATE.playwright.chromium.launch_persistent_context(
+                USER_DATA_DIR,
+                headless=HEADLESS,
+                args=["--no-sandbox"],
+            )
+        except Exception as exc:
+            message = str(exc)
+            if any(
+                marker in message.lower()
+                for marker in ("in use", "user data directory", "processsingleton", "singletonlock")
+            ):
+                raise ToolError(
+                    "SARA's browser profile appears to be in use by another browser session. "
+                    "The profile was left untouched; close the other SARA automation session "
+                    "or configure a separate SARA_BROWSER_USER_DATA_DIR."
+                ) from exc
+            raise ToolError(f"Could not launch the automation browser: {exc}") from exc
         STATE.browser = STATE.context.browser
         STATE.context.on("page", lambda page: STATE.browser_state.attach_page(page))
 
-    if STATE.context is None:
-        STATE.context = await STATE.browser.new_context(viewport=None)
+    try:
+        pages = [page for page in STATE.context.pages if _page_is_open(page)]
+    except Exception as exc:
+        await _close_browser_session_async()
+        raise ToolError(f"The automation browser closed unexpectedly: {exc}") from exc
 
-    pages = STATE.context.pages
-    if pages:
-        STATE.page = pages[-1]
-    else:
-        STATE.page = await STATE.context.new_page()
+    if STATE.page not in pages:
+        STATE.page = pages[-1] if pages else None
+    if STATE.page is None:
+        try:
+            STATE.page = await STATE.context.new_page()
+        except Exception as exc:
+            await _close_browser_session_async()
+            raise ToolError(f"Could not create a browser tab: {exc}") from exc
+
     STATE.browser_state.attach_page(STATE.page)
     return STATE.page
 
@@ -320,18 +418,129 @@ async def browser_zoom(args: Dict[str, Any]) -> Dict[str, Any]:
 @register("desktopBrowserMedia")
 async def browser_media(args: Dict[str, Any]) -> Dict[str, Any]:
     action = str(args.get("action") or "play").lower()
+    if action not in {"play", "pause", "mute", "unmute", "fullscreen"}:
+        raise ToolError(f"Unsupported media action '{action}'.")
+
     page = await _page()
-    state = await page.evaluate("(a) => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); if (a === 'pause') v.pause(); else if (a === 'mute') v.muted = true; else if (a === 'unmute') v.muted = false; else if (a === 'fullscreen') v.requestFullscreen?.(); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted, duration: v.duration, readyState: v.readyState, ended: v.ended }; }", action)
+    try:
+        await page.wait_for_selector("video, audio", timeout=ELEMENT_TIMEOUT_MS)
+    except Exception as exc:  # noqa: BLE001
+        raise ToolError(f"No media element became available on the current page: {exc}") from exc
+
+    def media_state_script() -> str:
+        return """() => {
+          const v = document.querySelector('video, audio');
+          if (!v) return { found: false };
+          return {
+            found: true,
+            paused: v.paused,
+            currentTime: Number(v.currentTime || 0),
+            muted: v.muted,
+            volume: v.volume,
+            duration: Number.isFinite(v.duration) ? v.duration : null,
+            readyState: v.readyState,
+            ended: v.ended,
+            fullscreen: document.fullscreenElement === v || !!document.fullscreenElement
+          };
+        }"""
+
+    state = await page.evaluate(media_state_script())
+    initial_time = float(state.get("currentTime") or 0.0)
+    verified = False
+
     if action == "play":
-        await page.evaluate("() => { const v = document.querySelector('video, audio'); if (!v) throw new Error('No media found'); return v.play(); }")
-    if action == "play":
+        # Prefer a real browser input so YouTube and other sites that enforce
+        # autoplay policies receive a user gesture. Fall back to the media API
+        # only after the visible controls have been tried.
+        if state.get("paused", True):
+            clicked = False
+            if "youtube.com" in str(page.url).lower():
+                try:
+                    play_button = page.locator("button.ytp-play-button").first
+                    if await play_button.count() and await play_button.is_visible():
+                        label = str(await play_button.get_attribute("aria-label") or "").lower()
+                        if "pause" not in label:
+                            await play_button.click(timeout=QUICK_ACTION_TIMEOUT_MS)
+                            clicked = True
+                except Exception:
+                    pass
+            if not clicked:
+                try:
+                    await page.locator("video, audio").first.click(timeout=QUICK_ACTION_TIMEOUT_MS)
+                    clicked = True
+                except Exception:
+                    pass
+
+            # A programmatic play request is a last resort. Its promise is
+            # observed without awaiting it here; the state check below decides
+            # whether playback actually began.
+            try:
+                await page.evaluate("""() => {
+                  const v = document.querySelector('video, audio');
+                  if (!v) return false;
+                  try {
+                    const result = v.play();
+                    if (result && typeof result.catch === 'function') result.catch(() => {});
+                    return true;
+                  } catch (_) {
+                    return false;
+                  }
+                }""")
+            except Exception:
+                pass
+
         try:
-            await page.wait_for_function("() => { const v = document.querySelector('video, audio'); return !!v && !v.paused && v.currentTime > 0; }", timeout=QUICK_ACTION_TIMEOUT_MS)
-            state = await page.evaluate("() => { const v = document.querySelector('video, audio'); return { paused: v.paused, currentTime: v.currentTime, muted: v.muted, duration: v.duration, readyState: v.readyState, ended: v.ended }; }")
-        except Exception as e:  # noqa: BLE001
-            raise ToolError(f"Playback could not be verified: {e}")
+            await page.wait_for_function(
+                """(startTime) => {
+                  const v = document.querySelector('video, audio');
+                  return !!v && !v.paused && v.readyState >= 2 && v.currentTime > startTime + 0.1;
+                }""",
+                arg=initial_time,
+                timeout=MEDIA_START_TIMEOUT_MS,
+            )
+            state = await page.evaluate(media_state_script())
+            verified = bool(
+                state.get("found")
+                and state.get("paused") is False
+                and float(state.get("currentTime") or 0.0) > initial_time + 0.1
+            )
+        except Exception:
+            state = await page.evaluate(media_state_script())
+            verified = False
+        result_text = "Media playback started and was verified." if verified else "Playback was requested, but actual playback could not be verified."
+    elif action == "pause":
+        await page.evaluate("() => { const v = document.querySelector('video, audio'); if (v) v.pause(); }")
+        await page.wait_for_function(
+            "() => { const v = document.querySelector('video, audio'); return !!v && v.paused; }",
+            timeout=QUICK_ACTION_TIMEOUT_MS,
+        )
+        state = await page.evaluate(media_state_script())
+        verified = bool(state.get("found") and state.get("paused") is True)
+        result_text = "Media is paused." if verified else "Pause was requested but could not be verified."
+    elif action in {"mute", "unmute"}:
+        desired_muted = action == "mute"
+        await page.evaluate("(muted) => { const v = document.querySelector('video, audio'); if (v) v.muted = muted; }", desired_muted)
+        state = await page.evaluate(media_state_script())
+        verified = bool(state.get("found") and state.get("muted") is desired_muted)
+        result_text = "Media mute state was verified." if verified else "The requested mute state could not be verified."
+    else:  # fullscreen
+        await page.evaluate("() => { const v = document.querySelector('video, audio'); v?.requestFullscreen?.(); }")
+        state = await page.evaluate(media_state_script())
+        verified = bool(state.get("found") and state.get("fullscreen"))
+        result_text = "Media entered fullscreen." if verified else "Fullscreen was requested but could not be verified."
+
     STATE.browser_state.update_media(page, state)
-    return {"ok": True, "status": "completed", "operation": f"browser_media_{action}", "result": f"Media action '{action}' executed.", "verification": "VERIFIED", "verified": True, "media_state": state, "state": STATE.browser_state.snapshot(page)}
+    return {
+        "ok": verified,
+        "status": "completed" if verified else "failed",
+        "operation": f"browser_media_{action}",
+        "result": result_text,
+        "error": None if verified else result_text,
+        "verification": "VERIFIED" if verified else "FAILED",
+        "verified": verified,
+        "media_state": state,
+        "state": STATE.browser_state.snapshot(page),
+    }
 
 @register("desktopBrowserState")
 async def browser_state(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -435,27 +644,14 @@ if "desktopBrowserMediaState" in TOOLS:
 
 def shutdown_browser() -> None:
     """Cleanly stop the Playwright browser (called on app shutdown)."""
-    if STATE.browser is None:
+    if STATE.context is None and STATE.browser is None and STATE.playwright is None:
         return
 
-    async def _stop():
-        try:
-            if STATE.context:
-                await STATE.context.close()
-            elif STATE.browser:
-                await STATE.browser.close()
-        except Exception:
-            pass
-        try:
-            if STATE.playwright:
-                await STATE.playwright.stop()
-        except Exception:
-            pass
-        STATE.reset_playwright()
-
     try:
-        _run(_stop())
+        _run(_close_browser_session_async())
     except Exception:
+        # The service is already shutting down; clear stale references without
+        # touching the persistent browser profile on disk.
         STATE.reset_playwright()
 
 
