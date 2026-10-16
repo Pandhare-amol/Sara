@@ -44,6 +44,7 @@ export function normalizeConversationRecord(record?: Partial<ConversationRecord>
   const id = String(record?.id || legacyConversationId || "").trim() || `conv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const safeTitle = String(record?.title || "SARA Voice Conversation").trim() || "SARA Voice Conversation";
   return {
+    ...record,
     id,
     title: safeTitle,
     createdAt: record?.createdAt || now,
@@ -54,7 +55,15 @@ export function normalizeConversationRecord(record?: Partial<ConversationRecord>
     status: record?.status || "active",
     userId: record?.userId || "default-user",
     lastMessageAt: record?.lastMessageAt || null,
-    messages: Array.isArray(record?.messages) ? record.messages : [],
+    // Desktop chat snapshots use `text`; the voice SQLite store uses
+    // `content`. Keep both schemas readable without dropping either source.
+    messages: Array.isArray(record?.messages) ? record.messages.map((message, index) => ({
+      ...message,
+      id: String(message?.id || `msg-${index}-${id}`),
+      conversationId: id,
+      content: typeof message?.content === "string" ? message.content : String((message as any)?.text || ""),
+      timestamp: message?.timestamp || now,
+    })) : [],
   };
 }
 
@@ -170,7 +179,7 @@ const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT, createdAt TEXT, updatedAt TEXT);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, conversationId TEXT, role TEXT, content TEXT, timestamp TEXT, metadata TEXT);
 CREATE TABLE IF NOT EXISTS tasks (taskId TEXT PRIMARY KEY, conversationId TEXT, description TEXT, status TEXT, priority INTEGER, assignedAgent TEXT, createdAt TEXT, updatedAt TEXT, startedAt TEXT, completedAt TEXT, checkpoint TEXT, result TEXT, error TEXT, retryCount INTEGER, metadata TEXT);
-# Extended task fields for recovery and progress
+-- Extended task fields for recovery and progress
 CREATE TABLE IF NOT EXISTS task_steps (id TEXT PRIMARY KEY, taskId TEXT, step_index INTEGER, description TEXT, status TEXT, result TEXT, created_at TEXT, updated_at TEXT);
 CREATE TABLE IF NOT EXISTS tasks_extra (taskId TEXT PRIMARY KEY, current_step TEXT, progress INTEGER, verification TEXT);
 CREATE TABLE IF NOT EXISTS sessions (sessionId TEXT PRIMARY KEY, conversationId TEXT, device TEXT, connectionStatus TEXT, createdAt TEXT, lastSeen TEXT, lastMessageId TEXT, lastTaskId TEXT, reconnectAttempts INTEGER);
@@ -301,7 +310,13 @@ export async function initSqlBridge() {
         fsSync.writeFileSync(DB_FILE, Buffer.from(db.export()));
       }
       function persist() {
-        try { fsSync.writeFileSync(DB_FILE, Buffer.from(db.export())); } catch {}
+        const temp = `${DB_FILE}.${process.pid}.tmp`;
+        try {
+          fsSync.writeFileSync(temp, Buffer.from(db.export()), { mode: 0o600 });
+          fsSync.renameSync(temp, DB_FILE);
+        } finally {
+          if (fsSync.existsSync(temp)) fsSync.unlinkSync(temp);
+        }
       }
       db.run(SCHEMA_SQL);
       try {
@@ -336,136 +351,199 @@ async function readJson<T>(filePath: string, fallback: T): Promise<T> {
 async function writeJson(filePath: string, data: unknown): Promise<void> { await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8"); }
 function createId(prefix = ""): string { return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
 
+// A single process may receive voice writes while /api/chat writes the same
+// conversation. Hold the lock over each read-modify-write, never over a model
+// call. Independent server processes still need an external transaction lock.
+let conversationWriteQueue: Promise<unknown> = Promise.resolve();
+export function withConversationWriteLock<T>(operation: () => Promise<T> | T): Promise<T> {
+  const next = conversationWriteQueue.then(operation, operation);
+  conversationWriteQueue = next.then(() => undefined, () => undefined);
+  return next;
+}
+
+function readConversationSnapshot(): ConversationRecord[] | null {
+  if (!fsSync.existsSync(CONVERSATIONS_FILE)) return null;
+  let parsed: unknown;
+  try { parsed = JSON.parse(fsSync.readFileSync(CONVERSATIONS_FILE, "utf-8")); }
+  catch { throw new Error("Conversation storage is unreadable; existing data was not overwritten."); }
+  if (!Array.isArray(parsed)) throw new Error("Conversation storage is not a list; existing data was not overwritten.");
+  return parsed.map((item) => normalizeConversationRecord(item));
+}
+
+/** The desktop JSON file contains text AND voice turns; SQL is a legacy voice index. */
 export async function loadConversations(): Promise<ConversationRecord[]> {
+  // JSON is authoritative when present, including an empty array after a
+  // deletion. Do not resurrect removed conversations from the SQLite index.
+  const snapshot = readConversationSnapshot();
+  if (snapshot !== null) return snapshot;
   const bridge = await initSqlBridge();
-  if (bridge?.db) {
-    try {
-      const res = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;");
-      if (!res?.[0]) return []; 
-      const rows = res[0].values.map((row: any[]) => {
-        const [id, title, createdAt, updatedAt] = row;
-        const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
-        const msgs: ConversationMessage[] = [];
-        if (mres?.[0]) for (const mrow of mres[0].values) {
-          const [mid, role, content, timestamp, metadata] = mrow;
-          let meta = null;
-          try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
-          msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta || undefined });
+  if (!bridge?.db) return [];
+  try {
+    const rows = bridge.db.exec("SELECT id,title,createdAt,updatedAt FROM conversations ORDER BY createdAt ASC;");
+    return (rows?.[0]?.values || []).map((row: any[]) => {
+      const [id, title, createdAt, updatedAt] = row;
+      const stmt = bridge.db.prepare("SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId=? ORDER BY timestamp ASC");
+      const messages: ConversationMessage[] = [];
+      try {
+        stmt.bind([id]);
+        while (stmt.step()) {
+          const data = stmt.getAsObject();
+          let metadata: Record<string, unknown> | undefined;
+          try { metadata = data.metadata ? JSON.parse(String(data.metadata)) : undefined; } catch { /* old metadata */ }
+          messages.push({ id: String(data.id), conversationId: String(id), role: data.role as ConversationRole,
+            content: String(data.content || ""), timestamp: String(data.timestamp), metadata });
         }
-        return normalizeConversationRecord({ id, title, createdAt, updatedAt, messages: msgs });
-      });
-      return rows;
-    } catch {}
+      } finally { stmt.free(); }
+      return normalizeConversationRecord({ id: String(id), title: String(title), createdAt: String(createdAt),
+        updatedAt: String(updatedAt), messages });
+    });
+  } catch { return []; }
+}
+
+async function saveConversationsUnlocked(conversations: ConversationRecord[]): Promise<void> {
+  // Refuse to replace corrupt user data. Atomically replace this file so a
+  // process crash cannot leave half of a JSON write behind.
+  readConversationSnapshot();
+  const normalized = conversations.map((item) => normalizeConversationRecord(item));
+  const temp = `${CONVERSATIONS_FILE}.${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`;
+  try {
+    fsSync.writeFileSync(temp, JSON.stringify(normalized, null, 2), { encoding: "utf-8", mode: 0o600 });
+    fsSync.renameSync(temp, CONVERSATIONS_FILE);
+  } finally {
+    try { if (fsSync.existsSync(temp)) fsSync.unlinkSync(temp); } catch { /* best-effort cleanup */ }
   }
-  const stored = await readJson<Partial<ConversationRecord>[]>(CONVERSATIONS_FILE, []);
-  return stored.map((item) => normalizeConversationRecord(item));
+  const bridge = await initSqlBridge();
+  if (!bridge?.db) return;
+  const db = bridge.db;
+  db.run("BEGIN");
+  try {
+    const statement = db.prepare("INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)");
+    const messageStatement = db.prepare("INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)");
+    try {
+      for (const c of normalized) {
+        statement.run([c.id, c.title, c.createdAt, c.updatedAt]);
+        for (const m of c.messages || []) messageStatement.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]);
+      }
+    } finally { statement.free(); messageStatement.free(); }
+    db.run("COMMIT");
+    bridge.persist();
+  } catch (error) {
+    try { db.run("ROLLBACK"); } catch { /* persistence can fail after commit */ }
+    throw error;
+  }
 }
 
 export async function saveConversations(conversations: ConversationRecord[]): Promise<void> {
-  const normalized = conversations.map((item) => normalizeConversationRecord(item));
-  await writeJson(CONVERSATIONS_FILE, normalized);
-  const bridge = await initSqlBridge();
-  if (!bridge?.db) return;
-  try {
-    const db = bridge.db;
-    db.run("BEGIN");
-    for (const c of normalized) {
-      const stmt = db.prepare("INSERT OR REPLACE INTO conversations (id,title,createdAt,updatedAt) VALUES (?,?,?,?)");
-      stmt.run([c.id, c.title, c.createdAt, c.updatedAt]);
-      for (const m of c.messages || []) {
-        const mstmt = db.prepare("INSERT OR REPLACE INTO messages (id,conversationId,role,content,timestamp,metadata) VALUES (?,?,?,?,?,?)");
-        mstmt.run([m.id, c.id, m.role, m.content, m.timestamp, JSON.stringify(m.metadata || null)]);
-      }
-    }
-    db.run("COMMIT");
-    bridge.persist();
-  } catch {}
+  return withConversationWriteLock(() => saveConversationsUnlocked(conversations));
 }
 
 export async function getConversation(conversationId: string): Promise<ConversationRecord | null> {
   const targetId = String(conversationId || "").trim();
   if (!targetId) return null;
-  const bridge = await initSqlBridge();
-  if (bridge?.db) {
-    try {
-      const cres = bridge.db.exec(`SELECT id,title,createdAt,updatedAt FROM conversations WHERE id='${targetId}' LIMIT 1;`);
-      if (!cres?.[0]?.values.length) return null;
-      const [id, title, createdAt, updatedAt] = cres[0].values[0];
-      const mres = bridge.db.exec(`SELECT id,role,content,timestamp,metadata FROM messages WHERE conversationId='${id}' ORDER BY timestamp ASC;`);
-      const msgs: ConversationMessage[] = [];
-      if (mres?.[0]) for (const mrow of mres[0].values) {
-        const [mid, role, content, timestamp, metadata] = mrow;
-        let meta = null;
-        try { meta = metadata ? JSON.parse(metadata) : null; } catch {}
-        msgs.push({ id: mid, conversationId: id, role: role as ConversationRole, content, timestamp, metadata: meta || undefined });
-      }
-      return normalizeConversationRecord({ id, title, createdAt, updatedAt, messages: msgs });
-    } catch { return (await loadConversations()).find((item) => item.id === targetId) ?? null; }
-  }
   const conversations = await loadConversations();
   return conversations.find((item) => item.id === targetId) ?? null;
 }
 
 export async function getOrCreateConversation(conversationId?: string): Promise<ConversationRecord> {
   const targetId = String(conversationId || "").trim();
-  const existing = targetId ? await getConversation(targetId) : null;
-  if (existing) return existing;
-  const conversations = await loadConversations();
-  const id = targetId || createId("conv-");
-  const timestamp = new Date().toISOString();
-  const record = normalizeConversationRecord({
-    id,
-    title: "SARA Voice Conversation",
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    summary: "Conversation started.",
-    activeContext: { objective: "Continue the active project context" },
-    taskState: { status: "new" },
-    messages: [],
+  return withConversationWriteLock(async () => {
+    const conversations = await loadConversations();
+    const existing = targetId ? conversations.find((item) => item.id === targetId) : undefined;
+    if (existing) return existing;
+    const id = targetId || createId("conv-");
+    const timestamp = new Date().toISOString();
+    const record = normalizeConversationRecord({
+      id,
+      title: "SARA Voice Conversation",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      summary: "Conversation started.",
+      activeContext: { objective: "Continue the active project context" },
+      taskState: { status: "new" },
+      messages: [],
+    });
+    conversations.push(record);
+    await saveConversationsUnlocked(conversations);
+    return record;
   });
-  conversations.push(record);
-  await saveConversations(conversations);
-  return record;
 }
 
 export async function appendConversationMessage(message: ConversationMessage): Promise<void> {
-  const conversations = await loadConversations();
   const targetId = String(message.conversationId || "").trim();
   if (!targetId) return;
-  const conversation = conversations.find((item) => item.id === targetId) ?? normalizeConversationRecord({ id: targetId, title: "SARA Voice Conversation", createdAt: message.timestamp, updatedAt: message.timestamp, messages: [] });
-  const exists = conversation.messages.some((entry) => entry.id === message.id || (entry.content === message.content && entry.timestamp === message.timestamp && entry.role === message.role));
-  if (!exists) {
-    conversation.messages.push(message);
-    conversation.updatedAt = message.timestamp;
-    conversation.lastMessageAt = message.timestamp;
-  }
-  const index = conversations.findIndex((item) => item.id === targetId);
-  if (index >= 0) conversations[index] = conversation; else conversations.push(conversation);
-  await saveConversations(conversations);
+  await withConversationWriteLock(async () => {
+    const conversations = await loadConversations();
+    const conversation = conversations.find((item) => item.id === targetId) ?? normalizeConversationRecord({ id: targetId, title: "SARA Voice Conversation", createdAt: message.timestamp, updatedAt: message.timestamp, messages: [] });
+    const exists = conversation.messages.some((entry) => entry.id === message.id || (entry.content === message.content && entry.timestamp === message.timestamp && entry.role === message.role));
+    if (!exists) {
+      conversation.messages.push(message);
+      conversation.updatedAt = message.timestamp;
+      conversation.lastMessageAt = message.timestamp;
+    }
+    const index = conversations.findIndex((item) => item.id === targetId);
+    if (index >= 0) conversations[index] = conversation; else conversations.push(conversation);
+    await saveConversationsUnlocked(conversations);
+  });
 }
 
 export async function getRecentConversationMessages(conversationId: string, limit = 20): Promise<ConversationMessage[]> { const conversation = await getConversation(conversationId); if (!conversation) return []; return conversation.messages.slice(-limit); }
-export async function loadTasks(): Promise<TaskRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;"); if (!res?.[0]) return []; return res[0].values.map((r: any[]) => { const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r; let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined; try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {} try { md = metadata ? JSON.parse(metadata) : undefined; } catch {} return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord; }); } catch {} } return await readJson<TaskRecord[]>(TASKS_FILE, []); }
-export async function saveTasks(tasks: TaskRecord[]): Promise<void> { await writeJson(TASKS_FILE, tasks); const bridge = await initSqlBridge(); if (!bridge?.db) return; try { const db = bridge.db; db.run("BEGIN"); for (const t of tasks) { const stmt = db.prepare("INSERT OR REPLACE INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"); stmt.run([t.taskId, t.conversationId, t.description, t.status, t.priority, t.assignedAgent || null, t.createdAt, t.updatedAt, t.startedAt || null, t.completedAt || null, t.checkpoint ? JSON.stringify(t.checkpoint) : null, t.result || null, t.error || null, t.retryCount || 0, t.metadata ? JSON.stringify(t.metadata) : null]); } db.run("COMMIT"); bridge.persist(); } catch {} }
+export async function loadTasks(): Promise<TaskRecord[]> { const bridge = await initSqlBridge(); if (bridge?.db) { try { const res = bridge.db.exec("SELECT taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata FROM tasks ORDER BY createdAt ASC;"); if (!res?.[0] || res[0].values.length === 0) return await readJson<TaskRecord[]>(TASKS_FILE, []); return res[0].values.map((r: any[]) => { const [taskId, conversationId, description, status, priority, assignedAgent, createdAt, updatedAt, startedAt, completedAt, checkpoint, result, error, retryCount, metadata] = r; let cp: Record<string, unknown> | null = null; let md: Record<string, unknown> | undefined = undefined; try { cp = checkpoint ? JSON.parse(checkpoint) : null; } catch {} try { md = metadata ? JSON.parse(metadata) : undefined; } catch {} return { taskId, conversationId, description, status: status as TaskStatus, priority: Number(priority || 0), assignedAgent: assignedAgent || undefined, createdAt, updatedAt, startedAt: startedAt || undefined, completedAt: completedAt || undefined, checkpoint: cp, result: result || undefined, error: error || undefined, retryCount: Number(retryCount || 0), metadata: md } as TaskRecord; }); } catch {} } return await readJson<TaskRecord[]>(TASKS_FILE, []); }
+export async function saveTasks(tasks: TaskRecord[]): Promise<void> {
+  const bridge = await initSqlBridge();
+  if (bridge?.db) {
+    const db = bridge.db;
+    db.run("BEGIN TRANSACTION");
+    try {
+      // Deleting first prevents removed tasks from reappearing after restart.
+      db.run("DELETE FROM tasks");
+      const stmt = db.prepare("INSERT INTO tasks (taskId,conversationId,description,status,priority,assignedAgent,createdAt,updatedAt,startedAt,completedAt,checkpoint,result,error,retryCount,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+      try {
+        for (const t of tasks) {
+          stmt.run([t.taskId, t.conversationId, t.description, t.status, t.priority, t.assignedAgent || null, t.createdAt, t.updatedAt, t.startedAt || null, t.completedAt || null, t.checkpoint ? JSON.stringify(t.checkpoint) : null, t.result || null, t.error || null, t.retryCount || 0, t.metadata ? JSON.stringify(t.metadata) : null]);
+        }
+      } finally { stmt.free(); }
+      db.run("COMMIT");
+      bridge.persist();
+    } catch (error) {
+      try { db.run("ROLLBACK"); } catch { /* Already committed, but persistence failed. */ }
+      throw error;
+    }
+  }
+  // SQLite is authoritative when available; JSON remains a portable snapshot.
+  await writeJson(TASKS_FILE, tasks);
+}
+
+// Serialize legacy read-modify-write task mutations in this process. Multiple
+// independent runners share data.db; without this lock, a workflow checkpoint
+// can be overwritten by a concurrent task update.
+let taskWriteQueue: Promise<unknown> = Promise.resolve();
+function withTaskWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+  const next = taskWriteQueue.then(operation, operation);
+  taskWriteQueue = next.then(() => undefined, () => undefined);
+  return next;
+}
+
 export async function createTask(data: { taskId?: string; conversationId: string; description: string; priority?: number; assignedAgent?: string; status?: TaskStatus; metadata?: Record<string, unknown>; }): Promise<TaskRecord> {
-  const tasks = await loadTasks();
-  const timestamp = new Date().toISOString();
-  const task: TaskRecord = {
-    taskId: data.taskId || createId("task-"),
-    conversationId: data.conversationId,
-    description: data.description,
-    status: data.status ?? "queued",
-    priority: data.priority ?? 5,
-    assignedAgent: data.assignedAgent,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    retryCount: 0,
-    checkpoint: null,
-    metadata: data.metadata,
-  };
-  tasks.push(task);
-  await saveTasks(tasks);
-  return task;
+  return withTaskWriteLock(async () => {
+    const tasks = await loadTasks();
+    const timestamp = new Date().toISOString();
+    const task: TaskRecord = {
+      taskId: data.taskId || createId("task-"),
+      conversationId: data.conversationId,
+      description: data.description,
+      status: data.status ?? "queued",
+      priority: data.priority ?? 5,
+      assignedAgent: data.assignedAgent,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      retryCount: 0,
+      checkpoint: null,
+      metadata: data.metadata,
+    };
+    tasks.push(task);
+    await saveTasks(tasks);
+    return task;
+  });
 }
 
 export async function loadUnfinishedTasks(): Promise<TaskRecord[]> {
@@ -488,46 +566,50 @@ export async function loadUnfinishedTasks(): Promise<TaskRecord[]> {
 }
 
 export async function updateTask(taskId: string, patch: Partial<TaskRecord>): Promise<TaskRecord | null> {
-  const tasks = await loadTasks();
-  const task = tasks.find((item) => item.taskId === taskId);
-  if (!task) return null;
+  return withTaskWriteLock(async () => {
+    const tasks = await loadTasks();
+    const task = tasks.find((item) => item.taskId === taskId);
+    if (!task) return null;
 
-  const currentStatus = normalizeTaskStatus(task.status);
-  const nextStatus = normalizeTaskStatus((patch as any).status ?? task.status);
+    const currentStatus = normalizeTaskStatus(task.status);
+    const nextStatus = normalizeTaskStatus((patch as any).status ?? task.status);
 
-  if (isFinalTaskState(currentStatus) && nextStatus && nextStatus !== currentStatus) {
-    const safePatch = { ...patch };
-    delete (safePatch as any).status;
-    Object.assign(task, safePatch);
+    if (isFinalTaskState(currentStatus) && nextStatus && nextStatus !== currentStatus) {
+      const safePatch = { ...patch };
+      delete (safePatch as any).status;
+      Object.assign(task, safePatch);
+      task.updatedAt = new Date().toISOString();
+      await saveTasks(tasks);
+      return task;
+    }
+
+    if (patch.status) {
+      (task as any).status = nextStatus ?? task.status;
+    }
+    Object.assign(task, patch);
+
+    if ((patch as any).status) {
+      task.status = nextStatus ?? task.status;
+    }
+
     task.updatedAt = new Date().toISOString();
     await saveTasks(tasks);
     return task;
-  }
-
-  if (patch.status) {
-    (task as any).status = nextStatus ?? task.status;
-  }
-  Object.assign(task, patch);
-
-  if ((patch as any).status) {
-    task.status = nextStatus ?? task.status;
-  }
-
-  task.updatedAt = new Date().toISOString();
-  await saveTasks(tasks);
-  return task;
+  });
 }
 
 export async function saveTaskCheckpoint(taskId: string, checkpoint: TaskRecord['checkpoint']): Promise<void> {
-  const tasks = await loadTasks();
-  const task = tasks.find((item) => item.taskId === taskId);
-  if (!task) return;
-  task.checkpoint = { ...(task.checkpoint || {}), ...(checkpoint || {}) };
-  task.updatedAt = new Date().toISOString();
-  await saveTasks(tasks);
+  return withTaskWriteLock(async () => {
+    const tasks = await loadTasks();
+    const task = tasks.find((item) => item.taskId === taskId);
+    if (!task) return;
+    task.checkpoint = { ...(task.checkpoint || {}), ...(checkpoint || {}) };
+    task.updatedAt = new Date().toISOString();
+    await saveTasks(tasks);
+  });
 }
 
-export async function deleteTask(taskId: string): Promise<boolean> { const tasks = await loadTasks(); const next = tasks.filter((item) => item.taskId !== taskId); if (next.length === tasks.length) return false; await saveTasks(next); return true; }
+export async function deleteTask(taskId: string): Promise<boolean> { return withTaskWriteLock(async () => { const tasks = await loadTasks(); const next = tasks.filter((item) => item.taskId !== taskId); if (next.length === tasks.length) return false; await saveTasks(next); return true; }); }
 
 export async function loadSessions(): Promise<SessionRecord[]> {
   const bridge = await initSqlBridge();

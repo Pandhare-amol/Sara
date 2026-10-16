@@ -1,4 +1,6 @@
 import { getMemoryRepository, type MemoryRecord } from "./MemoryRepository";
+import { createApprovedMemory } from "../core/memory/approvedMemory";
+import { loadMemories } from "../../server_memory";
 
 export interface LocalMemoryCommandResult {
   handled: boolean;
@@ -13,11 +15,11 @@ const EXPLICIT_MEMORY_PATTERNS: Array<{
   pattern: RegExp;
   valueIndex: number;
 }> = [
-  { category: "identity", key: "name", pattern: /\b(?:remember\s+)?my\s+name\s+is\s+(.+?)[.!?]?$/i, valueIndex: 1 },
-  { category: "identity", key: "age", pattern: /\b(?:remember\s+)?i\s+am\s+(\d{1,3})\s+years?\s+old[.!?]?$/i, valueIndex: 1 },
-  { category: "identity", key: "city", pattern: /\b(?:remember\s+)?i\s+(?:live|stay)\s+in\s+(.+?)[.!?]?$/i, valueIndex: 1 },
-  { category: "preference", key: "preference", pattern: /\b(?:remember\s+)?i\s+(?:prefer|like|love)\s+(.+?)[.!?]?$/i, valueIndex: 1 },
-  { category: "project", key: "project", pattern: /\b(?:remember\s+)?(?:my|the)\s+project\s+is\s+(.+?)[.!?]?$/i, valueIndex: 1 },
+  { category: "identity", key: "name", pattern: /^remember\s+my\s+name\s+is\s+(.+?)[.!?]?$/i, valueIndex: 1 },
+  { category: "identity", key: "age", pattern: /^remember\s+i\s+am\s+(\d{1,3})\s+years?\s+old[.!?]?$/i, valueIndex: 1 },
+  { category: "identity", key: "city", pattern: /^remember\s+i\s+(?:live|stay)\s+in\s+(.+?)[.!?]?$/i, valueIndex: 1 },
+  { category: "preference", key: "preference", pattern: /^remember\s+i\s+(?:prefer|like|love)\s+(.+?)[.!?]?$/i, valueIndex: 1 },
+  { category: "project", key: "project", pattern: /^remember\s+(?:my|the)\s+project\s+is\s+(.+?)[.!?]?$/i, valueIndex: 1 },
 ];
 
 function cleanValue(value: string): string {
@@ -28,11 +30,14 @@ export async function handleLocalMemoryCommand(text: string): Promise<LocalMemor
   const normalized = text.trim();
   if (!normalized) return { handled: false };
 
-  const forgetMatch = normalized.match(/\bforget\s+(?:that\s+)?(?:my\s+)?(name|age|city|preference|project)\b/i);
+  const forgetMatch = normalized.match(/^forget\s+(?:that\s+)?(?:my\s+)?(name|age|city|preference|project)\b/i);
   if (forgetMatch) {
     const key = forgetMatch[1].toLowerCase();
-    const matches = await getMemoryRepository().searchMemory(key, 20);
-    const candidates = matches.filter((memory) => memory.key === key || memory.category === key);
+    // Explicit forget must also reach older, unapproved records that are
+    // deliberately excluded from conversational search results.
+    const candidates = (await loadMemories()).filter((memory) =>
+      memory.source !== "external_research" &&
+      (memory.key === key || (!memory.key && memory.category === key)));
     await Promise.all(candidates.map((memory) => getMemoryRepository().deleteMemory(memory.id)));
     return {
       handled: true,
@@ -46,9 +51,11 @@ export async function handleLocalMemoryCommand(text: string): Promise<LocalMemor
     if (!match) continue;
     const value = cleanValue(match[rule.valueIndex]);
     if (!value) return { handled: false };
+    try { createApprovedMemory({ category: rule.category, text: value }); }
+    catch { return { handled: true, response: "I couldn't save that as a memory. Please avoid secrets and keep it under 1000 characters." }; }
 
     const existing = (await getMemoryRepository().searchMemory(`${rule.key} ${value}`, 20))
-      .find((memory) => memory.key === rule.key || memory.category === rule.category);
+      .find((memory) => memory.key === rule.key || (!memory.key && memory.category === rule.category));
     const memory = await getMemoryRepository().saveMemory({
       id: existing?.id,
       category: rule.category,

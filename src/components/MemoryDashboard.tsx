@@ -3,7 +3,8 @@ import { Memory, MemoryCategory } from "../lib/memoryTypes";
 import { 
   Brain, 
   X, 
-  Trash2, 
+  Trash2,
+  Pencil,
   Plus, 
   User, 
   Heart, 
@@ -15,7 +16,6 @@ import {
   RefreshCw,
   CircleAlert,
   Download,
-  Pencil,
   Save,
   Check
 } from "lucide-react";
@@ -29,8 +29,8 @@ interface MemoryDashboardProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
-  onAddMemory: (category: MemoryCategory, text: string) => Promise<void>;
-  onUpdateMemory: (id: string, category: MemoryCategory, text: string) => Promise<void>;
+  onAddMemory: (category: MemoryCategory, text: string, expiresAt?: string) => Promise<void>;
+  onUpdateMemory: (id: string, category: MemoryCategory, text: string, expiresAt?: string) => Promise<void>;
   onConfirmMemory: (id: string) => Promise<void>;
   onDeleteMemory: (id: string) => Promise<void>;
   themeColor: string;
@@ -53,10 +53,13 @@ export function MemoryDashboard({
   const [newText, setNewText] = useState("");
   const [newCategory, setNewCategory] = useState<MemoryCategory>("identity");
   const [isAdding, setIsAdding] = useState(false);
+  const [newExpiry, setNewExpiry] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState("");
   const [editedCategory, setEditedCategory] = useState<MemoryCategory>("identity");
+  const [editedExpiry, setEditedExpiry] = useState("");
   const [savingMemoryId, setSavingMemoryId] = useState<string | null>(null);
   const [confirmingMemoryId, setConfirmingMemoryId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -140,6 +143,7 @@ export function MemoryDashboard({
     ? safeMemories
     : safeMemories.filter(m => m.category === activeTab);
 
+  const expiryIso = (date: string) => date ? new Date(`${date}T23:59:59`).toISOString() : undefined;
   const errorMessage = (error: unknown) => error instanceof Error ? error.message : "The memory operation failed.";
 
   const beginEditing = (memory: Memory) => {
@@ -148,21 +152,21 @@ export function MemoryDashboard({
     setEditingMemoryId(memory.id);
     setEditedText(String(memory.text || ""));
     setEditedCategory(memory.category);
+    setEditedExpiry(memory.expiresAt?.slice(0, 10) || "");
   };
-
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newText.trim()) return;
-
+    setFormError(null);
     setSubmitting(true);
     setActionError(null);
     try {
-      await onAddMemory(newCategory, newText.trim());
+      await onAddMemory(newCategory, newText.trim(), expiryIso(newExpiry));
       setNewText("");
+      setNewExpiry("");
       setIsAdding(false);
     } catch (error) {
-      console.error(error);
-      setActionError(errorMessage(error));
+      setFormError(errorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -172,7 +176,7 @@ export function MemoryDashboard({
     setSavingMemoryId(id);
     setActionError(null);
     try {
-      await onUpdateMemory(id, editedCategory, editedText.trim());
+      await onUpdateMemory(id, editedCategory, editedText.trim(), expiryIso(editedExpiry));
       setEditingMemoryId(null);
       setConfirmDeleteId(null);
     } catch (error) {
@@ -289,7 +293,7 @@ export function MemoryDashboard({
             {/* Quick stats & action row */}
             <div className="px-6 py-4 bg-white/5 border-b border-white/5 flex items-center justify-between gap-2.5">
               <span className="text-[10px] text-slate-400 font-mono">
-                Unverified candidates stay out of replies until you confirm them.
+                Only memories you explicitly save or approve are used in chat. Older inferred entries need review.
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <button
@@ -366,16 +370,23 @@ export function MemoryDashboard({
                         value={newText}
                         onChange={(e) => setNewText(e.target.value)}
                         placeholder="e.g. The user's startup is called Sara, a voice AI platform."
-                        maxLength={2000}
+                        maxLength={1000}
                         required
                         className="w-full h-18 text-xs p-3 rounded-lg border border-white/10 bg-black/40 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none font-sans"
                       />
                     </div>
 
+                    <label className="block text-xs text-slate-300">
+                      Expires on (optional)
+                      <input type="date" value={newExpiry} min={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setNewExpiry(e.target.value)}
+                        className="block mt-1 p-2 rounded-lg bg-black/40 border border-white/10 text-white" />
+                    </label>
+                    {formError && <p role="alert" className="text-xs text-red-300">{formError}</p>}
                     <div className="flex gap-2.5 justify-end">
                       <button
                         type="button"
-                        onClick={() => setIsAdding(false)}
+                        onClick={() => { setIsAdding(false); setFormError(null); }}
                         className="px-3.5 py-1.5 rounded-lg border border-white/5 text-xs font-mono tracking-wide text-slate-400 hover:text-white transition cursor-pointer"
                       >
                         Cancel
@@ -454,14 +465,16 @@ export function MemoryDashboard({
                     <h4 className="text-sm font-semibold tracking-wide text-slate-300">No memories recorded yet</h4>
                     <p className="text-xs max-w-xs mt-1.5 leading-relaxed font-mono">
                       {activeTab === "all" 
-                        ? "Start talking aloud with Sara! Her background consolidator analyzes transcript slices and builds a life context naturally."
-                        : `No persistent recollections saved in Category "${categoryConfig[activeTab as MemoryCategory]?.label}". Add one or speak with Sara.`}
+                        ? "Add a memory explicitly, or ask Sara to remember a specific detail in voice mode. Automatic conversation storage is off by default."
+                        : `No saved memories in "${categoryConfig[activeTab as MemoryCategory]?.label}". Add one to make it available for relevant chat.`}
                     </p>
                   </motion.div>
                 ) : (
                   filteredMemories.map((m, index) => {
                     const cfg = categoryConfig[m.category] || categoryConfig.behavior;
                     const Icon = cfg.icon;
+                    const approved = m.approvedByUser && m.source === "user_provided";
+                    const expired = m.expiresAt && Date.parse(m.expiresAt) <= Date.now();
 
                     return (
                       <motion.div
@@ -499,12 +512,17 @@ export function MemoryDashboard({
                                 id={`memory-text-${m.id}`}
                                 value={editedText}
                                 onChange={(event) => setEditedText(event.target.value)}
-                                maxLength={2000}
+                                maxLength={1000}
                                 required
                                 className="w-full min-h-24 rounded-lg border border-white/10 bg-black/40 p-3 text-xs leading-relaxed text-white focus:outline-none focus:border-cyan-500/60 resize-y"
                               />
                               <p className="mt-1 text-[9px] font-mono text-slate-500">Do not enter passwords, API keys, or tokens.</p>
                             </div>
+                            <label className="block text-xs text-slate-300">Expires on (optional)
+                              <input type="date" value={editedExpiry} min={new Date().toISOString().slice(0, 10)}
+                                onChange={(event) => setEditedExpiry(event.target.value)}
+                                className="block mt-1 p-2 rounded-lg bg-black/40 border border-white/10 text-white" />
+                            </label>
                             <div className="flex justify-end gap-2">
                               <button
                                 type="button"
@@ -546,7 +564,7 @@ export function MemoryDashboard({
                                         {String(m.source).replace(/_/g, " ")}
                                       </span>
                                     )}
-                                    {m.verificationStatus !== "verified" && (
+                                    {(!approved || m.verificationStatus !== "verified") && (
                                       <span className="text-[8px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-amber-500/20 bg-amber-500/10 text-amber-300">
                                         Review: {m.verificationStatus ? String(m.verificationStatus).replace(/_/g, " ") : "unclassified"}
                                       </span>
@@ -556,12 +574,16 @@ export function MemoryDashboard({
                                     {String(m.text || "No memory text available.")}
                                   </p>
                                   <span className="text-[9px] font-mono text-slate-500 mt-2 block">
-                                    Recalled: {formatDate(m.createdAt || m.updatedAt || "")}
+                                    Saved: {formatDate(m.createdAt || m.updatedAt || "")}
+                                    {m.expiresAt && ` · Expires ${formatDate(m.expiresAt)}`}
+                                  </span>
+                                  <span className={`text-[9px] font-mono ${approved && !expired && m.verificationStatus !== "unverified" ? "text-emerald-300" : "text-amber-300"}`}>
+                                    {expired ? "Expired · not used in chat" : approved && m.verificationStatus !== "unverified" ? "User-approved · available for relevant chat" : "Legacy/inferred · review before use"}
                                   </span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
-                                {m.verificationStatus !== "verified" && (
+                                {(!approved || m.verificationStatus !== "verified") && (
                                   <button
                                     type="button"
                                     onClick={() => { void handleConfirmMemory(m.id); }}

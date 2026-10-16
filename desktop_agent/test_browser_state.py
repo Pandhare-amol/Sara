@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from .browser_state import BrowserStateManager
 from . import tools_browser
@@ -45,7 +46,13 @@ class BrowserStateManagerTest(unittest.TestCase):
             "muted": False,
         })
 
-        result = tools_browser.browser_media_state({})
+        async def fake_page():
+            return page
+
+        # This is an in-memory state contract; don't start a real persistent
+        # browser (or touch its profile) while testing a fake page snapshot.
+        with patch.object(tools_browser, "_page", fake_page):
+            result = tools_browser.browser_media_state({})
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["media_state"]["currentTime"], 12.5)

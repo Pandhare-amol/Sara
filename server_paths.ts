@@ -13,6 +13,11 @@
  * the frontend).
  */
 
+// DATA_DIR is resolved during module import. Load local configuration before
+// any backend imports instantiate account guards or bind a datastore; loading
+// dotenv only inside server_full.ts runs too late for SARA_MULTIUSER_REQUIRED
+// and SARA_DATA_DIR and could silently reopen an intended protected install.
+import "dotenv/config";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -24,7 +29,7 @@ import path from "path";
  * in a dedicated ./data directory so file watchers on the project root do not
  * trigger frontend reloads when the app writes memories, sessions, or settings.
  */
-export const DATA_DIR: string = process.env.SARA_DATA_DIR || path.join(process.cwd(), "data");
+export const DATA_DIR: string = path.resolve(process.env.SARA_DATA_DIR || path.join(process.cwd(), "data"));
 
 try {
   fs.mkdirSync(DATA_DIR, { recursive: true });

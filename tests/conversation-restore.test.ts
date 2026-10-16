@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   createDesktopConversation,
@@ -8,9 +11,13 @@ import {
 
 import { shouldApplyConversationResponse } from "../src/components/desktopChatUtils";
 import { createConversationRepository } from "../src/lib/conversationRepository";
-import { createTask, getConversationTaskContext, getOrCreateConversation } from "../server_state";
-import { buildRateLimitFallbackResponse } from "../server_full";
+import { buildRateLimitFallbackResponse } from "../src/core/context/rateLimitReply";
 import { ConversationContextManager, createConversationContextSnapshot } from "../src/lib/conversationContextManager";
+
+const temporaryStore = fs.mkdtempSync(path.join(os.tmpdir(), "sara-context-restore-"));
+process.env.SARA_DATA_DIR = temporaryStore;
+const { createTask, getConversationTaskContext, getOrCreateConversation } = await import("../server_state");
+test.after(() => fs.rmSync(temporaryStore, { recursive: true, force: true }));
 
 test("desktop conversation restore keeps the correct conversation and messages", async () => {
   const projectA = createDesktopConversation("Project A");
@@ -108,6 +115,9 @@ test("rate-limited Gemini responses use a graceful fallback message", () => {
 
   assert.match(response, /rate-limited|quota|retry|continue/i);
   assert.match(response, /project/i);
+  const forged = buildRateLimitFallbackResponse("is it done?", { taskState: { status: "completed" } });
+  assert.doesNotMatch(forged, /current state \(completed\)|task (is|was) completed/i,
+    "Untrusted client task state is not evidence of a completed desktop action.");
 });
 
 test("conversation context manager keeps recent working context and tracks topic switches", () => {

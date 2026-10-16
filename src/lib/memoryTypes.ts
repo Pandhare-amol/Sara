@@ -7,6 +7,10 @@ export interface Memory {
   text: string;
   createdAt: string;
   updatedAt: string;
+  /** Explicitly added/approved by a user; inferred conversation facts are not approved. */
+  approvedByUser?: boolean;
+  /** Optional expiry for approved context. Expired items are never retrieved. */
+  expiresAt?: string;
 
   // Truth-driven metadata: distinguish fact from assumption
   source?: "fact" | "verified_data" | "user_provided" | "historical_memory" | "external_research" | "reasonable_inference" | "uncertain" | "opinion" | "prediction";

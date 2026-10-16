@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2, Circle, Clock3, FolderKanban, ListChecks, Plus, RefreshCw, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { GeneralProject, GeneralProjectDetail, GeneralProjectSummary, GeneralTask, GeneralTaskStatus, NormalizedProjectWorkflowDraft } from "../services/LocalProjectManager";
 
+const ProjectEvidencePanel = lazy(() => import("./ProjectEvidencePanel").then((module) => ({ default: module.ProjectEvidencePanel })));
+
 interface ProjectManagerPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenStudio: () => void;
 }
 
 const taskStatusLabels: Record<GeneralTaskStatus, string> = {
@@ -26,9 +29,10 @@ function toDueDate(value: string): string | undefined {
   return value ? new Date(`${value}T12:00:00`).toISOString() : undefined;
 }
 
-export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProps) {
+export function ProjectManagerPanel({ isOpen, onClose, onOpenStudio }: ProjectManagerPanelProps) {
   const [projects, setProjects] = useState<GeneralProjectSummary[]>([]);
   const [detail, setDetail] = useState<GeneralProjectDetail | null>(null);
+  const [evidenceProject, setEvidenceProject] = useState<GeneralProject | null>(null);
   const [loading, setLoading] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -84,8 +88,10 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
   useEffect(() => {
     if (isOpen && detail?.project.status === "archived" && !showArchived) setDetail(null);
   }, [isOpen, detail?.project.status, showArchived]);
+  useEffect(() => { if (!isOpen) setEvidenceProject(null); }, [isOpen]);
 
   const selectProject = async (projectId: string) => {
+    setEvidenceProject(null);
     setError(null);
     setMessage(null);
     try { await loadDetail(projectId); }
@@ -313,6 +319,11 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
                       <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-300">Project</p><h3 className="mt-1 break-words text-xl font-semibold text-white">{detail.project.title}</h3><p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-slate-400">{detail.project.description || "No description yet."}</p>{detail.project.dueDate && <p className="mt-2 text-[10px] text-slate-500">Target date: {new Date(detail.project.dueDate).toLocaleDateString()}</p>}</div>
                       <div className="flex shrink-0 items-center gap-2"><label className="sr-only" htmlFor="general-project-status">Project status</label><select id="general-project-status" value={detail.project.status} onChange={(event) => void updateProjectStatus(event.target.value as GeneralProject["status"])} className="rounded-lg border border-white/10 bg-slate-950 px-2.5 py-2 text-[9px] uppercase tracking-wider text-slate-200"><option value="active">Active</option><option value="on_hold">On hold</option><option value="completed">Completed</option><option value="archived">Archived</option></select></div>
                     </div>
+                    <div className="mb-5 rounded-xl border border-cyan-400/15 bg-cyan-950/15 p-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-slate-300">Link approved research, a human-reviewed brief and real Studio files. Owner token required; no automatic provider request.</p>
+                      <button type="button" aria-label="Open evidence-backed workflow" onClick={() => setEvidenceProject(detail.project)}
+                        className="rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/20">Evidence &amp; approvals</button>
+                    </div>
 
                     <div className="mb-3 flex items-center justify-between gap-2"><div><h4 className="text-xs font-bold uppercase tracking-widest text-slate-200">Tasks</h4><p className="mt-1 text-[10px] text-slate-500">{detail.tasks.filter((task) => task.status === "done").length} of {detail.tasks.length} completed</p></div><button type="button" disabled={detail.project.status === "archived" || detail.project.status === "completed"} onClick={() => setShowTaskForm((value) => !value)} className="flex items-center gap-1 rounded-lg bg-cyan-400/10 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-400/20 disabled:opacity-40"><Plus size={12} /> Add task</button></div>
 
@@ -331,6 +342,10 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
               </main>
             </div>
           </motion.aside>
+          {evidenceProject && <Suspense fallback={<div role="status" className="fixed bottom-4 right-4 z-[90] text-white">Opening private evidence board…</div>}>
+            <ProjectEvidencePanel key={evidenceProject.id} project={evidenceProject} onClose={() => setEvidenceProject(null)}
+              onOpenStudio={() => { setEvidenceProject(null); onOpenStudio(); }} />
+          </Suspense>}
         </>
       )}
     </AnimatePresence>

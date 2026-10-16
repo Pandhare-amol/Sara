@@ -16,6 +16,9 @@ export interface SafeRemoteFetchOptions {
   maxBytes?: number;
   timeoutMs?: number;
   maxRedirects?: number;
+  signal?: AbortSignal;
+  /** Optional exact origins rechecked after every redirect. */
+  allowedOrigins?: readonly string[];
 }
 
 function isPublicIpv4(address: string): boolean {
@@ -97,6 +100,7 @@ function requestOnce(
   location?: string;
 }> {
   return new Promise((resolve, reject) => {
+    if (options.signal?.aborted) { reject(new Error("Remote request cancelled.")); return; }
     const transport = url.protocol === "https:" ? https : http;
     const hostname = bareHostname(url.hostname);
     let settled = false;
@@ -172,9 +176,13 @@ function requestOnce(
       res.on("error", fail);
     });
 
-    req.setTimeout(options.timeoutMs ?? 10_000, () => req.destroy(new Error("Remote request timed out.")));
+    const onAbort = () => req.destroy(new Error("Remote request cancelled."));
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+    req.once("close", () => options.signal?.removeEventListener("abort", onAbort));
     req.on("error", fail);
-    req.end();
+    if (options.signal?.aborted) onAbort();
+    req.setTimeout(options.timeoutMs ?? 10_000, () => req.destroy(new Error("Remote request timed out.")));
+    if (!req.destroyed) req.end();
   });
 }
 
@@ -194,6 +202,10 @@ export async function fetchPublicUrl(
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error("Only HTTP and HTTPS proxy destinations are allowed.");
     }
+    if (options.allowedOrigins && !options.allowedOrigins.includes(url.origin)) {
+      throw new Error("Redirect left the explicitly approved origin.");
+    }
+    if (options.signal?.aborted) throw new Error("Remote request cancelled.");
     if (url.username || url.password) throw new Error("URLs with embedded credentials are not allowed.");
     if (url.port && (!/^\d+$/.test(url.port) || Number(url.port) < 1 || Number(url.port) > 65535)) {
       throw new Error("Invalid destination port.");

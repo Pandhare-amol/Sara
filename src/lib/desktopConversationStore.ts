@@ -1,3 +1,5 @@
+import { activeUserId, apiFetch } from "./userSession";
+
 export type DesktopChatMessage = {
   role: "user" | "assistant";
   text: string;
@@ -18,7 +20,7 @@ export type DesktopConversationRecord = {
 const STORAGE_KEY = "sara_desktop_conversations";
 
 function loadStored(): DesktopConversationRecord[] {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" || (activeUserId() && activeUserId() !== "default-user")) {
     return [];
   }
 
@@ -32,6 +34,7 @@ function loadStored(): DesktopConversationRecord[] {
 }
 
 function saveStored(conversations: DesktopConversationRecord[]): void {
+  if (activeUserId() && activeUserId() !== "default-user") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
   } catch {
@@ -68,7 +71,7 @@ export function normalizeConversation(item: any): DesktopConversationRecord | nu
 
 export async function getDesktopConversations(): Promise<DesktopConversationRecord[]> {
   try {
-    const res = await fetch("/api/conversations?source=desktop", { cache: "no-store" });
+    const res = await apiFetch("/api/conversations?source=desktop", { cache: "no-store" });
     if (res.ok) {
       const items = await res.json();
       if (Array.isArray(items)) {
@@ -84,7 +87,7 @@ export async function searchDesktopConversations(query: string): Promise<Desktop
   if (!normalized) return getDesktopConversations();
 
   try {
-    const res = await fetch(`/api/conversations/search?q=${encodeURIComponent(normalized)}&source=desktop`, { cache: "no-store" });
+    const res = await apiFetch(`/api/conversations/search?q=${encodeURIComponent(normalized)}&source=desktop`, { cache: "no-store" });
     if (res.ok) {
       const items = await res.json();
       if (Array.isArray(items)) {
@@ -106,7 +109,7 @@ export async function searchDesktopConversations(query: string): Promise<Desktop
 
 export async function getDesktopConversation(conversationId: string): Promise<DesktopConversationRecord | null> {
   try {
-    const res = await fetch(`/api/conversations?source=desktop`, { cache: "no-store" });
+    const res = await apiFetch(`/api/conversations?source=desktop`, { cache: "no-store" });
     if (res.ok) {
       const items = await res.json();
       const found = Array.isArray(items)
@@ -120,7 +123,7 @@ export async function getDesktopConversation(conversationId: string): Promise<De
 
 export async function restoreDesktopConversation(conversationId: string): Promise<DesktopConversationRecord | null> {
   try {
-    const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/restore`, { cache: "no-store" });
+    const res = await apiFetch(`/api/conversations/${encodeURIComponent(conversationId)}/restore`, { cache: "no-store" });
     if (!res.ok) return getDesktopConversation(conversationId);
     const payload = await res.json();
     const conversation = payload.conversation || payload;
@@ -136,10 +139,18 @@ export async function restoreDesktopConversation(conversationId: string): Promis
   return getDesktopConversation(conversationId);
 }
 
+export function cacheDesktopConversation(conversation: DesktopConversationRecord): void {
+  const all = loadStored();
+  const index = all.findIndex((item) => item.id === conversation.id);
+  if (index >= 0) all[index] = conversation;
+  else all.unshift(conversation);
+  saveStored(all.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
+}
+
 export async function saveDesktopConversation(conversation: DesktopConversationRecord): Promise<DesktopConversationRecord> {
   const payload = { source: "desktop", conversation };
   try {
-    const res = await fetch("/api/conversations", {
+    const res = await apiFetch("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -156,15 +167,7 @@ export async function saveDesktopConversation(conversation: DesktopConversationR
     }
   } catch {}
 
-  const all = loadStored();
-  const index = all.findIndex((item) => item.id === conversation.id);
-  if (index >= 0) {
-    all[index] = conversation;
-  } else {
-    all.unshift(conversation);
-  }
-  all.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  saveStored(all);
+  cacheDesktopConversation(conversation);
   return conversation;
 }
 
@@ -175,7 +178,7 @@ export async function deleteDesktopConversation(conversationId: string): Promise
 
 export function createDesktopConversation(title = "Desktop chat with SARA"): DesktopConversationRecord {
   return {
-    id: `desktop-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    id: `${activeUserId() && activeUserId() !== "default-user" ? `${activeUserId()}:` : ""}desktop-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     title,
     updatedAt: new Date().toISOString(),
     messages: [],

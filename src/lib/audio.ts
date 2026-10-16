@@ -10,6 +10,7 @@
  */
 
 import { VoiceActivityGate } from "./voiceActivityGate";
+import { VoicePlaybackPolicy, playbackIsStale } from "./voicePlaybackPolicy";
 
 export type LiveState = "disconnected" | "connecting" | "listening" | "speaking";
 
@@ -120,6 +121,7 @@ export class SaraAudioSession {
   // Buffering / Playback details
   private nextStartTime = 0;
   private activeSources: AudioBufferSourceNode[] = [];
+  private readonly playbackPolicy = new VoicePlaybackPolicy();
   
   // State Callbacks
   private onStateChange: (state: LiveState) => void;
@@ -165,12 +167,12 @@ export class SaraAudioSession {
 
   public setMuted(v: boolean) {
     this.muted = v;
-    if (v) this.voiceActivityGate.reset();
+    this.voiceActivityGate.reset();
+    this.micStream?.getAudioTracks().forEach((track) => { track.enabled = !v; });
   }
 
   public toggleMuted(): boolean {
-    this.muted = !this.muted;
-    if (this.muted) this.voiceActivityGate.reset();
+    this.setMuted(!this.muted);
     return this.muted;
   }
 
@@ -191,6 +193,10 @@ export class SaraAudioSession {
     }
   }
 
+  public screenShareStopped() {
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: "screen_share_stopped" }));
+  }
+
   // Requests microphone and creates connections.
   public async connect(conversationId?: string | null) {
     if (this.isActivated) return;
@@ -201,6 +207,7 @@ export class SaraAudioSession {
       this.stableSessionTimer = null;
     }
     this.lastConversationId = conversationId ?? null;
+    this.playbackPolicy.reset();
     await this.openConnection();
   }
 
@@ -300,6 +307,7 @@ export class SaraAudioSession {
           }
 
           this.micStream = stream;
+          stream.getAudioTracks().forEach((track) => { track.enabled = !this.muted; });
 
           // Setup custom input Analyser
           this.inputAnalyser = this.inputAudioCtx.createAnalyser();
@@ -323,6 +331,7 @@ export class SaraAudioSession {
             if (this.muted) return;
             const channelData = e.inputBuffer.getChannelData(0);
             const gated = this.voiceActivityGate.process(channelData);
+            if (gated.started && this.currentState === "speaking") this.stopSpeaking();
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
             // Preserve the live stream's silence timing with zeroed PCM frames;
@@ -410,18 +419,20 @@ export class SaraAudioSession {
           }
 
           // Handle audio payload (24kHzPCM model response)
-          if (data.type === "audio" && data.audio) {
+          if (data.type === "audio" && data.audio && this.playbackPolicy.shouldPlay(data.turn)) {
             this.playAudioPCMChunk(data.audio);
           }
 
           // Handle interruption signal (e.g. user talked over Sara)
-          if (data.type === "interrupted") {
+          if ((data.type === "interrupted" || data.type === "stop_speaking") &&
+              this.playbackPolicy.shouldInterrupt(data.turn)) {
+            this.playbackPolicy.observeUserTurn(data.turn);
             this.handleInterruption();
           }
 
           // Turn complete
-          if (data.type === "turnComplete") {
-                        this.onTurnComplete?.();
+          if (data.type === "turnComplete" && this.playbackPolicy.shouldInterrupt(data.turn)) {
+            this.onTurnComplete?.();
             // Once Sara completes speaking, change visual state back to listening
             setTimeout(() => {
               if (this.activeSources.length === 0 && this.currentState === "speaking") {
@@ -432,6 +443,7 @@ export class SaraAudioSession {
 
           // Handle live captions transcription
           if (data.type === "transcription") {
+            if (data.role === "user") this.playbackPolicy.observeUserTurn(data.turn);
             this.onTranscription(data.role, data.text);
           }
 
@@ -446,7 +458,8 @@ export class SaraAudioSession {
             this.onDesktopEvent(data);
           }
 
-          if (typeof data.type === "string" && data.type.startsWith("automation:") && this.onAutomationEvent) {
+          if (typeof data.type === "string" &&
+              (data.type.startsWith("automation:") || data.type === "RECOVERY_PAUSED") && this.onAutomationEvent) {
             this.onAutomationEvent(data);
           }
           if (data.type === "task:completed" && this.onAutomationEvent) {
@@ -500,28 +513,36 @@ export class SaraAudioSession {
     }
   }
 
-  // Interruption triggers: stops all active audio players immediately
-  private handleInterruption() {
-    console.log("[Audio] Interruption signal received; flushing play logs.");
-    
-    // Stop all playing nodes
-    this.activeSources.forEach((source) => {
-      try {
-        source.stop();
-      } catch (err) {
-        // Already finished or stopped
-      }
-    });
+  /** Stop speech only. No task is cancelled and the microphone remains in its chosen state. */
+  public stopSpeaking(): boolean {
+    if (this.currentState !== "speaking" && !this.activeSources.length) return false;
+    this.stopCurrentPlayback();
+    return true;
+  }
+
+  private handleInterruption(): void {
+    this.stopCurrentPlayback();
+  }
+
+  private stopCurrentPlayback(): void {
+    const turn = this.playbackPolicy.stop();
+    for (const source of this.activeSources) {
+      try { source.stop(); } catch { /* already ended */ }
+    }
     this.activeSources = [];
     this.nextStartTime = 0;
-    
-    // Set state back to user listening
-    this.setState("listening");
+    if (this.currentState !== "disconnected") this.setState("listening");
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: "stop_speaking", turn }));
   }
 
   // Direct raw PCM chunk scheduled playback at 24kHz
   private playAudioPCMChunk(base64Audio: string) {
     if (!this.outputAudioCtx || !this.outputGainNode) return;
+    if (playbackIsStale(this.nextStartTime - this.outputAudioCtx.currentTime, this.activeSources.length)) {
+      this.stopCurrentPlayback();
+      this.onError("Speech playback fell behind and this turn was stopped rather than speaking stale audio. Ask SARA to repeat it.");
+      return;
+    }
 
     try {
       this.setState("speaking");
@@ -630,6 +651,7 @@ export class SaraAudioSession {
     }
     this.activeSources = [];
     this.nextStartTime = 0;
+    this.playbackPolicy.reset();
     this.inputAnalyser = null;
     this.outputAnalyser = null;
     this.outputGainNode = null;

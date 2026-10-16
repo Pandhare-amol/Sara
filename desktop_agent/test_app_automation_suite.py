@@ -69,6 +69,25 @@ class AppAutomationSuiteTest(unittest.TestCase):
             result = self.suite.execute("Instagram", "open", {}, confirmed=False)
         self.assertIn("result", result)
 
+    def test_office_goal_cannot_claim_creation_by_only_opening_word(self) -> None:
+        from desktop_agent.registry import ToolError
+        plan = self.suite.plan("Create a report in Microsoft Word")
+        self.assertEqual(plan["steps"][0]["action"], "create_document")
+        with self.assertRaisesRegex(ToolError, "exact path"):
+            self.suite.execute_goal("Create a report in Microsoft Word")
+
+    def test_office_structured_edits_route_to_documents_not_open(self) -> None:
+        from desktop_agent import tools_documents
+        with patch.object(tools_documents, "document_edit", return_value={"verified": True, "path": "report.docx"}) as edit:
+            result = self.suite.execute("Word", "edit", {
+                "path": "report.docx", "edit_action": "set_font_size", "find": "Section 1", "font_size": 14,
+            })
+            self.assertTrue(result["result"]["verified"])
+            edit.assert_called_once()
+            self.assertEqual(edit.call_args.args[0]["action"], "set_font_size")
+        with self.assertRaisesRegex(Exception, "not implemented"):
+            self.suite.execute("Word", "export_pdf", {"path": "report.docx"})
+
     def test_open_and_media_targets_are_not_marked_for_auto_close(self) -> None:
         launch_calls = []
 

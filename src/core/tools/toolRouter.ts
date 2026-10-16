@@ -48,21 +48,10 @@ export class ToolRouter {
       return false;
     }
 
-    this.registry.register({
-      name: tool,
-      owner: "node",
-      category: "RUNTIME",
-      metadata: {
-        riskLevel: "READ_ONLY",
-        requiresConfirmation: false,
-        supportsCancellation: true,
-        supportsRetry: true,
-        retryPolicy: { supportsRetry: true, maxAttempts: 2 },
-        timeoutMs: 25000,
-        version: "1.0",
-        idempotent: true,
-      },
-    });
+    // Never classify a dynamically discovered tool as read-only. Use the
+    // registry's conservative name-based risk inference until an owner supplies
+    // explicit metadata (the runtime allowlist alone is not a permission grant).
+    this.registry.register({ name: tool, owner: "node", category: "RUNTIME" });
 
     return this.registry.has(tool);
   }
@@ -84,7 +73,6 @@ export class ToolRouter {
 
     // Consent is accepted only from trusted internal policy context, never from tool input.
     const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyContext);
-
     if (policyOutcome.decision === "DENY") {
       const canonical = normalizeToolExecutionResult(tool, {
         status: "FAILED",

@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 
 class ScreenMonitorTest(unittest.TestCase):
@@ -25,16 +26,19 @@ class ScreenMonitorTest(unittest.TestCase):
 
     def test_start_sample_stop(self) -> None:
         monitor = self.screen_monitor.SCREEN_MONITOR
-        started = monitor.start(interval=0.5, max_events=3)
-        self.assertTrue(started["running"])
-        sampled = monitor.sample()
-        self.assertIn("event", sampled)
-        self.assertTrue("result" in sampled or "error" in sampled)
-        time.sleep(0.1)
-        status = monitor.status()
-        self.assertTrue(status["running"])
-        stopped = monitor.stop()
-        self.assertFalse(stopped["running"])
+        with patch("desktop_agent.visual_access.VISUAL_ACCESS.require", return_value=object()), \
+             patch("desktop_agent.tools_screenshot.read_screen", return_value={"text": "private OCR text"}):
+            started = monitor.start(interval=1, max_events=3)
+            self.assertTrue(started["running"])
+            sampled = monitor.sample()
+            self.assertIn("event", sampled)
+            self.assertIn("result", sampled)
+            time.sleep(0.1)
+            status = monitor.status()
+            self.assertTrue(status["running"])
+            self.assertNotIn("private OCR text", str(status))
+            stopped = monitor.stop()
+            self.assertFalse(stopped["running"])
 
 
 if __name__ == "__main__":

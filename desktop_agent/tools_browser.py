@@ -597,9 +597,10 @@ async def browser_read_page(args: Dict[str, Any]) -> Dict[str, Any]:
 
 @register("desktopBrowserScreenshot")
 async def browser_screenshot(args: Dict[str, Any]) -> Dict[str, Any]:
-    import base64
-    data = await (await _page()).screenshot(type="jpeg", quality=70)
-    return {"result": "Captured the current browser page.", "image_base64": base64.b64encode(data).decode("ascii")}
+    # Headless Playwright pages are not bound to the foreground app/display
+    # grant. Do not silently capture a private browser tab under an unrelated
+    # desktop grant. Semantic browser locators and page text remain available.
+    raise ToolError("Browser screenshot requires a separately authorized browser-origin scope; unavailable. Use semantic browser tools or an approved visible application capture.")
 
 
 # Wrap the async handlers so FastAPI's sync threadpool path can call them.

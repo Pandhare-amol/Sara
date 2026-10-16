@@ -48,16 +48,24 @@
     "test:autonomous:real-desktop": "REAL_DESKTOP_TEST=1 tsx tests/real-desktop/closed-loop-acceptance.ts",
     "test:persistence": "tsx tests/persistence-learning.test.ts",
     "test:learning": "tsx tests/persistence-learning.test.ts",
+    "test:all": "npm run test:agi && npm run test:avatar && npm run test:security && npm run test:policy && npm run test:agent-auth && npm run test:api && npm run test:chat && npm run test:voice && npm run test:closed-loop && npm run test:autonomous && npm run test:persistence && npm run test:memory && npm run test:learning-records",
+    "test:chat": "tsx --test tests/chat-context.test.ts tests/chat-background-memory.test.ts tests/desktop-chat-panel.test.ts tests/context-manager.test.ts tests/api/chat-responsiveness-http.test.ts tests/api/mobile-chat-responsiveness-http.test.ts",
+    "test:security": "tsx --test tests/security/*.test.ts src/security/adminAuthAbuse.test.ts src/security/gestureConfig.test.ts src/security/notificationManager.test.ts",
+    "test:users": "tsx --test tests/security/multi-user-store.test.ts tests/security/multi-user-preferences.test.ts tests/security/multi-user-webauthn.test.ts tests/security/multi-user-config.test.ts tests/security/private-static-paths.test.ts tests/security/user-session.test.ts tests/security/legacy-server-guard.test.ts tests/api/multi-user-http.test.ts",
+    "test:api": "tsx --test tests/api/*.test.ts",
+    "test:closed-loop": "tsx --test tests/closed-loop-safety.test.ts tests/task-result-honesty.test.ts tests/task-manager-emergency-stop.test.ts tests/automation-recovery.test.ts src/core/automation/automationOrchestrator.test.ts src/core/tools/initialization.test.ts src/cognitive/taskCancellation.test.ts src/cognitive/integrationBridge.cancellation.test.ts",
+    "test:agent-core": "tsx --test tests/approved-memory.test.ts tests/browser-workflow.test.ts tests/api/browser-workflow-http.test.ts tests/api/chat-responsiveness-http.test.ts tests/api/mobile-chat-responsiveness-http.test.ts tests/text-model-router.test.ts tests/task-state-sqlite.test.ts tests/agent-evaluation.test.ts tests/agent-review.test.ts tests/chat-context.test.ts tests/chat-background-memory.test.ts tests/desktop-chat-panel.test.ts tests/context-manager.test.ts tests/voice-background-chat.test.ts tests/window-verifier-background.test.ts src/core/automation/automationOrchestrator.test.ts",
+    "eval:agent": "tsx scripts/evaluate-agent.ts",
+    "review:agent-eval": "tsx scripts/review-agent-evaluation.ts",
+    "test:voice": "tsx --test tests/voice-activity-gate.test.ts tests/voice-background-chat.test.ts tests/window-verifier-background.test.ts src/core/automation/automationOrchestrator.test.ts src/core/identity/voiceIdentity.test.ts src/config/voicePreferences.test.ts",
+    "integrity:generate": "node scripts/generate_integrity_manifest.cjs",
+    "release:readiness": "tsx scripts/release-readiness.ts",
+    "measure:studio": "tsx scripts/measure-studio.ts",
+    "measure:evidence": "tsx scripts/measure-evidence.ts",
     "test:memory": "tsx --test tests/memory-management.test.ts",
     "test:learning-records": "tsx --test tests/learning-records.test.ts",
     "test:policy": "tsx --test src/security/approvalBinding.test.ts src/core/tools/policyEngine.test.ts src/core/tools/toolPolicyBoundary.test.ts",
-    "test:all": "npm run test:agi && npm run test:avatar && npm run test:security && npm run test:policy && npm run test:agent-auth && npm run test:api && npm run test:voice && npm run test:closed-loop && npm run test:autonomous && npm run test:persistence && npm run test:memory && npm run test:learning-records",
-    "test:security": "tsx --test tests/security/*.test.ts src/security/adminAuthAbuse.test.ts src/security/gestureConfig.test.ts src/security/notificationManager.test.ts",
-    "test:agent-auth": "tsx --test src/security/desktopAgentAuth.test.ts tests/desktop-agent-auth-health.test.ts tests/screen-verifier.test.ts tests/window-verifier.test.ts",
-    "test:api": "tsx --test tests/api/*.test.ts",
-    "test:closed-loop": "tsx --test tests/closed-loop-safety.test.ts tests/task-result-honesty.test.ts tests/task-manager-emergency-stop.test.ts tests/automation-recovery.test.ts src/core/automation/automationOrchestrator.test.ts src/core/tools/initialization.test.ts src/cognitive/taskCancellation.test.ts src/cognitive/integrationBridge.cancellation.test.ts",
-    "test:voice": "tsx --test tests/voice-activity-gate.test.ts src/core/identity/voiceIdentity.test.ts src/config/voicePreferences.test.ts",
-    "integrity:generate": "node scripts/generate_integrity_manifest.cjs"
+    "test:agent-auth": "tsx --test src/security/desktopAgentAuth.test.ts tests/desktop-agent-auth-health.test.ts tests/screen-verifier.test.ts tests/window-verifier.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -67,12 +75,17 @@
     "@simplewebauthn/server": "^14.0.3",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "docx": "^9.11.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "node-notifier": "^11.0.0",
     "nodemailer": "^10.1.0",
+    "pdf-lib": "^1.17.1",
+    "pngjs": "^7.0.0",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "sql.js": "^1.8.0",
@@ -86,7 +99,7 @@
     "@playwright/test": "^1.40.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
-    "@types/three": "^0.186.0",
+    "@types/pngjs": "^6.0.5",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
     "electron": "^43.1.0",
@@ -96,10 +109,12 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.15",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "@types/three": "^0.186.0"
   },
   "overrides": {
     "@electron/get": "5.1.0",
-    "tar": "7.5.22"
+    "tar": "7.5.22",
+    "image-size": "2.0.4"
   }
 }

@@ -28,6 +28,10 @@
 ## Project Overview
 SARA (Smart Assistant for Real‑time Automation) is an extensible, agent‑driven desktop companion powered by Google Gemini. It combines a React/Electron frontend, a Node.js backend, and a Python FastAPI desktop agent into a single cohesive product.
 
+**Experimental account protection:** An opt-in, fail-closed multi-user mode scopes chat and memory, but intentionally disables voice, desktop/Office tools, camera and standalone mobile routes until they can be authorized per user. Read [SARA 6.0 account protection: setup, tests, and limitations](docs/MULTIUSER_SECURITY.md) **before** enabling it. This is not a full multi-user release.
+
+**Experimental research and creation:** The local owner-only `LEARN` and `CREATE` panels, the **PROJECTS → Evidence & approvals** workflow, provider roles, bounded research, reviewed skill-test gate, and validated artifact exports are documented in [SARA 13/14 setup, tests, and limitations](docs/SARA13_14_IMPLEMENTATION.md). Project acceptance is human-only, not a fact check or deployment. Live provider calls and native platform capabilities are not certified here. The security release gate remains blocked by historically tracked runtime files; do not distribute on the strength of fixture tests alone.
+
 **Core capabilities:**
 - 🧠 Goal-oriented natural language command execution
 - 🪟 OS-level window management (focus, minimize, restore, desktop control)

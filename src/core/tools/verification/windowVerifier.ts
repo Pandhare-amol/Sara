@@ -9,7 +9,8 @@ import { getDesktopAgentAuthHeaders } from "../../../security/desktopAgentAuth";
 export interface WindowListResponse {
   windows: Array<{
     title: string;
-    application_name: string;
+    application_name?: string;
+    process_name?: string;
     hwnd?: number;
     visible?: boolean;
   }>;
@@ -18,7 +19,8 @@ export interface WindowListResponse {
 export interface ActiveWindowResponse {
   window: {
     title: string;
-    application_name: string;
+    application_name?: string;
+    process_name?: string;
     hwnd?: number;
   };
 }
@@ -87,13 +89,19 @@ export class WindowVerifier implements ToolVerifier {
       observedState.windows = windows;
 
       const target = title.toLowerCase().replace(/\s+/g, " ").trim();
-      const matches = windows.filter((window) => {
-        const appName = String(window.application_name || "").toLowerCase().replace(/\s+/g, " ").trim();
-        const windowTitle = String(window.title || "").toLowerCase().replace(/\s+/g, " ").trim();
-        return Boolean(
-          (appName && (appName === target || appName.includes(target) || target.includes(appName))) ||
-          (windowTitle && (windowTitle === target || windowTitle.includes(target))),
-        );
+      const processAliases: Record<string, string> = { word: "winword", powerpoint: "powerpnt", "microsoft word": "winword", "microsoft powerpoint": "powerpnt" };
+      const expectedProcess = processAliases[target] || target;
+      const matches = windows.filter((w) => {
+        const application = String(w.process_name || w.application_name || "").trim().toLowerCase().replace(/\.exe$/, "").replace(/\s+/g, " ");
+        const namedApplication = application.length > 0 &&
+          (application === expectedProcess || application.includes(expectedProcess) ||
+            (application.length >= 4 && expectedProcess.includes(application)));
+        // A browser tab title containing an app name, or an empty application
+        // name (which matches every string via includes("")), cannot prove that
+        // the requested native application actually opened.
+        if (tool === "openApplication") return namedApplication && w.visible !== false;
+        const caption = String(w.title || "").trim().toLowerCase().replace(/\s+/g, " ");
+        return namedApplication || (caption.length > 0 && caption.includes(target));
       });
 
       if (tool === "closeWindow" || tool === "closeApplication") {

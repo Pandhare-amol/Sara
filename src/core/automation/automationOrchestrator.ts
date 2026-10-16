@@ -6,6 +6,8 @@ export type AutomationStatus =
   | "QUEUED"
   | "STARTING"
   | "RUNNING"
+  | "CANCELLING"
+  | "RETRYING"
   | "WAITING"
   | "PAUSED"
   | "VERIFYING"
@@ -40,6 +42,8 @@ export interface AutomationTaskInput {
   userId?: string;
   identityId?: string;
   currentStep?: string;
+  /** Overall queue + execution deadline; bounded by the orchestrator. */
+  deadlineMs?: number;
 }
 
 export interface AutomationTask {
@@ -53,6 +57,9 @@ export interface AutomationTask {
   updated_at?: string;
   started_at?: string;
   completed_at?: string;
+  deadline_at?: string;
+  stop_requested_at?: string;
+  retry_count: number;
   error?: string;
   result?: unknown;
   sessionId?: string;
@@ -63,7 +70,6 @@ export interface AutomationTask {
   context?: PersistedTaskContext;
   checkpoint?: Record<string, unknown>;
   stop_requested?: boolean;
-  stop_requested_at?: string;
 }
 
 export interface RestoredAutomationTask {
@@ -81,7 +87,7 @@ export interface RestoredAutomationTask {
 }
 
 export type AutomationEvent = {
-  type: AutomationEventType | "automation:queued" | "automation:started" | "automation:progress" | "automation:completed" | "automation:failed" | "automation:cancelled";
+  type: AutomationEventType | "automation:queued" | "automation:started" | "automation:progress" | "automation:completed" | "automation:failed" | "automation:paused" | "automation:cancel_requested" | "automation:cancelled";
   task: AutomationTask;
 };
 
@@ -102,6 +108,21 @@ function isBrowserTool(tool: string): boolean {
     tool === "searchYouTube" || tool === "openWebsite" || tool === "searchWeb";
 }
 
+// Only known, non-console app launches are eligible for immediate queued voice
+// acknowledgement. Unknown names fall through to the existing synchronous
+// tool/policy path; do not broaden arbitrary process execution via background work.
+const BACKGROUND_APP_NAMES = new Set([
+  "notepad", "calculator", "calc", "chrome", "edge", "firefox", "brave", "vscode", "code",
+  "file explorer", "explorer", "task manager", "taskmanager", "paint", "word", "excel",
+  "powerpoint", "vlc", "spotify",
+]);
+
+function usesDesktopResource(tool: string): boolean {
+  // Office edits and app opens must not race with other desktop-control work.
+  return isBrowserTool(tool) || ["openApplication", "saraVisualClick", "saraAppExecuteGoal", "saraVoiceExecuteCommand"].includes(tool) ||
+    ["saraDocumentCreate", "saraDocumentEdit", "saraDocumentOpen"].includes(tool);
+}
+
 function resultRecord(value: unknown): Record<string, any> {
   return value && typeof value === "object" ? value as Record<string, any> : {};
 }
@@ -119,15 +140,34 @@ function hasExplicitPassingVerification(record: Record<string, any>): boolean {
 
   const authoritativeProof = record.state === "SUCCEEDED" && record.verified === true &&
     verification.attempted === true && verification.passed === true;
+  // The visual agent returns an execution envelope rather than a task state;
+  // require the explicit execution status and independently passing checks.
+  const visualProof = record.verified === true &&
+    String(record.executionStatus || record.execution_status || "").toLowerCase() === "success" &&
+    verification.attempted === true && verification.passed === true &&
+    (!record.state || record.state === "SUCCEEDED") &&
+    (!record.status || String(record.status).toLowerCase() === "success");
   const executionStatus = String(record.executionStatus || record.execution_status || "").toLowerCase();
   const finalStatus = String(record.status || "").toLowerCase();
   const unifiedProof = record.verified === true && status === "verified" &&
     executionStatus === "success" && finalStatus === "success";
-  return authoritativeProof || unifiedProof;
+  // Some canonical tool results omit executionStatus but still provide a
+  // verified postcondition and passing checks. Never accept contradictory
+  // explicit statuses or a bare verified flag without checks.
+  const canonicalProof = record.verified === true && status === "verified" &&
+    (!executionStatus || executionStatus === "success") &&
+    (!finalStatus || finalStatus === "success");
+  return authoritativeProof || unifiedProof || visualProof || canonicalProof;
 }
 
 function resultIsVerifiedSuccess(value: unknown): boolean {
   const record = resultRecord(value);
+  // Reject contradictory outer status even when an inner execution envelope
+  // claims success; nested results alone cannot override the tool outcome.
+  const state = String(record.state || "").toLowerCase();
+  const status = String(record.status || "").toLowerCase();
+  if (record.success === false || record.ok === false || record.verified === false ||
+      ["failed", "cancelled"].includes(state) || ["failed", "cancelled"].includes(status)) return false;
   const execution = resultRecord(record.executionResult);
   const executionData = resultRecord(execution.data);
   const hasVerification = [record, execution, executionData].some(hasExplicitPassingVerification);
@@ -150,7 +190,37 @@ function resultError(value: unknown): string {
 }
 
 function newTaskId(): string {
-  return `SARA-AUTO-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  return `SARA-AUTO-${crypto.randomBytes(12).toString("hex").toUpperCase()}`;
+}
+
+export class AutomationQueueFullError extends Error {
+  constructor() { super("Automation queue is full; wait for a task to finish before submitting another."); }
+}
+
+/** A deliberately small safe list; retry only a confirmed non-execution of a read-only probe. */
+const SAFE_RETRY_TOOLS = new Set(["systemInfo"]);
+const TERMINAL = new Set<AutomationStatus>(["COMPLETED", "FAILED", "CANCELLED"]);
+
+/** Client/Live status projection. Never serialize tool arguments, results, user goals or checkpoints. */
+export function publicAutomationTask(task: AutomationTask) {
+  return {
+    task_id: task.task_id, tool: task.tool, status: task.status,
+    progress: task.progress, priority: task.priority,
+    conversationId: task.conversationId, created_at: task.created_at,
+    updated_at: task.updated_at, started_at: task.started_at,
+    completed_at: task.completed_at, deadline_at: task.deadline_at,
+    stop_requested_at: task.stop_requested_at, retry_count: task.retry_count,
+    verified: task.status === "COMPLETED",
+    review_required: task.status === "PAUSED" && (task.checkpoint?.recovery as { state?: string } | undefined)?.state !== "paused_before_execution",
+    message: task.status === "COMPLETED" ? (task.stop_requested_at ? "Completed despite the stop request; independently verified." : "Independently verified completed.")
+      : task.status === "CANCELLING" ? "Stop requested. An in-flight tool may still finish; outcome is not yet known."
+      : task.status === "PAUSED" ? (task.checkpoint?.recovery as { state?: string } | undefined)?.state === "paused_before_execution"
+        ? "Paused before execution; may resume before its deadline."
+        : "Paused; review the external state. An action may have run."
+      : task.status === "CANCELLED" ? "Cancelled before execution or confirmed not executed."
+      : task.status === "FAILED" ? "Failed; do not claim the action completed."
+      : "Not independently verified as complete.",
+  };
 }
 
 function canonicalizeJson(value: unknown, ancestors = new Set<object>()): string {
@@ -225,11 +295,21 @@ export class AutomationOrchestrator {
   private readonly taskFingerprints = new Map<string, string>();
   private queue: AutomationTask[] = [];
   private running = 0;
-  private browserBusy = false;
+  private desktopBusy = false;
+  private readonly deadlines = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly maxQueued: number;
+  private readonly maxRecords: number;
 
-  constructor(executor: Executor, afterVerifiedSuccess?: AfterVerifiedSuccess) {
+  constructor(
+    executor: Executor,
+    afterVerifiedSuccessOrLimits: AfterVerifiedSuccess | { maxQueued?: number; maxRecords?: number } = {},
+    limits: { maxQueued?: number; maxRecords?: number } = {},
+  ) {
     this.executor = executor;
-    this.afterVerifiedSuccess = afterVerifiedSuccess;
+    this.afterVerifiedSuccess = typeof afterVerifiedSuccessOrLimits === "function" ? afterVerifiedSuccessOrLimits : undefined;
+    const config = typeof afterVerifiedSuccessOrLimits === "function" ? limits : afterVerifiedSuccessOrLimits;
+    this.maxQueued = Math.max(1, Math.min(128, config.maxQueued ?? 24));
+    this.maxRecords = Math.max(this.maxQueued + 4, Math.min(1024, config.maxRecords ?? 256));
   }
 
   on(listener: Listener): () => void {
@@ -251,7 +331,13 @@ export class AutomationOrchestrator {
       this.taskFingerprints.set(taskId, previousFingerprint);
       return snapshotTask(existing);
     }
+    // An evicted ID cannot silently queue a second consequential action.
+    if (this.taskFingerprints.has(taskId)) throw new Error("Automation task ID was already used; no new action was queued.");
+    this.pruneHistory(true);
+    if (this.queue.length >= this.maxQueued || this.tasks.size >= this.maxRecords) throw new AutomationQueueFullError();
 
+    const deadlineMs = Number.isFinite(input.deadlineMs)
+      ? Math.max(1_000, Math.min(300_000, Math.floor(input.deadlineMs!))) : 120_000;
     const goal = String(input.goal || input.original_command || input.tool || "Automation task");
     const context = createTaskContext({
       task_id: taskId,
@@ -272,7 +358,9 @@ export class AutomationOrchestrator {
       status: "QUEUED",
       task_state: context.task_state,
       progress: 0,
+      retry_count: 0,
       created_at: context.created_at,
+      deadline_at: new Date(Date.now() + deadlineMs).toISOString(),
       sessionId: input.sessionId,
       conversationId: input.conversationId,
       goal,
@@ -284,10 +372,9 @@ export class AutomationOrchestrator {
     this.queue.push(task);
     this.emit("TASK_CREATED", task);
     this.emit("automation:queued", task);
-    void this.persistTaskState(task);
-    queueMicrotask(() => {
-      void this.drain();
-    });
+    this.scheduleDeadline(task, deadlineMs);
+    this.pruneHistory();
+    queueMicrotask(() => this.drain());
     return snapshotTask(task);
   }
 
@@ -331,6 +418,7 @@ export class AutomationOrchestrator {
         status: "PAUSED",
         task_state: "WAITING_FOR_USER",
         progress: restored.progress ?? Number(restored.checkpoint?.task_progress || 0),
+        retry_count: 0,
         created_at: restored.created_at || new Date().toISOString(),
         started_at: restored.started_at,
         updated_at: new Date().toISOString(),
@@ -349,55 +437,58 @@ export class AutomationOrchestrator {
     }
   }
 
-  resumeTask(taskId: string, nextStep?: string): AutomationTask | undefined {
+  /** Only work paused *before dispatch* may resume. Uncertain effects never replay. */
+  resumeTask(taskId: string): AutomationTask | undefined {
     const task = this.tasks.get(taskId);
-    if (!task || task.status !== "PAUSED") return undefined;
-    const restoredContext = task.context ? resumeFromTaskContext(task.context, nextStep) : createTaskContext({
-      task_id: taskId,
-      conversation_id: task.conversationId || "automation",
-      goal: task.goal || task.tool,
-      original_command: task.original_command || task.goal || task.tool,
-      current_step: nextStep || "resume",
-      task_state: "RUNNING",
-    });
-    task.context = restoredContext;
-    task.task_state = "RECOVERING";
+    if (!task || task.status !== "PAUSED" || (task.checkpoint?.recovery as { state?: string } | undefined)?.state !== "paused_before_execution" ||
+        this.queue.length >= this.maxQueued || Date.parse(task.deadline_at || "") <= Date.now()) return undefined;
+    task.context = task.context ? resumeFromTaskContext(task.context, "queued_after_pause") : task.context;
+    task.task_state = "QUEUED";
     task.status = "QUEUED";
     task.stop_requested = false;
     task.stop_requested_at = undefined;
     task.error = undefined;
-    task.progress = Math.max(task.progress, 25);
-    task.updated_at = restoredContext.updated_at;
+    task.updated_at = new Date().toISOString();
+    task.checkpoint = undefined;
     this.queue.push(task);
     this.emit("RECOVERY_COMPLETED", task);
     this.emit("automation:queued", task);
-    void this.persistTaskState(task);
-    queueMicrotask(() => { void this.drain(); });
+    queueMicrotask(() => this.drain());
     return snapshotTask(task);
   }
 
+  pauseTask(taskId: string): boolean {
+    const task = this.tasks.get(taskId);
+    if (!task || task.status !== "QUEUED") return false;
+    this.queue = this.queue.filter((item) => item.task_id !== taskId);
+    task.status = "PAUSED";
+    task.task_state = "PAUSED";
+    task.updated_at = new Date().toISOString();
+    task.checkpoint = { recovery: { state: "paused_before_execution", automaticReplay: false } };
+    this.emit("automation:paused", task);
+    return true;
+  }
+
+  /** In-flight tools do not promise cooperative cancellation. Keep their resource held until a result arrives. */
   cancelTask(taskId: string): boolean {
     const task = this.tasks.get(taskId);
-    if (!task || ["COMPLETED", "FAILED", "CANCELLED"].includes(task.status)) return false;
+    if (!task || TERMINAL.has(task.status) || task.status === "CANCELLING" ||
+        (task.status === "PAUSED" && (task.checkpoint?.recovery as { state?: string } | undefined)?.state !== "paused_before_execution")) return false;
     if (task.status === "QUEUED" || task.status === "PAUSED") {
       task.status = "CANCELLED";
       task.task_state = "CANCELLED";
       task.completed_at = new Date().toISOString();
       task.updated_at = task.completed_at;
       this.queue = this.queue.filter((item) => item.task_id !== taskId);
+      this.settle(task);
       this.emit("automation:cancelled", task);
-      void this.persistTaskState(task);
       return true;
     }
-    if (["STARTING", "RUNNING", "WAITING", "VERIFYING"].includes(task.status)) {
-      task.stop_requested = true;
-      task.stop_requested_at = new Date().toISOString();
-      task.updated_at = task.stop_requested_at;
-      this.emit("automation:progress", task);
-      void this.persistTaskState(task);
-      return true;
-    }
-    return false;
+    task.status = "CANCELLING";
+    task.stop_requested_at = new Date().toISOString();
+    task.updated_at = task.stop_requested_at;
+    this.emit("automation:cancel_requested", task);
+    return true;
   }
 
   /** Cancel queued work and request cooperative stops for active tasks. */
@@ -408,7 +499,10 @@ export class AutomationOrchestrator {
       if (task.status === "QUEUED") {
         if (this.cancelTask(task.task_id)) cancelledQueuedTaskIds.push(task.task_id);
       } else if (["STARTING", "RUNNING", "WAITING", "VERIFYING"].includes(task.status)) {
-        if (this.cancelTask(task.task_id)) cancellationRequestedTaskIds.push(task.task_id);
+        if (this.cancelTask(task.task_id)) {
+          task.stop_requested = true;
+          cancellationRequestedTaskIds.push(task.task_id);
+        }
       }
     }
     return { cancelledQueuedTaskIds, cancellationRequestedTaskIds };
@@ -443,7 +537,6 @@ export class AutomationOrchestrator {
     }
     this.emit("RECOVERY_PAUSED", task);
     this.emit("automation:progress", task);
-    void this.persistTaskState(task);
   }
 
   private emit(type: AutomationEvent["type"], task: AutomationTask): void {
@@ -453,51 +546,66 @@ export class AutomationOrchestrator {
     }
   }
 
-  private async persistTaskState(task: AutomationTask): Promise<void> {
-    try {
-      const { loadTasks, updateTask, createTask } = await import("../../../server_state");
-      const existing = (await loadTasks()).find((entry) => entry.taskId === task.task_id);
-      const metadata = {
-        automation: true,
-        tool: task.tool,
-        args: task.args,
-        taskContext: task.context,
-        taskState: task.task_state || task.status,
-        sessionId: task.sessionId,
-        conversationId: task.conversationId,
-      };
-      if (existing) {
-        await updateTask(task.task_id, {
-          status: task.status.toLowerCase(),
-          checkpoint: {
-            current_task: task.tool,
-            task_progress: task.progress,
-            current_step: task.context?.current_step,
-            last_action: task.tool,
-            recent_summary: task.goal || task.tool,
-          },
-          metadata,
-          updatedAt: new Date().toISOString(),
-        } as any);
-      } else {
-        await createTask({
-          taskId: task.task_id,
-          conversationId: task.conversationId || "automation",
-          description: task.goal || task.tool,
-          priority: 5,
-          assignedAgent: "AutomationOrchestrator",
-          metadata,
-        });
+  /** The server's single ordered event listener owns persistence; never write raw args here. */
+  private scheduleDeadline(task: AutomationTask, ms: number): void {
+    const timer = setTimeout(() => {
+      this.deadlines.delete(task.task_id);
+      if (TERMINAL.has(task.status)) return;
+      if (task.status === "QUEUED" ||
+          (task.status === "PAUSED" && (task.checkpoint?.recovery as { state?: string } | undefined)?.state === "paused_before_execution")) {
+        this.queue = this.queue.filter((item) => item.task_id !== task.task_id);
+        task.status = "FAILED";
+        task.task_state = "FAILED";
+        task.error = "Deadline expired before dispatch; no tool was executed.";
+        task.completed_at = new Date().toISOString();
+        this.emit("TASK_FAILED", task);
+        this.emit("automation:failed", task);
+      } else if (["STARTING", "RUNNING", "VERIFYING", "RETRYING"].includes(task.status)) {
+        // The agent may already have acted. Never report an in-flight timeout as cancellation.
+        task.status = "CANCELLING";
+        task.stop_requested_at = new Date().toISOString();
+        task.updated_at = task.stop_requested_at;
+        this.emit("automation:cancel_requested", task);
       }
-    } catch {
-      // persistence is best-effort and should not break the runtime queue
+    }, ms);
+    timer.unref?.();
+    this.deadlines.set(task.task_id, timer);
+  }
+
+  private settle(task: AutomationTask): void {
+    const timer = this.deadlines.get(task.task_id);
+    if (timer) clearTimeout(timer);
+    this.deadlines.delete(task.task_id);
+    this.pruneHistory();
+  }
+
+  private pruneHistory(reserveSlot = false): void {
+    // Keep active work and the most recent terminal results for voice deduplication.
+    // Older completed records remain in the server-owned task store for audit.
+    const limit = this.maxRecords - (reserveSlot ? 1 : 0);
+    if (this.tasks.size <= limit) return;
+    for (const [id, task] of this.tasks) {
+      if (this.tasks.size <= limit) break;
+      if (TERMINAL.has(task.status)) this.tasks.delete(id);
     }
   }
 
   private nextTask(): AutomationTask | undefined {
-    const available = this.queue.filter((task) => task.status === "QUEUED");
+    for (const task of this.queue) {
+      if (task.status === "QUEUED" && Date.parse(task.deadline_at || "") <= Date.now()) {
+        task.status = "FAILED";
+        task.task_state = "FAILED";
+        task.error = "Deadline expired before dispatch; no tool was executed.";
+        task.completed_at = new Date().toISOString();
+        this.settle(task);
+        this.emit("TASK_FAILED", task);
+        this.emit("automation:failed", task);
+      }
+    }
+    this.queue = this.queue.filter((task) => task.status === "QUEUED");
+    const available = this.queue;
     const next = available
-      .filter((task) => !isBrowserTool(task.tool) || !this.browserBusy)
+      .filter((task) => !usesDesktopResource(task.tool) || !this.desktopBusy)
       .sort((left, right) => PRIORITY_WEIGHT[right.priority] - PRIORITY_WEIGHT[left.priority] || left.created_at.localeCompare(right.created_at))[0];
     if (!next) return undefined;
     this.queue = this.queue.filter((task) => task.task_id !== next.task_id);
@@ -514,8 +622,8 @@ export class AutomationOrchestrator {
 
   private async run(task: AutomationTask): Promise<void> {
     this.running += 1;
-    const browserTask = isBrowserTool(task.tool);
-    if (browserTask) this.browserBusy = true;
+    const desktopTask = usesDesktopResource(task.tool);
+    if (desktopTask) this.desktopBusy = true;
     task.status = "STARTING";
     task.task_state = "RUNNING";
     task.started_at = new Date().toISOString();
@@ -529,14 +637,32 @@ export class AutomationOrchestrator {
     task.status = "RUNNING";
     task.progress = 20;
     this.emit("automation:progress", task);
-    void this.persistTaskState(task);
 
     try {
-      task.result = await this.executor(task.tool, {
-        ...task.args,
-        automation_task_id: task.task_id,
-      });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        task.result = await this.executor(task.tool, {
+          ...task.args,
+          automation_task_id: task.task_id,
+        });
+        // Only a read-only probe with explicit non-execution may retry once.
+        // Never replay a GUI write, app launch, message or uncertain result.
+        if (attempt === 0 && SAFE_RETRY_TOOLS.has(task.tool) && definiteNoExecution(task.result) &&
+            !task.stop_requested_at && Date.now() + 150 < Date.parse(task.deadline_at || "")) {
+          task.retry_count += 1;
+          task.status = "RETRYING";
+          task.updated_at = new Date().toISOString();
+          this.emit("automation:progress", task);
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          if (task.stop_requested_at || Date.now() >= Date.parse(task.deadline_at || "")) break;
+          task.status = "RUNNING";
+          this.emit("automation:progress", task);
+          continue;
+        }
+        break;
+      }
       if (task.stop_requested) {
+        // Emergency stop suppresses follow-up cleanup and holds even an
+        // apparently verified one-shot result for explicit human review.
         this.pauseAfterStopRequest(task);
         return;
       }
@@ -577,6 +703,7 @@ export class AutomationOrchestrator {
         }
         task.status = "COMPLETED";
         task.task_state = "COMPLETED";
+        if (task.stop_requested_at) task.error = "The action completed despite the stop request; the result was independently verified.";
         task.progress = 100;
         task.completed_at = new Date().toISOString();
         if (task.context) {
@@ -588,18 +715,18 @@ export class AutomationOrchestrator {
         this.emit("TASK_COMPLETED", task);
         this.emit("automation:completed", task);
       } else if (definiteNoExecution(task.result)) {
-        task.status = "FAILED";
-        task.task_state = "FAILED";
+        task.status = task.stop_requested_at ? "CANCELLED" : "FAILED";
+        task.task_state = task.status;
         task.progress = 100;
         task.completed_at = new Date().toISOString();
-        task.error = resultError(task.result);
+        task.error = task.stop_requested_at ? "Stop confirmed before tool execution." : resultError(task.result);
         if (task.context) {
-          task.context.task_state = "FAILED";
+          task.context.task_state = task.task_state as PersistedTaskContext["task_state"];
           task.context.last_error = task.error;
           task.context.updated_at = task.completed_at;
         }
         this.emit("VERIFICATION_FAILED", task);
-        this.emit("TASK_FAILED", task);
+        if (task.status === "FAILED") this.emit("TASK_FAILED", task);
         this.emit("automation:failed", task);
       } else {
         task.status = "PAUSED";
@@ -622,7 +749,6 @@ export class AutomationOrchestrator {
         this.emit("RECOVERY_PAUSED", task);
         this.emit("automation:progress", task);
       }
-      void this.persistTaskState(task);
     } catch (error) {
       if (task.stop_requested) {
         this.pauseAfterStopRequest(task, error);
@@ -645,16 +771,22 @@ export class AutomationOrchestrator {
         this.emit("VERIFICATION_FAILED", task);
         this.emit("RECOVERY_PAUSED", task);
         this.emit("automation:progress", task);
-        void this.persistTaskState(task);
       }
+
     } finally {
-      if (browserTask) this.browserBusy = false;
+      this.settle(task);
+      if (desktopTask) this.desktopBusy = false;
       this.running -= 1;
       this.drain();
     }
   }
 }
 
-export function isAsyncAutomationTool(tool: string): boolean {
-  return isBrowserTool(tool) || tool === "saraAppExecuteGoal";
+export function isAsyncAutomationTool(tool: string, args: Record<string, unknown> = {}): boolean {
+  if (isBrowserTool(tool)) return true;
+  if (["saraDocumentCreate", "saraDocumentEdit", "saraDocumentOpen"].includes(tool)) {
+    return typeof args.path === "string" && Boolean(args.path.trim());
+  }
+  const name = args.name ?? args.application;
+  return tool === "saraAppExecuteGoal" || (tool === "openApplication" && typeof name === "string" && BACKGROUND_APP_NAMES.has(name.trim().toLowerCase()));
 }

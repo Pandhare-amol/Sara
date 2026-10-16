@@ -14,6 +14,7 @@ or:
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import inspect
 import ipaddress
@@ -33,6 +34,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from .identity_guard import agent_route_allowed, protected_mode_active
 from .android_companion import ANDROID_COMPANION_MANAGER
 from .agents import MANAGER
 from .platform_core import HEALTH
@@ -61,6 +63,8 @@ async def lifespan(app: FastAPI):
         from .tools_browser import shutdown_browser
 
         shutdown_browser()
+        from .tools_browser_workflow import shutdown_browser_workflows
+        shutdown_browser_workflows()
     except Exception as e:  # noqa: BLE001
         log.warning("Browser shutdown error: %s", e)
     log.info("SARA Desktop Control Agent stopped.")
@@ -96,10 +100,22 @@ AGENT_AUTH_PROTOCOL_VERSION = 1
 
 @app.middleware("http")
 async def require_agent_token(request: Request, call_next):
-    # CORS preflights do not execute a route; let CORSMiddleware answer them.
+
+    # A companion token or loopback connection does not authenticate a person.
+    # Until per-user permissions reach this dispatch boundary, deny all agent
+    # action/data routes in protected mode. Stop visual access even on health.
+    if protected_mode_active():
+        from .visual_access import VISUAL_ACCESS
+        from .screen_monitor import SCREEN_MONITOR
+        from .visual_actions import VISUAL_ACTIONS
+        VISUAL_ACCESS.force_revoke()
+        SCREEN_MONITOR.stop()
+        VISUAL_ACTIONS.cancel_all()
+    # Preflights cannot execute tools; let CORSMiddleware answer them.
     if request.method == "OPTIONS":
         return await call_next(request)
-
+    if not agent_route_allowed(request.url.path):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Desktop agent is locked in multi-user mode until per-user authorization is integrated."})
     peer = request.client.host if request.client else ""
     try:
         is_local = ipaddress.ip_address(peer.split("%", 1)[0]).is_loopback
@@ -369,6 +385,8 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
     handler = TOOLS[tool]
     started_at = time.perf_counter()
     try:
+        # Blocking desktop, Office COM and capture handlers must never stall
+        # unrelated conversation/status requests on the FastAPI event loop.
         if inspect.iscoroutinefunction(handler):
             out = await handler(args)
         else:
@@ -376,20 +394,18 @@ async def execute(req: ExecuteRequest) -> ExecuteResponse:
             if inspect.isawaitable(out):
                 out = await out
     except ToolError as e:
-        # Tool error messages may echo file paths or user-provided text; keep
-        # diagnostics useful without copying argument values into runtime logs.
-        log.warning("ToolError in %s (type=%s)", tool, type(e).__name__)
+        log.warning("ToolError in %s (type=%s; details withheld)", tool, type(e).__name__)
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=e.message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=e.message, tool=tool)
     except Exception as e:  # noqa: BLE001
-        log.error("Unhandled error in %s (type=%s)", tool, type(e).__name__)
-        message = f"Internal error in {tool}: {e}"
+        log.error("Unhandled error in %s (type=%s; details withheld)", tool, type(e).__name__)
+        message = f"Internal error in {tool}."
         return ExecuteResponse(ok=False, canonical=_canonical_result(tool, error=message, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), error=message, tool=tool)
 
-    # Results can echo user content or argument values, so do not copy them
-    # into runtime logs. The API response remains available to its caller.
-    log.info("DONE tool=%s", tool)
-
-    return ExecuteResponse(ok=True, result=out, canonical=_canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000)), tool=tool)
+    # Neither arguments nor handler output should be copied into runtime logs.
+    # A returned payload alone is not independently verified completion.
+    log.info("DONE tool=%s status=returned", tool)
+    canonical = _canonical_result(tool, out, args=args, execution_time_ms=int((time.perf_counter() - started_at) * 1000))
+    return ExecuteResponse(ok=not (isinstance(out, dict) and out.get("ok") is False), result=out, canonical=canonical, tool=tool)
 
 
 @app.post("/companion/pair")

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { X, MessageSquare, ArrowDown, Send } from "lucide-react";
-import { getDesktopConversation, saveDesktopConversation, createDesktopConversation, restoreDesktopConversation, DesktopConversationRecord, DesktopChatMessage } from "../lib/desktopConversationStore";
-import { canSendMessage, shouldApplyConversationResponse } from "./desktopChatUtils";
+import { X, MessageSquare, MessageSquareOff, ArrowDown, Send } from "lucide-react";
+import { getDesktopConversation, saveDesktopConversation, cacheDesktopConversation, createDesktopConversation, restoreDesktopConversation, DesktopConversationRecord, DesktopChatMessage } from "../lib/desktopConversationStore";
+import { canSendMessage, mergePendingVoiceTurns, shouldApplyConversationResponse } from "./desktopChatUtils";
+import { recentChatHistory } from "../core/context/recentChatHistory";
+import { apiFetch } from "../lib/userSession";
+import { readChatStream } from "../lib/chatStream";
 import "./DesktopChatPanel.css";
 
 type Props = {
@@ -16,6 +19,8 @@ type Props = {
 type ChatResponse = {
   text?: string;
   error?: string;
+  persisted?: boolean;
+  savedVoiceTurns?: DesktopChatMessage[];
 };
 
 export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initialConversationId, variant = "desktop" }: Props) {
@@ -24,10 +29,20 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
   const [messages, setMessages] = useState<DesktopChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
+  const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [showScrollToLatest, setShowScrollToLatest] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const initialLoadRef = useRef(true);
   const activeConversationIdRef = useRef<string | null>(null);
+  const messagesRef = useRef<DesktopChatMessage[]>([]);
+  const pendingVoiceTurnsRef = useRef<DesktopChatMessage[]>([]);
+  const pendingVoiceConversationIdRef = useRef<string | null>(null);
+  const sendingRef = useRef(false);
+  const sendAbortRef = useRef<AbortController | null>(null);
+
+  // Switching/closing a conversation stops the provider request and prevents
+  // a stale partial answer being written into another conversation's UI.
+  useEffect(() => () => { sendAbortRef.current?.abort(); }, [conversation?.id, isOpen]);
 
   const title = useMemo(() => conversation?.title ?? "Chat with SARA", [conversation]);
 
@@ -101,8 +116,12 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
         text: detail.text,
         timestamp: new Date().toISOString(),
       };
-      setConversation((current) => current ? { ...current, messages: [...current.messages, message], updatedAt: message.timestamp } : current);
-      setMessages((current) => [...current, message]);
+      pendingVoiceConversationIdRef.current = conversation.id;
+      pendingVoiceTurnsRef.current.push(message);
+      const nextMessages = [...messagesRef.current, message];
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      setConversation((current) => current ? { ...current, messages: nextMessages, updatedAt: message.timestamp } : current);
     };
     window.addEventListener("sara.voiceConversationTurn", onVoiceTurn);
     return () => window.removeEventListener("sara.voiceConversationTurn", onVoiceTurn);
@@ -122,7 +141,12 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
       if (!mounted) return;
       if (loaded) {
         const restored = await restoreDesktopConversation(loaded.id);
-        const active = restored ?? loaded;
+        const saved = restored ?? loaded;
+        const active = pendingVoiceConversationIdRef.current === saved.id
+          ? mergePendingVoiceTurns(saved, pendingVoiceTurnsRef.current) : saved;
+        if (pendingVoiceConversationIdRef.current !== saved.id) pendingVoiceTurnsRef.current = [];
+        pendingVoiceConversationIdRef.current = saved.id;
+        messagesRef.current = active.messages;
         setConversation(active);
         setMessages(active.messages);
         if (typeof window !== "undefined") {
@@ -131,6 +155,9 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
         return;
       }
       const initial = createDesktopConversation();
+      pendingVoiceTurnsRef.current = [];
+      pendingVoiceConversationIdRef.current = initial.id;
+      messagesRef.current = initial.messages;
       setConversation(initial);
       setMessages(initial.messages);
       if (typeof window !== "undefined") {
@@ -144,62 +171,107 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
     };
   }, [isOpen, initialConversationId, isQuickChat]);
 
-  const persistConversation = async (next: DesktopConversationRecord, expectedConversationId?: string | null) => {
-    if (expectedConversationId && !shouldApplyConversationResponse(expectedConversationId, activeConversationIdRef.current)) {
-      return;
-    }
+  const persistConversation = async (next: DesktopConversationRecord, expectedConversationId?: string | null, savedByChat = false) => {
+    if (expectedConversationId && !shouldApplyConversationResponse(expectedConversationId, activeConversationIdRef.current)) return;
+    messagesRef.current = next.messages;
     setConversation(next);
     setMessages(next.messages);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("sara.conversationId", next.id);
-    }
-    await saveDesktopConversation(next);
+    if (typeof window !== "undefined") window.localStorage.setItem("sara.conversationId", next.id);
+    // /api/chat has already saved the new pair and supplied voice turns. Avoid
+    // immediately POSTing (and rewriting) the entire history a second time.
+    if (savedByChat) cacheDesktopConversation(next);
+    else await saveDesktopConversation(next);
   };
 
-  const sendChat = async (text: string) => {
+  const sendChat = async (text: string, previousMessages: DesktopChatMessage[], voiceTurns: DesktopChatMessage[], onDelta: (text: string) => void) => {
+    // A very long voice session retains the existing full-snapshot fallback;
+    // never silently truncate voice turns when using the incremental path.
+    const voiceTurnsFit = voiceTurns.length <= 50 && voiceTurns.every((turn) => turn.text.length <= 8_000);
     const body = JSON.stringify({
       text,
-      history: messages.slice(-20),
+      history: recentChatHistory(previousMessages),
+      voiceTurns: voiceTurnsFit ? voiceTurns : [],
       source: "desktop",
       conversationId: conversation?.id ?? null,
+      title: conversation?.title === "Desktop chat with SARA" ? text.slice(0, 40) : conversation?.title,
       summary: conversation?.summary ?? "",
-      activeContext: conversation?.activeContext ?? {},
+      activeContext: {
+        ...(conversation?.activeContext ?? {}),
+        objective: conversation?.activeContext?.objective && conversation.activeContext.objective !== "Desktop chat with SARA"
+          ? conversation.activeContext.objective : text.slice(0, 80),
+        lastUserMessage: text,
+      },
       taskState: conversation?.taskState ?? {},
     });
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      return { error: data.error || "Desktop chat failed." } as ChatResponse;
+    const controller = new AbortController();
+    sendAbortRef.current = controller;
+    try {
+      const res = await apiFetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body, signal: controller.signal,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { error: data.error || "Desktop chat failed." } as ChatResponse;
+      }
+      // Legacy special routes (e.g. song control) still send one JSON result.
+      const data = res.headers.get("content-type")?.includes("text/event-stream")
+        ? await readChatStream(res, onDelta) : await res.json();
+      return { text: data.text ?? data.result ?? "",
+        persisted: voiceTurnsFit && data.ok === true && data.conversationId === conversation?.id,
+        savedVoiceTurns: voiceTurnsFit && data.ok === true ? voiceTurns : [],
+      } as ChatResponse;
+    } finally {
+      if (sendAbortRef.current === controller) sendAbortRef.current = null;
     }
-    const data = await res.json();
-    return { text: data.text ?? data.result ?? "" } as ChatResponse;
   };
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
-    if (!canSendMessage(trimmed, sending, conversation)) return;
+    if (!canSendMessage(trimmed, sendingRef.current, conversation)) return;
+    sendingRef.current = true;
+    setChatNotice(null);
+    let draftMessage: DesktopChatMessage | null = null;
 
     const requestConversationId = conversation?.id ?? null;
     const userMessage: DesktopChatMessage = { role: "user", text: trimmed, timestamp: new Date().toISOString() };
-    const nextMessages = [...messages, userMessage];
+    const previousMessages = messagesRef.current;
+    const nextMessages = [...previousMessages, userMessage];
+    const unsavedVoiceTurns = [...pendingVoiceTurnsRef.current];
+    messagesRef.current = nextMessages;
     setMessages(nextMessages);
     setInputText("");
     setSending(true);
 
     try {
-      const result = await sendChat(trimmed);
+      const result = await sendChat(trimmed, previousMessages, unsavedVoiceTurns, (delta) => {
+        if (!delta || !shouldApplyConversationResponse(requestConversationId, activeConversationIdRef.current)) return;
+        const current = messagesRef.current;
+        const index = draftMessage ? current.indexOf(draftMessage) : -1;
+        if (draftMessage && index < 0) return; // switched conversations
+        const nextDraft: DesktopChatMessage = { role: "assistant", text: (draftMessage?.text || "") + delta,
+          timestamp: draftMessage?.timestamp || new Date().toISOString() };
+        draftMessage = nextDraft;
+        const next = index >= 0 ? current.map((item, i) => i === index ? nextDraft : item) : [...current, nextDraft];
+        messagesRef.current = next;
+        setMessages(next);
+      });
       if (!shouldApplyConversationResponse(requestConversationId, activeConversationIdRef.current)) {
         return;
       }
       if (!result.text) {
         throw new Error(result.error || "No response from SARA.");
       }
+      if (result.savedVoiceTurns?.length) {
+        pendingVoiceTurnsRef.current = pendingVoiceTurnsRef.current.filter((turn) => !result.savedVoiceTurns?.includes(turn));
+      }
       const assistantMessage: DesktopChatMessage = { role: "assistant", text: result.text, timestamp: new Date().toISOString() };
-      const updatedMessages = [...nextMessages, assistantMessage];
+      // Voice turns may arrive mid-stream; replace only this request's draft.
+      const draftIndex = draftMessage ? messagesRef.current.indexOf(draftMessage) : -1;
+      const updatedMessages = draftIndex >= 0
+        ? messagesRef.current.map((item, index) => index === draftIndex ? assistantMessage : item)
+        : [...messagesRef.current, assistantMessage];
       const updatedConversation: DesktopConversationRecord = {
         ...conversation,
         messages: updatedMessages,
@@ -208,44 +280,30 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
         summary: conversation?.summary || `Continuing conversation about ${trimmed.slice(0, 80) || "the current task"}.`,
         activeContext: {
           ...(conversation?.activeContext ?? {}),
-          objective: conversation?.activeContext?.objective || trimmed.slice(0, 80) || "Continue from saved context",
+          objective: conversation?.activeContext?.objective && conversation.activeContext.objective !== "Desktop chat with SARA"
+            ? conversation.activeContext.objective : trimmed.slice(0, 80) || "Continue from saved context",
           lastUserMessage: trimmed,
           lastUpdatedAt: new Date().toISOString(),
         },
         taskState: {
           ...(conversation?.taskState ?? {}),
-          status: "in_progress",
+          // A chat reply does not imply that an automation task is in progress.
           lastUpdatedAt: new Date().toISOString(),
         },
       };
-      await persistConversation(updatedConversation, requestConversationId);
+      await persistConversation(updatedConversation, requestConversationId, result.persisted === true);
     } catch (error: any) {
-      if (!shouldApplyConversationResponse(requestConversationId, activeConversationIdRef.current)) {
-        return;
+      if (!shouldApplyConversationResponse(requestConversationId, activeConversationIdRef.current)) return;
+      // An aborted/failed stream is not an assistant reply. Remove its draft
+      // and leave an explicit local notice instead of persisting a fake answer.
+      if (draftMessage) {
+        messagesRef.current = messagesRef.current.filter((item) => item !== draftMessage);
+        setMessages(messagesRef.current);
       }
-      const assistantMessage: DesktopChatMessage = {
-        role: "assistant",
-        text: error?.message || "Unable to connect to SARA.",
-        timestamp: new Date().toISOString(),
-      };
-      const updatedMessages = [...nextMessages, assistantMessage];
-      const updatedConversation: DesktopConversationRecord = {
-        ...conversation,
-        messages: updatedMessages,
-        updatedAt: new Date().toISOString(),
-        summary: conversation?.summary || "Conversation restored from saved state.",
-        activeContext: {
-          ...(conversation?.activeContext ?? {}),
-          lastUpdatedAt: new Date().toISOString(),
-        },
-        taskState: {
-          ...(conversation?.taskState ?? {}),
-          status: "needs_attention",
-          lastUpdatedAt: new Date().toISOString(),
-        },
-      };
-      await persistConversation(updatedConversation, requestConversationId);
+      setChatNotice(error?.name === "AbortError" ? "Response stopped. No completed answer was saved."
+        : error?.message || "No completed answer was saved. You can try again.");
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -351,6 +409,16 @@ export function DesktopChatPanel({ isOpen, onClose, onShowConversations, initial
             </div>
 
             <div className={`shrink-0 border-t border-white/10 bg-slate-900/95 ${isQuickChat ? "p-3" : "p-5"}`}>
+              {(sending || chatNotice) && (
+                <div className="mb-3 flex items-center justify-between gap-2 text-xs" role={chatNotice ? "alert" : "status"}>
+                  <span className={chatNotice ? "text-amber-300" : "text-cyan-200"}>
+                    {chatNotice || "Waiting for or receiving provider text. Background tasks continue separately."}
+                  </span>
+                  {sending && <button type="button" onClick={() => sendAbortRef.current?.abort()}
+                    className="shrink-0 rounded-xl border border-amber-500/40 px-3 py-2 text-amber-200 hover:bg-amber-500/10"
+                    aria-label="Stop this chat response without cancelling tasks">Stop response</button>}
+                </div>
+              )}
               <div className="flex gap-2.5">
                 <textarea
                   ref={inputRef}

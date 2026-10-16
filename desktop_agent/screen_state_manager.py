@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Optional
 
 from .registry import ToolError
+from .visual_access import VISUAL_ACCESS
 
 
 @dataclass
@@ -25,32 +26,31 @@ class ScreenStateManager:
     def __init__(self, cache_ttl: float = 0.75) -> None:
         self.cache_ttl = max(0.0, float(cache_ttl))
         self._state: Optional[ScreenState] = None
+        self._grant_generation = -1
 
     def _capture(self):
         if platform.system() != "Windows":
             raise ToolError("Screen state capture is supported only on Windows.")
-        try:
-            from PIL import ImageGrab
-            return ImageGrab.grab(all_screens=True)
-        except Exception as exc:  # noqa: BLE001
-            raise ToolError(f"Screen capture failed: {exc}") from exc
+        from .tools_screenshot import _authorized_capture
+        return _authorized_capture()[0]
 
     @staticmethod
     def _active_window() -> Dict[str, Any]:
-        try:
-            import win32gui
-            hwnd = int(win32gui.GetForegroundWindow() or 0)
-            return {"hwnd": hwnd, "title": win32gui.GetWindowText(hwnd) if hwnd else ""}
-        except Exception:
-            return {}
+        from .tools_screenshot import _active_window_info
+        return _active_window_info() or {}
 
     def current(self, force: bool = False, reason: str = "") -> Dict[str, Any]:
+        grant = VISUAL_ACCESS.require()
         now = time.time()
-        if self._state and not force and now - self._state.timestamp <= self.cache_ttl:
+        window = self._active_window()
+        VISUAL_ACCESS.select(window)
+        if self._state and self._grant_generation == grant.generation and not force and now - self._state.timestamp <= self.cache_ttl and self._state.active_window.get("hwnd") == window.get("hwnd"):
             return {"state": asdict(self._state), "cached": True, "reason": reason}
         image = self._capture()
-        digest = hashlib.sha256(image.tobytes()).hexdigest()
-        self._state = ScreenState(now, digest, image.width, image.height, self._active_window())
+        digest = hashlib.sha256(image.convert("L").resize((64, 64)).tobytes()).hexdigest()
+        VISUAL_ACCESS.unchanged(grant)
+        self._state = ScreenState(now, digest, image.width, image.height, window)
+        self._grant_generation = grant.generation
         return {"state": asdict(self._state), "cached": False, "reason": reason}
 
     def wait_for_change(self, timeout: Any = 5, poll_interval: Any = 0.25) -> Dict[str, Any]:

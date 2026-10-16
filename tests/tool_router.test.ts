@@ -20,6 +20,19 @@ test("ToolRouter rejects unknown tools without execution", async () => {
   assert.equal((result.result as any).verification_status, "SKIPPED");
 });
 
+test("ToolRouter refuses client flags on a newly discovered side-effect tool", async () => {
+  let invoked = 0;
+  const router = new ToolRouter({ isKnownTool: (name) => name === "sendMessage" });
+  router.setAdapter(async () => { invoked++; return { ok: true }; });
+  const rejected = await router.execute("sendMessage", { to: "recipient", confirmed: true, user_confirmed: true, policy_override: true });
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.error, "WAITING_FOR_APPROVAL");
+  assert.equal(router.registry.getMetadata("sendMessage")?.riskLevel, "EXTERNAL_SIDE_EFFECT");
+  assert.equal(invoked, 0);
+  await router.execute("sendMessage", { to: "recipient", policy_override: true }, { confirmed: true });
+  assert.equal(invoked, 1);
+});
+
 test("ToolRouter preserves the existing adapter result and adds canonical data", async () => {
   const router = new ToolRouter({ isKnownTool: () => true });
   router.setAdapter(async (tool, args) => ({

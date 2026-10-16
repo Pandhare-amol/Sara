@@ -9,6 +9,8 @@ pyautogui==0.9.54
 playwright==1.49.1
 psutil==6.1.1
 pywin32==308; sys_platform == "win32"
+# UI Automation for the opt-in SARA 11 visual navigation path; lazy import.
+pywinauto==0.6.9; sys_platform == "win32"
 pyperclip==1.9.0
 pytesseract==0.3.13
 Pillow==11.0.0

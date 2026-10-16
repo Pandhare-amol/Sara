@@ -33,6 +33,8 @@ const net = require('net');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const { backendDataDir, protectedDatastoreExists } = require('./nativeGuard.cjs');
+const { canChooseScreen } = require('./screenPermission.cjs');
 
 // --- Constants -------------------------------------------------------------
 const SERVER_PORT = Number(process.env.SARA_ELECTRON_PORT || 3000);
@@ -43,6 +45,16 @@ if (!Number.isInteger(SERVER_PORT) || SERVER_PORT < 1 || SERVER_PORT > 65535) {
 // exception and is required by the server's local passkey policy.
 const SERVER_ORIGIN = `http://localhost:${SERVER_PORT}`;
 const SERVER_READY_TIMEOUT_MS = 40_000;
+
+
+// In development we run from the repo root; when packaged the app files live in
+// resources/app (asar-unpacked handling is added in the packaging phase).
+const APP_ROOT = app.isPackaged
+  ? path.join(process.resourcesPath, 'app')
+  : path.join(__dirname, '..');
+// Native IPC handlers exist independently of Express. They must see the SAME
+// protected flag as the backend before responding to any capture request.
+require('dotenv').config({ path: path.join(APP_ROOT, '.env') });
 const SUPERVISOR_MANAGES_BACKEND =
   process.env.SARA_SUPERVISOR === '1' ||
   process.env.SARA_SERVICE_MANAGER === '1';
@@ -50,15 +62,8 @@ const configuredAgentInternalToken = String(process.env.SARA_AGENT_INTERNAL_TOKE
 if (configuredAgentInternalToken && Buffer.byteLength(configuredAgentInternalToken, 'utf8') < 32) {
   throw new Error('SARA_AGENT_INTERNAL_TOKEN must contain at least 32 UTF-8 bytes.');
 }
-// Share an in-memory token across this Electron process and its backend. The
-// production supervisor supplies its own process-scoped token when present.
+// Generated only in this Electron process and shared with its backend.
 const SARA_AGENT_INTERNAL_TOKEN = configuredAgentInternalToken || crypto.randomBytes(32).toString('base64url');
-
-// In development we run from the repo root; when packaged the app files live in
-// resources/app (asar-unpacked handling is added in the packaging phase).
-const APP_ROOT = app.isPackaged
-  ? path.join(process.resourcesPath, 'app')
-  : path.join(__dirname, '..');
 
 const SERVER_ENTRY = path.join(APP_ROOT, 'dist', 'server.cjs');
 
@@ -72,79 +77,22 @@ let mainWindow = null;
 let splashWindow = null;
 let isQuitting = false;
 
-ipcMain.handle('sara:get-screen-sources', async () => {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen', 'window'],
-    thumbnailSize: { width: 1280, height: 720 },
-    fetchWindowIcons: false,
+function multiUserScreenLocked() {
+  return protectedDatastoreExists({
+    required: process.env.SARA_MULTIUSER_REQUIRED === 'true',
+    appRoot: APP_ROOT,
+    appUserData: app.getPath('userData'),
+    configuredDataDir: process.env.SARA_DATA_DIR,
   });
+}
 
-  return sources.map((source) => ({
-    id: source.id,
-    name: source.name,
-    display_id: source.display_id,
-  }));
-});
-
-ipcMain.handle('sara:get-primary-screen-source-id', async () => {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: 1, height: 1 },
-    fetchWindowIcons: false,
-  });
-
-  return sources[0]?.id ?? null;
-});
-
-ipcMain.handle('sara:check-screen-permission', async () => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1, height: 1 },
-      fetchWindowIcons: false,
-    });
-    const thumbnail = sources[0]?.thumbnail;
-    const thumbnailOk = Boolean(thumbnail && !thumbnail.isEmpty());
-    return {
-      ok: sources.length > 0 && thumbnailOk,
-      sourcesFound: sources.length,
-      thumbnailOk,
-      message:
-        sources.length > 0 && thumbnailOk
-          ? undefined
-          : 'No screen capture source is available.',
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      sourcesFound: 0,
-      thumbnailOk: false,
-      message: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
-
-ipcMain.handle('sara:capture-screen-frame', async (_event, options = {}) => {
-  const maxWidth = Number.isFinite(options.maxWidth) ? options.maxWidth : 960;
-  const quality = Number.isFinite(options.quality) ? options.quality : 55;
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: maxWidth, height: Math.round(maxWidth * 0.5625) },
-    fetchWindowIcons: false,
-  });
-  const thumbnail = sources[0]?.thumbnail;
-  if (!thumbnail || thumbnail.isEmpty()) {
-    return { ok: false, error: 'No screen source available.' };
-  }
-
-  const size = thumbnail.getSize();
-  return {
-    ok: true,
-    frame: thumbnail.toJPEG(Math.max(1, Math.min(100, quality))).toString('base64'),
-    width: size.width,
-    height: size.height,
-  };
-});
+// Retired IPC capture shortcuts bypassed user-selected display/window scope.
+// Keep these channels deny-only for older renderer builds; only the native
+// display-media picker below may approve a stream, after a fresh user gesture.
+ipcMain.handle('sara:get-screen-sources', () => []);
+ipcMain.handle('sara:get-primary-screen-source-id', () => null);
+ipcMain.handle('sara:check-screen-permission', () => ({ ok: false, message: 'Use the Share Screen picker.' }));
+ipcMain.handle('sara:capture-screen-frame', () => ({ ok: false, error: 'Use user-approved display media or scoped visual access.' }));
 
 // ---------------------------------------------------------------------------
 // Single-instance guard â€” second launches focus the existing window instead of
@@ -162,16 +110,32 @@ if (!gotSingleInstanceLock) {
     }
   });
   app.whenReady().then(() => {
-    session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+      // Electron does not supply a Windows picker by default. Never pick the
+      // first display silently: only approve an explicit choice from our own
+      // foreground modal for a trusted app-origin, user-gesture request.
+      if (!canChooseScreen(request, SERVER_ORIGIN, multiUserScreenLocked()) || !mainWindow || mainWindow.isDestroyed()) {
+        callback({}); return;
+      }
       try {
-        const sources = await desktopCapturer.getSources({
-          types: ['screen'],
-          thumbnailSize: { width: 1, height: 1 },
-          fetchWindowIcons: false,
+        const sources = (await desktopCapturer.getSources({
+          types: ['window', 'screen'], thumbnailSize: { width: 1, height: 1 }, fetchWindowIcons: false,
+        })).slice(0, 12);
+        if (!sources.length) { callback({}); return; }
+        const cancel = sources.length;
+        const choice = await dialog.showMessageBox(mainWindow, {
+          type: 'question', title: 'SARA screen sharing',
+          message: 'Choose one window or display to share with Live voice',
+          detail: 'Visible frames can be sent to the configured Live model until you pause or stop sharing. A display can show other private windows. Cancel is the default.',
+          buttons: [...sources.map((source) => source.name.slice(0, 65)), 'Cancel'],
+          defaultId: cancel, cancelId: cancel, noLink: true,
         });
-        callback(sources[0] ? { video: sources[0] } : {});
+        if (choice.response === cancel || multiUserScreenLocked() || !mainWindow || mainWindow.isDestroyed()) {
+          callback({}); return;
+        }
+        callback({ video: sources[choice.response] });
       } catch (error) {
-        console.error('[Screen Capture] Failed to resolve display media source:', error);
+        console.error('[Screen Capture] Display selection unavailable.');
         callback({});
       }
     });
@@ -193,7 +157,7 @@ function startBackend() {
   // machine does not need a separate Node install once packaged.
   // Data (memories, settings, secrets, logs) must live in a writable per-user
   // folder â€” the install dir under Program Files is read-only.
-  const dataDir = app.getPath('userData');
+  const dataDir = backendDataDir(APP_ROOT, app.getPath('userData'), process.env.SARA_DATA_DIR);
 
   // Frozen Python desktop agent (bundled as an extraResource when packaged).
   // In development this file won't exist, so the backend falls back to running

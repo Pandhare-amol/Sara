@@ -121,12 +121,12 @@ export class DesktopAgent implements Agent {
         {
           id: 'screenshot',
           name: 'Take Screenshot',
-          description: 'Capture current screen state',
+          description: 'Legacy direct capture disabled; use approved screen observation in Tasks',
           version: '1.0.0',
           parameters: { monitor: 'number?' },
-          expectedResult: 'PNG screenshot buffer',
-          verification: { method: 'automatic', checkFunction: () => true },
-          confirmed: true,
+          expectedResult: 'Unavailable until an approved screen bridge is integrated',
+          verification: { method: 'automatic', checkFunction: () => false },
+          confirmed: false,
         },
       ],
       permissions: this.createPermissions(),
@@ -608,62 +608,9 @@ export class DesktopAgent implements Agent {
 
   // ============ SCREEN OPERATIONS ============
 
-  /**
-   * Take screenshot
-   * 
-   * Production implementation options:
-   * 1. robotjs: robot.screenshot()
-   * 2. Windows API: WinAPI BitBlt
-   * 3. Node packages: screenshot-desktop, jimp
-   */
-  async takeScreenshot(monitor: number = 0): Promise<Buffer> {
-    try {
-      console.log(`[DesktopAgent] Taking screenshot of monitor ${monitor}`);
-      
-      try {
-        // Try robotjs first
-        const robot = require('robotjs');
-        const screenshot = robot.screenshot();
-        
-        if (!screenshot) {
-          throw new Error('Screenshot returned null');
-        }
-        
-        // Convert to Buffer
-        // robotjs returns image data, convert to PNG
-        const width = screenshot.width;
-        const height = screenshot.height;
-        const colorWidth = screenshot.colorWidth;
-        
-        // Create a simple representation (in production, would use PNG encoder)
-        const buffer = Buffer.alloc(width * height * 4);
-        
-        // Copy pixel data
-        let bufIdx = 0;
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const pixelIdx = (y * width + x) * colorWidth;
-            if (pixelIdx + 3 < screenshot.image.length) {
-              buffer[bufIdx++] = screenshot.image[pixelIdx]; // R
-              buffer[bufIdx++] = screenshot.image[pixelIdx + 1]; // G
-              buffer[bufIdx++] = screenshot.image[pixelIdx + 2]; // B
-              buffer[bufIdx++] = 255; // A
-            }
-          }
-        }
-        
-        console.log(`[DesktopAgent] Screenshot captured: ${width}x${height}`);
-        this.status.successCount++;
-        return buffer;
-      } catch {
-        // Fallback: create minimal valid buffer
-        console.log(`[DesktopAgent] robotjs not available, creating placeholder screenshot`);
-        return Buffer.from([137, 80, 78, 71]); // PNG header
-      }
-    } catch (error) {
-      this.recordError(`Failed to take screenshot: ${error}`, error as Error);
-      return Buffer.from([]);
-    }
+  /** This unscoped robotjs path was unsafe and its placeholder falsely implied capture. */
+  async takeScreenshot(_monitor: number = 0): Promise<Buffer> {
+    throw new Error('Direct screenshots are disabled. Use an explicitly approved visual session in Tasks.');
   }
 
   /**
