@@ -60,6 +60,84 @@ test("invalid project records and unsupported stores are preserved for recovery"
   }
 });
 
+test("verified project workflow requires approval, commits atomically, and is idempotent on retry", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sara-project-workflow-"));
+  const storagePath = path.join(directory, "projects.json");
+  const manager = new LocalProjectManager(storagePath);
+  const draft = {
+    workflowId: "workflow-test-001",
+    project: { title: "Quarterly report", description: "Prepare and verify a local report." },
+    tasks: [
+      { title: "Collect metrics", priority: "high" },
+      { title: "Review findings", priority: "normal" },
+    ],
+  };
+  try {
+    assert.throws(() => manager.applyProjectWorkflow(draft, false), /explicit approval/i);
+    assert.equal(fs.existsSync(storagePath), false);
+
+    const preview = manager.previewProjectWorkflow(draft);
+    assert.equal(preview.tasks.length, 2);
+    const first = manager.applyProjectWorkflow(draft, true);
+    assert.equal(first.alreadyApplied, false);
+    assert.equal(first.tasks.length, 2);
+
+    const reopened = new LocalProjectManager(storagePath);
+    const retry = reopened.applyProjectWorkflow(draft, true);
+    assert.equal(retry.alreadyApplied, true);
+    assert.equal(retry.project.id, first.project.id);
+    assert.deepEqual(retry.tasks.map((task) => task.id), first.tasks.map((task) => task.id));
+
+    const stored = JSON.parse(fs.readFileSync(storagePath, "utf8"));
+    assert.equal(stored.projects.length, 1);
+    assert.equal(stored.tasks.length, 2);
+    assert.equal(stored.workflowApplications.length, 1);
+    assert.equal(reopened.getProject(first.project.id)?.tasks.length, 2);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a workflow retry with a changed plan is rejected without adding duplicate records", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sara-project-workflow-conflict-"));
+  const storagePath = path.join(directory, "projects.json");
+  const manager = new LocalProjectManager(storagePath);
+  try {
+    const base = {
+      workflowId: "workflow-test-002",
+      project: { title: "Research" },
+      tasks: [{ title: "Read source material" }],
+    };
+    manager.applyProjectWorkflow(base, true);
+    assert.throws(() => manager.applyProjectWorkflow({
+      ...base,
+      tasks: [{ title: "Different task" }],
+    }, true), /different plan/i);
+    const stored = JSON.parse(fs.readFileSync(storagePath, "utf8"));
+    assert.equal(stored.projects.length, 1);
+    assert.equal(stored.tasks.length, 1);
+    assert.equal(stored.tasks[0].title, "Read source material");
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("invalid project workflow drafts are rejected before any data is written", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sara-project-workflow-invalid-"));
+  const storagePath = path.join(directory, "projects.json");
+  const manager = new LocalProjectManager(storagePath);
+  try {
+    assert.throws(() => manager.previewProjectWorkflow({
+      workflowId: "workflow-invalid",
+      project: { title: "Invalid" },
+      tasks: [],
+    }), /between 1 and 50 tasks/i);
+    assert.equal(fs.existsSync(storagePath), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("project manager validates user input and keeps archive as a reversible state change", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "sara-projects-"));
   const manager = new LocalProjectManager(path.join(directory, "projects.json"));

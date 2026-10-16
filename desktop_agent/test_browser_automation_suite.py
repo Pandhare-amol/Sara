@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import unittest
+from unittest.mock import patch
 
 
 class BrowserAutomationSuiteTest(unittest.TestCase):
@@ -16,8 +17,10 @@ class BrowserAutomationSuiteTest(unittest.TestCase):
         self.assertEqual(plan["args"]["query"], "AI news")
 
     def test_execute_open_browser_returns_result(self) -> None:
-        result = self.browser_suite.execute("open", {"url": "https://example.com"}, confirmed=False)
+        with patch.object(self.browser_suite, "_call_tool", return_value={"result": "Opened in test browser."}) as call_tool:
+            result = self.browser_suite.execute("open", {"url": "https://example.com"}, confirmed=False)
         self.assertIn("result", result)
+        call_tool.assert_called_once_with("desktopBrowserOpen", {"url": "https://example.com"})
 
     def test_sensitive_actions_require_confirmation(self) -> None:
         result = self.browser_suite.execute("purchase", {}, confirmed=False)

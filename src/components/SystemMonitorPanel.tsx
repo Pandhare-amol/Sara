@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, BatteryCharging, BatteryWarning, Cpu, HardDrive, MemoryStick, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { SystemResourceAlert, SystemResourceSnapshot } from "../services/SystemResourceMonitor";
+import { areVoiceAlertsEnabled, dispatchGlobalNotification, requestBrowserNotificationPermission, setVoiceAlertsEnabled } from "../services/globalNotifications";
 
 interface SystemMonitorPanelProps {
   isOpen: boolean;
@@ -44,6 +45,12 @@ export function SystemMonitorPanel({ isOpen, onClose, onOpenMonitor }: SystemMon
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeAlert, setActiveAlert] = useState<SystemResourceAlert | null>(null);
+  const [voiceAlertsEnabledState, setVoiceAlertsEnabledState] = useState(areVoiceAlertsEnabled);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
+  const [notificationControlMessage, setNotificationControlMessage] = useState<string | null>(null);
   const [closingPid, setClosingPid] = useState<number | null>(null);
   const [closeMessage, setCloseMessage] = useState<string | null>(null);
   const lastSeenAlertTime = useRef(Date.now() - 60_000);
@@ -65,6 +72,16 @@ export function SystemMonitorPanel({ isOpen, onClose, onOpenMonitor }: SystemMon
         unseen.sort((left, right) => left.createdAt - right.createdAt);
         const newest = unseen[unseen.length - 1];
         setActiveAlert(newest);
+        const summary = unseen.length > 1
+          ? `${unseen.length} new system resource warnings. ${newest.message}`
+          : newest.message;
+        dispatchGlobalNotification({
+          title: newest.severity === "CRITICAL" ? "Critical system resource warning" : "System resource warning",
+          message: summary,
+          severity: newest.severity === "CRITICAL" ? "critical" : "warning",
+          tag: newest.id,
+          source: "system-monitor",
+        });
         lastSeenAlertTime.current = Math.max(lastSeenAlertTime.current, ...unseen.map((alert) => Number(alert.createdAt) || 0));
       }
       if (seenAlertIds.current.size > 200) {
@@ -82,6 +99,24 @@ export function SystemMonitorPanel({ isOpen, onClose, onOpenMonitor }: SystemMon
     const timer = window.setInterval(() => { void refresh(); }, 10_000);
     return () => window.clearInterval(timer);
   }, [refresh]);
+
+  const updateVoiceAlerts = (enabled: boolean) => {
+    setVoiceAlertsEnabled(enabled);
+    setVoiceAlertsEnabledState(enabled);
+    setNotificationControlMessage(enabled ? "Device voice alerts are enabled. They play while SARA's live microphone session is disconnected to avoid audio echo." : "Device voice alerts are off.");
+  };
+
+  const enableBrowserNotifications = async () => {
+    const permission = await requestBrowserNotificationPermission();
+    setNotificationPermission(permission);
+    setNotificationControlMessage(permission === "granted"
+      ? "Desktop notifications are enabled for this browser."
+      : permission === "unsupported"
+        ? "This browser does not support desktop notifications."
+        : permission === "denied"
+          ? "Notifications are blocked. Change this site's permission in browser settings to enable them."
+          : "Notification permission was not granted.");
+  };
 
   const requestGracefulClose = async (process: SystemResourceSnapshot["processes"][number]) => {
     setCloseMessage(null);
@@ -165,6 +200,24 @@ export function SystemMonitorPanel({ isOpen, onClose, onOpenMonitor }: SystemMon
               </header>
 
               <div className="flex-1 space-y-5 overflow-y-auto p-5">
+                <section className="rounded-xl border border-white/10 bg-slate-900/60 p-3" aria-label="System alert delivery settings">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-slate-200">
+                      <input type="checkbox" checked={voiceAlertsEnabledState} onChange={(event) => updateVoiceAlerts(event.currentTarget.checked)} />
+                      Device voice alerts
+                    </label>
+                    {notificationPermission === "granted" ? (
+                      <span className="text-[10px] text-emerald-300">Desktop notifications enabled</span>
+                    ) : (
+                      <button type="button" onClick={() => void enableBrowserNotifications()} disabled={notificationPermission === "unsupported" || notificationPermission === "denied"} className="rounded-lg border border-cyan-300/25 px-2.5 py-1.5 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-50">
+                        {notificationPermission === "denied" ? "Blocked in browser" : notificationPermission === "unsupported" ? "Desktop notifications unavailable" : "Enable desktop notifications"}
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-slate-500">Voice alerts use device speech only while SARA's live microphone session is disconnected, avoiding audio echo. Desktop notifications require browser permission. Alerts never force-close apps.</p>
+                  {notificationControlMessage && <p role="status" className="mt-2 text-[10px] text-cyan-200">{notificationControlMessage}</p>}
+                </section>
+                {activeAlert && isOpen && <div className="rounded-lg border border-amber-400/30 bg-amber-950/30 p-3 text-xs text-amber-100" role="alert"><div className="flex items-start justify-between gap-2"><div><strong className="block text-[10px] uppercase tracking-widest text-amber-300">System resource warning</strong><span className="mt-1 block">{activeAlert.message}</span></div><button type="button" onClick={() => setActiveAlert(null)} className="text-amber-200 hover:text-white" aria-label="Dismiss system warning"><X size={14} /></button></div></div>}
                 {loadError && <div className="rounded-lg border border-rose-400/30 bg-rose-950/30 p-3 text-xs text-rose-200" role="status">{loadError}</div>}
                 {closeMessage && <div className="rounded-lg border border-cyan-300/20 bg-cyan-950/25 p-3 text-xs text-cyan-100" role="status">{closeMessage}</div>}
 

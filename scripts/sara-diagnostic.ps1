@@ -105,19 +105,32 @@ function CheckProcesses {
 
 function RunHealthChecks {
   Log "Starting health checks..." "Diagnostic"
-  
-  $results = @{
-    Backend = HealthCheck 3000 "Backend/Frontend"
-    DesktopAgent = HealthCheck 8765 "Desktop Agent"
+
+  $backendReady = HealthCheck 3000 "Backend/Frontend"
+  $agentLiveness = HealthCheck 8765 "Desktop Agent liveness"
+  $agentReady = $false
+  if ($backendReady) {
+    try {
+      $readiness = Invoke-RestMethod -Uri "http://127.0.0.1:3000/api/agent-health" -TimeoutSec 3 -ErrorAction Stop
+      $agentReady = $readiness.agent_auth_verified -eq $true
+      if ($agentReady) {
+        Log "Desktop Agent authenticated readiness verified by backend" "Success"
+      } elseif ($agentLiveness) {
+        Log "Desktop Agent responds to public liveness only; authenticated readiness is unverified" "Warning"
+      }
+    }
+    catch {
+      if ($agentLiveness) { Log "Desktop Agent liveness is available, but authenticated readiness could not be verified" "Warning" }
+    }
   }
-  
+  $results = @{ Backend = $backendReady; DesktopAgentAuthenticated = $agentReady }
   $allHealthy = $results.Values | Where-Object { $_ -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
   $total = $results.Count
-  
-  Log "Health check results: $allHealthy/$total services healthy" $(
+
+  Log "Authenticated readiness results: $allHealthy/$total services healthy" $(
     if ($allHealthy -eq $total) { "Success" } else { "Warning" }
   )
-  
+
   return $allHealthy -eq $total
 }
 

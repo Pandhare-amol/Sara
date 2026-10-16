@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2, Circle, Clock3, FolderKanban, Plus, RefreshCw, X } from "lucide-react";
+import { CheckCircle2, Circle, Clock3, FolderKanban, ListChecks, Plus, RefreshCw, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import type { GeneralProject, GeneralProjectDetail, GeneralProjectSummary, GeneralTask, GeneralTaskStatus } from "../services/LocalProjectManager";
+import type { GeneralProject, GeneralProjectDetail, GeneralProjectSummary, GeneralTask, GeneralTaskStatus, NormalizedProjectWorkflowDraft } from "../services/LocalProjectManager";
 
 interface ProjectManagerPanelProps {
   isOpen: boolean;
@@ -32,6 +32,12 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
   const [loading, setLoading] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [showWorkflowForm, setShowWorkflowForm] = useState(false);
+  const [workflowTitle, setWorkflowTitle] = useState("");
+  const [workflowDescription, setWorkflowDescription] = useState("");
+  const [workflowTaskLines, setWorkflowTaskLines] = useState("");
+  const [workflowPreview, setWorkflowPreview] = useState<NormalizedProjectWorkflowDraft | null>(null);
+  const [applyingWorkflow, setApplyingWorkflow] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [projectTitle, setProjectTitle] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
@@ -105,6 +111,67 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
       await loadDetail(payload.project.id);
       setMessage("Project created and saved locally.");
     } catch (caught: any) { setError(caught?.message || "Could not create project."); }
+  };
+
+  const previewWorkflow = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    try {
+      const taskTitles = workflowTaskLines
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+        .filter(Boolean);
+      if (!taskTitles.length) throw new Error("Add at least one task, with one task per line.");
+      if (taskTitles.length > 50) throw new Error("A workflow can contain at most 50 tasks.");
+      if (typeof globalThis.crypto?.randomUUID !== "function") throw new Error("Secure workflow IDs are unavailable in this runtime.");
+      const response = await fetch("/api/projects/workflows/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflowId: globalThis.crypto.randomUUID(),
+          project: { title: workflowTitle, description: workflowDescription },
+          tasks: taskTitles.map((title) => ({ title, priority: "normal" })),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok !== true || !payload.plan) throw new Error(payload?.error || "Could not preview this workflow.");
+      setWorkflowPreview(payload.plan as NormalizedProjectWorkflowDraft);
+      setMessage("Preview ready. Nothing has been saved; review the project and every task below.");
+    } catch (caught: any) {
+      setError(caught?.message || "Could not preview this workflow.");
+    }
+  };
+
+  const approveAndApplyWorkflow = async () => {
+    if (!workflowPreview) return;
+    setApplyingWorkflow(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/projects/workflows/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...workflowPreview, approved: true }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok !== true || payload?.verification?.persisted !== true) {
+        throw new Error(payload?.error || "The project workflow could not be verified.");
+      }
+      await Promise.all([loadProjects(), loadDetail(payload.project.id)]);
+      setWorkflowPreview(null);
+      setShowWorkflowForm(false);
+      setWorkflowTitle("");
+      setWorkflowDescription("");
+      setWorkflowTaskLines("");
+      setMessage(payload.alreadyApplied
+        ? `Verified retry: ${payload.verification.taskCount} saved tasks; no duplicates were created.`
+        : `Workflow applied and verified: ${payload.verification.taskCount} local tasks saved.`);
+    } catch (caught: any) {
+      setError(caught?.message || "Could not apply this workflow. The preview is retained so you can safely retry.");
+    } finally {
+      setApplyingWorkflow(false);
+    }
   };
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
@@ -189,7 +256,10 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
               <section className="flex max-h-[42vh] w-full flex-col border-b border-white/10 md:max-h-none md:w-[18rem] md:border-b-0 md:border-r" aria-label="Project list">
                 <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Your projects</span>
-                  <button type="button" onClick={() => setShowProjectForm((value) => !value)} className="flex items-center gap-1 rounded-lg bg-cyan-400/10 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-400/20"><Plus size={12} /> New</button>
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => { setShowWorkflowForm((value) => !value); setShowProjectForm(false); setWorkflowPreview(null); }} className="flex items-center gap-1 rounded-lg bg-violet-400/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-violet-200 hover:bg-violet-400/20"><ListChecks size={12} /> Plan</button>
+                    <button type="button" onClick={() => { setShowProjectForm((value) => !value); setShowWorkflowForm(false); setWorkflowPreview(null); }} className="flex items-center gap-1 rounded-lg bg-cyan-400/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-400/20"><Plus size={12} /> New</button>
+                  </div>
                 </div>
                 <label className="flex items-center gap-2 px-4 py-2 text-[10px] text-slate-500"><input type="checkbox" checked={showArchived} onChange={(event) => { setShowArchived(event.target.checked); void loadProjects(event.target.checked).catch((caught: any) => setError(caught?.message || "Could not load archived projects.")); }} /> Include archived projects</label>
                 <div className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -205,6 +275,28 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
               <main className="min-h-0 flex-1 overflow-y-auto p-5">
                 {error && <div className="mb-4 rounded-lg border border-rose-400/30 bg-rose-950/30 p-3 text-xs text-rose-200" role="alert">{error}</div>}
                 {message && <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-950/20 p-3 text-xs text-emerald-100" role="status">{message}</div>}
+
+                {showWorkflowForm && (
+                  <form onSubmit={previewWorkflow} className="mb-4 rounded-xl border border-violet-300/20 bg-violet-950/15 p-4">
+                    <h3 className="mb-1 text-xs font-bold uppercase tracking-widest text-violet-100">Verified project workflow</h3>
+                    <p className="mb-3 text-[10px] leading-relaxed text-slate-400">Draft a project and its task checklist. Preview does not save anything; applying only writes these records to SARA’s local project store. It will not open apps, visit sites, send messages, or run commands.</p>
+                    <label className="mb-2 block text-[10px] text-slate-400">Project name<input autoFocus required maxLength={160} value={workflowTitle} onChange={(event) => { setWorkflowTitle(event.target.value); setWorkflowPreview(null); }} placeholder="e.g. Prepare the launch checklist" className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-violet-300/50" /></label>
+                    <label className="mb-2 block text-[10px] text-slate-400">Outcome / description<textarea maxLength={2000} value={workflowDescription} onChange={(event) => { setWorkflowDescription(event.target.value); setWorkflowPreview(null); }} rows={2} placeholder="What should be true when this project is complete?" className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-violet-300/50" /></label>
+                    <label className="mb-3 block text-[10px] text-slate-400">Tasks <span className="text-slate-500">(one per line; up to 50)</span><textarea required maxLength={12000} value={workflowTaskLines} onChange={(event) => { setWorkflowTaskLines(event.target.value); setWorkflowPreview(null); }} rows={5} placeholder={"Confirm requirements\nGather materials\nReview the result"} className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-violet-300/50" /></label>
+                    <div className="flex justify-end gap-2"><button type="button" onClick={() => { setShowWorkflowForm(false); setWorkflowPreview(null); }} className="rounded-lg px-3 py-2 text-[10px] text-slate-400 hover:text-white">Cancel</button><button type="submit" className="rounded-lg bg-violet-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-950">Preview workflow</button></div>
+                  </form>
+                )}
+
+                {showWorkflowForm && workflowPreview && (
+                  <section aria-label="Workflow preview" className="mb-5 rounded-xl border border-emerald-300/25 bg-emerald-950/15 p-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200"><ListChecks size={14} /> Review before applying</div>
+                    <h4 className="mt-3 text-sm font-semibold text-white">{workflowPreview.project.title}</h4>
+                    {workflowPreview.project.description && <p className="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-400">{workflowPreview.project.description}</p>}
+                    <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-xs text-slate-200">{workflowPreview.tasks.map((task, index) => <li key={`${workflowPreview.workflowId}-${index}`}>{task.title}<span className="ml-2 text-[9px] uppercase tracking-wider text-slate-500">{task.priority}</span></li>)}</ol>
+                    <p className="mt-3 rounded-lg bg-black/20 p-2 text-[10px] leading-relaxed text-slate-400">Approval creates exactly 1 local project and {workflowPreview.tasks.length} local tasks. No other app, website, file, or external service is affected.</p>
+                    <div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={applyingWorkflow} onClick={() => setWorkflowPreview(null)} className="rounded-lg px-3 py-2 text-[10px] text-slate-400 hover:text-white disabled:opacity-50">Edit draft</button><button type="button" disabled={applyingWorkflow} onClick={() => void approveAndApplyWorkflow()} className="rounded-lg bg-emerald-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-950 disabled:opacity-50">{applyingWorkflow ? "Applying…" : "Approve & apply locally"}</button></div>
+                  </section>
+                )}
 
                 {showProjectForm && (
                   <form onSubmit={createProject} className="mb-5 rounded-xl border border-cyan-300/20 bg-cyan-950/15 p-4">
@@ -235,7 +327,7 @@ export function ProjectManagerPanel({ isOpen, onClose }: ProjectManagerPanelProp
 
                     {detail.tasks.length ? <ul className="space-y-2">{detail.tasks.map((task) => <li key={task.id} className="flex flex-col gap-3 rounded-xl border border-white/8 bg-slate-900/55 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-start gap-2.5"><div className="mt-0.5 text-cyan-300">{task.status === "done" ? <CheckCircle2 size={16} /> : task.status === "blocked" ? <Clock3 size={16} className="text-amber-300" /> : <Circle size={16} />}</div><div className="min-w-0"><p className={`break-words text-xs font-semibold ${task.status === "done" ? "text-slate-400 line-through" : "text-white"}`}>{task.title}</p>{task.description && <p className="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500">{task.description}</p>}<p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">{task.priority} priority{task.dueDate ? ` · due ${new Date(task.dueDate).toLocaleDateString()}` : ""}</p></div></div><select aria-label={`Status for ${task.title}`} value={task.status} onChange={(event) => void updateTaskStatus(task.id, event.target.value as GeneralTaskStatus)} className="shrink-0 rounded-lg border border-white/10 bg-slate-950 px-2 py-2 text-[10px] text-slate-200">{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></li>)}</ul> : <div className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center"><p className="text-xs text-slate-400">No tasks yet. Add a next step to make progress visible.</p></div>}
                   </>
-                ) : !showProjectForm && <div className="flex h-full min-h-64 flex-col items-center justify-center text-center"><FolderKanban size={32} className="text-slate-700" /><h3 className="mt-4 text-sm font-semibold text-slate-300">Choose a project</h3><p className="mt-2 max-w-xs text-xs leading-relaxed text-slate-500">Create a project and break it into tasks. SARA stores this separately from music production workflows.</p></div>}
+                ) : !showProjectForm && !showWorkflowForm && <div className="flex h-full min-h-64 flex-col items-center justify-center text-center"><FolderKanban size={32} className="text-slate-700" /><h3 className="mt-4 text-sm font-semibold text-slate-300">Choose a project</h3><p className="mt-2 max-w-xs text-xs leading-relaxed text-slate-500">Create a project and break it into tasks. SARA stores this separately from music production workflows.</p></div>}
               </main>
             </div>
           </motion.aside>

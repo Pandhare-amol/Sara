@@ -110,13 +110,25 @@ Write-Host ""
 
 try {
     $agent = Invoke-RestMethod -Uri "http://localhost:8765/health" -TimeoutSec 5
-    Write-Host "[OK] Desktop agent running at http://localhost:8765" -ForegroundColor Green
-    if ($agent.tools_count) {
-        Write-Host "     Tools available: $($agent.tools_count)" -ForegroundColor Green
+    if ($agent.service -eq 'sara-desktop-agent' -and [int]$agent.agent_auth_protocol_version -eq 1) {
+        try {
+            $readiness = Invoke-RestMethod -Uri "http://localhost:3000/api/agent-health" -TimeoutSec 5
+            if ($readiness.agent_auth_verified -eq $true) {
+                Write-Host "[OK] Desktop agent authenticated readiness verified by backend" -ForegroundColor Green
+                if ($agent.tool_count) { Write-Host "     Tools available: $($agent.tool_count)" -ForegroundColor Green }
+            } else {
+                Write-Host "[INFO] Agent is listening, but authenticated readiness is not verified" -ForegroundColor Yellow
+            }
+        }
+        catch {
+            Write-Host "[INFO] Agent liveness only; backend authenticated readiness is unavailable" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[WARNING] Agent health responded, but its authenticated protocol is incompatible" -ForegroundColor Yellow
     }
 }
 catch {
-    Write-Host "[INFO] Desktop agent will start automatically when needed" -ForegroundColor Yellow
+    Write-Host "[INFO] Desktop agent liveness is unavailable" -ForegroundColor Yellow
 }
 
 # SECTION 4: Build Artifacts

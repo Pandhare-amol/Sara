@@ -23,6 +23,28 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisText, setAnalysisText] = useState<string | null>(null);
+  const [isRequestingEmergencyStop, setIsRequestingEmergencyStop] = useState(false);
+  const [emergencyStopMessage, setEmergencyStopMessage] = useState<string | null>(null);
+
+  const requestEmergencyStop = async () => {
+    setIsRequestingEmergencyStop(true);
+    setEmergencyStopMessage(null);
+    try {
+      const response = await fetch("/api/orchestrator/emergency-stop", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) {
+        throw new Error(payload?.error || `Emergency stop request failed (${response.status}).`);
+      }
+      const desktopAgentUnavailable = payload?.desktopAgent?.ok === false;
+      setEmergencyStopMessage(
+        `${payload?.message || "Stop requested."}${desktopAgentUnavailable ? " Desktop-agent status is unavailable; an in-flight desktop action may continue." : ""}`,
+      );
+    } catch (error: any) {
+      setEmergencyStopMessage(error?.message || "Could not send the emergency-stop request.");
+    } finally {
+      setIsRequestingEmergencyStop(false);
+    }
+  };
 
   const updateVisionEnabled = useCallback(async (enabled: boolean) => {
     try {
@@ -377,6 +399,7 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
       {analysisText && <div className="mb-2 rounded bg-cyan-950/50 p-2 text-xs text-cyan-100">{analysisText}</div>}
 
       {errorText && <div className="text-xs text-rose-300">{errorText}</div>}
+      {emergencyStopMessage && <div role="status" className="mt-2 text-xs text-amber-200">{emergencyStopMessage}</div>}
 
       <div className="mt-3 text-xs text-slate-400">Devices</div>
       <div className="flex gap-2 mt-2">
@@ -393,7 +416,7 @@ export function CameraPanel({ onClose }: { onClose?: () => void }) {
         <button onClick={() => { fetchAndShowGallery(); }} className="px-3 py-1 bg-slate-700 rounded text-xs">Open Gallery</button>
         <button onClick={() => void updateVisionEnabled(true)} className="ml-2 px-3 py-1 bg-indigo-600 rounded text-xs">Enable Gesture Control</button>
         <button onClick={() => void updateVisionEnabled(false)} className="ml-2 px-3 py-1 bg-rose-600 rounded text-xs">Disable Gesture Control</button>
-        <button onClick={async () => { try { await fetch('/api/orchestrator/emergency-stop', { method: 'POST' }); } catch {} }} className="ml-2 px-3 py-1 bg-red-700 rounded text-xs">Emergency Stop</button>
+        <button onClick={() => void requestEmergencyStop()} disabled={isRequestingEmergencyStop} aria-label="Request emergency stop for SARA automation" className="ml-2 px-3 py-1 bg-red-700 rounded text-xs disabled:opacity-60">{isRequestingEmergencyStop ? "Stopping…" : "Emergency Stop"}</button>
       </div>
 
       {showGallery && (

@@ -47,24 +47,22 @@ def _ensure_launcher_exists() -> str:
     path = _launcher_path()
     if os.path.isfile(path):
         return path
-    # Best-effort creation of a silent launcher that starts both backends.
-    py_candidates = [os.environ.get("SARA_PYTHON"), sys.executable, "py", "python3", "python"]
-    py = next((p for p in py_candidates if p and (os.path.isfile(p) or _which(p))), "python")
+    # Start only the supervisor. It owns the process-scoped token and starts
+    # the backend and desktop agent in order; never launch an unkeyed agent here.
+    project_root = _project_root()
     body = "\n".join(
         [
             "@echo off",
             "chcp 65001 >nul",
-            f'set "PROJECT_DIR={_project_root()}"',
-            f'set "PYTHON_EXE={py}"',
+            f'set "PROJECT_DIR={project_root}"',
             "cd /d \"%PROJECT_DIR%\"",
-            (
-                'start "" /B "%PYTHON_EXE%" -m uvicorn desktop_agent.main:app '
-                '--host 127.0.0.1 --port 8765'
-            ),
-            "timeout /t 3 /nobreak >nul",
-            "start \"\" /B npm run dev",
-            "timeout /t 6 /nobreak >nul",
-            'start "" "http://localhost:3000"',
+            "if not exist \"%PROJECT_DIR%\\startup\\startupManager.ts\" exit /b 1",
+            "if not exist \"%PROJECT_DIR%\\node_modules\\tsx\\dist\\cli.mjs\" exit /b 1",
+            "set \"NODE_EXE=node.exe\"",
+            "where node.exe >nul 2>&1 || set \"NODE_EXE=C:\\Program Files\\nodejs\\node.exe\"",
+            "if not exist \"%NODE_EXE%\" if not \"%NODE_EXE%\"==\"node.exe\" exit /b 1",
+            "start \"SARA Supervisor\" /B powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ^",
+            "  \"$env:NODE_ENV='production'; Start-Process -FilePath '%NODE_EXE%' -ArgumentList 'node_modules/tsx/dist/cli.mjs','startup/startupManager.ts' -WorkingDirectory '%PROJECT_DIR%' -WindowStyle Hidden\"",
             "",
         ]
     )
@@ -74,13 +72,6 @@ def _ensure_launcher_exists() -> str:
     except OSError as e:  # pragma: no cover - filesystem error
         raise ToolError(f"Could not create silent launcher: {e}") from e
     return path
-
-
-def _which(cmd: str) -> bool:
-    """True if a command resolves on PATH (very small shim, no shutil import)."""
-    from shutil import which
-
-    return which(cmd) is not None
 
 
 def _is_windows() -> bool:

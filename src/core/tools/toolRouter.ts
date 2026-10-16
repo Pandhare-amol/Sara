@@ -7,6 +7,20 @@ export interface ToolRouterOptions {
   isKnownTool?: (tool: string) => boolean;
 }
 
+const UNTRUSTED_APPROVAL_FIELDS = new Set(["confirmed", "authorized", "user_confirmed", "policy_override"]);
+
+/** Remove consent-shaped fields supplied as tool input; trusted approval is added separately. */
+export function sanitizeToolApprovalClaims(
+  args: Record<string, unknown>,
+  policyContext: PolicyContext = {},
+): Record<string, unknown> {
+  const sanitized = Object.fromEntries(
+    Object.entries(args).filter(([key]) => !UNTRUSTED_APPROVAL_FIELDS.has(key.toLowerCase())),
+  );
+  if (policyContext.authorized === true || policyContext.confirmed === true) sanitized.confirmed = true;
+  return sanitized;
+}
+
 /** Routes existing tool names to their current owner without reimplementing tools. */
 export class ToolRouter {
   public readonly registry: ToolRegistry;
@@ -53,9 +67,9 @@ export class ToolRouter {
     return this.registry.has(tool);
   }
 
-  async execute(tool: string, args: Record<string, unknown>): Promise<RoutedToolResult> {
+  async execute(tool: string, args: Record<string, unknown>, policyContext: PolicyContext = {}): Promise<RoutedToolResult> {
     const knownTool = this.ensureToolRegistered(tool);
-    let route = this.registry.get(tool);
+    const route = this.registry.get(tool);
 
     if (!route && !knownTool) {
       const canonical = normalizeToolExecutionResult(tool, {
@@ -68,13 +82,9 @@ export class ToolRouter {
       return { ok: false, result: canonical, error: canonical.message, canonical };
     }
 
-    // Policy middleware enforcement
-    // For now we extract any confirmation token from args or context
-    const policyCtx: PolicyContext = {
-      confirmed: args.user_confirmed === true || args.policy_override === true
-    };
-    const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyCtx);
-    
+    // Consent is accepted only from trusted internal policy context, never from tool input.
+    const policyOutcome = this.policyEngine.evaluate(tool, args, this.registry, policyContext);
+
     if (policyOutcome.decision === "DENY") {
       const canonical = normalizeToolExecutionResult(tool, {
         status: "FAILED",
@@ -82,11 +92,11 @@ export class ToolRouter {
         verification_status: "SKIPPED",
         message: `Policy blocked execution: ${policyOutcome.reason}`,
         executed: false,
-        policy_decision: "DENY"
+        policy_decision: "DENY",
       }, `Policy blocked execution: ${policyOutcome.reason}`);
       return { ok: false, result: canonical, error: canonical.message, canonical };
     }
-    
+
     if (policyOutcome.decision === "ASK_USER") {
       const canonical = normalizeToolExecutionResult(tool, {
         status: "UNCERTAIN",
@@ -94,9 +104,8 @@ export class ToolRouter {
         verification_status: "NOT_REQUIRED",
         message: `Waiting for user approval: ${policyOutcome.reason}`,
         executed: false,
-        policy_decision: "ASK_USER"
+        policy_decision: "ASK_USER",
       });
-      // A special return shape to tell the orchestrator it needs approval
       return { ok: false, result: canonical, error: "WAITING_FOR_APPROVAL", canonical };
     }
 
@@ -104,7 +113,7 @@ export class ToolRouter {
       throw new Error("Tool Router execution adapter is not configured.");
     }
 
-    const response = await this.adapter(tool, args);
+    const response = await this.adapter(tool, sanitizeToolApprovalClaims(args, policyContext));
     const canonical = normalizeToolExecutionResult(tool, response.result, response.error);
     return { ...response, route, canonical, result: canonical };
   }

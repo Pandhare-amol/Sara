@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-
 export interface VoiceIdentityPolicy {
   minSamples: number;
   minConfidence: number;
@@ -70,35 +67,30 @@ export function compareFingerprints(left: number[], right: number[]): { confiden
   return { confidence, distance: Number(distance.toFixed(4)) };
 }
 
+/**
+ * Ephemeral repository for the non-authentication similarity experiment.
+ * Speaker features are never serialized to localStorage, JSON, or other files.
+ */
 export class VoiceProfileRepository {
-  private readonly storePath: string;
-
-  constructor(storePath = path.resolve(process.cwd(), "data", "voice_profiles.json")) {
-    this.storePath = storePath;
-    fs.mkdirSync(path.dirname(this.storePath), { recursive: true });
-  }
+  private profiles: VoiceProfile[] = [];
 
   load(): VoiceProfile[] {
-    try {
-      if (!fs.existsSync(this.storePath)) return [];
-      const raw = fs.readFileSync(this.storePath, "utf-8");
-      const parsed = JSON.parse(raw) as VoiceProfile[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+    return this.profiles.map((profile) => ({ ...profile, fingerprint: [...profile.fingerprint] }));
   }
 
   save(profiles: VoiceProfile[]): void {
-    const temporary = `${this.storePath}.${process.pid}.tmp`;
-    try {
-      fs.writeFileSync(temporary, JSON.stringify(profiles, null, 2), { encoding: "utf-8", mode: 0o600 });
-      try { fs.chmodSync(temporary, 0o600); } catch { /* best-effort where ACLs differ */ }
-      fs.renameSync(temporary, this.storePath);
-      try { fs.chmodSync(this.storePath, 0o600); } catch { /* best-effort where ACLs differ */ }
-    } finally {
-      try { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); } catch { /* best-effort cleanup */ }
-    }
+    this.profiles = profiles.map((profile) => ({ ...profile, fingerprint: [...profile.fingerprint] }));
+  }
+
+  remove(userId: string): boolean {
+    const next = this.profiles.filter((profile) => profile.userId !== userId);
+    const removed = next.length !== this.profiles.length;
+    this.profiles = next;
+    return removed;
+  }
+
+  clear(): void {
+    this.profiles = [];
   }
 }
 
@@ -142,6 +134,7 @@ export class VoiceEnrollmentService {
   }
 }
 
+/** Experimental numeric similarity only; this result is not proof of identity or authorization. */
 export class SpeakerIdentificationService {
   constructor(
     private readonly repository: VoiceProfileRepository = new VoiceProfileRepository(),

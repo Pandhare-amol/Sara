@@ -9,7 +9,7 @@
 
 /* Custom smooth transition classes */
 .theme-transition {
-  transition: background-color 1.2s cubic-bezier(0.4, 0, 0.2, 1), 
+  transition: background-color 1.2s cubic-bezier(0.4, 0, 0.2, 1),
               background-image 1.2s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.8s ease;
 }
@@ -23,3 +23,800 @@
   animation: float 6s ease-in-out infinite;
 }
 
+:root {
+  color-scheme: dark;
+  --sara-ink: #050810;
+  --sara-panel: rgba(7, 12, 23, 0.78);
+  --sara-border: rgba(211, 225, 239, 0.14);
+  --sara-cyan: #a7f0f2;
+  --sara-gold: #d5b982;
+  --sara-muted: #9ba9bc;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #02040a;
+  color: #f6f8fb;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font: inherit;
+}
+
+#sara-holographic-desktop {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: clamp(12px, 2.2vh, 22px);
+  padding-right: clamp(16px, 3.2vw, 46px);
+  padding-bottom: clamp(16px, 2.8vh, 28px);
+  padding-left: clamp(16px, 3.2vw, 46px);
+  isolation: isolate;
+}
+
+#sara-holographic-desktop::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(83, 117, 163, 0.09), transparent 47%),
+    linear-gradient(90deg, transparent 0%, rgba(213, 185, 130, 0.025) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(2, 5, 12, 0.12), transparent 32%, rgba(1, 3, 8, 0.22));
+}
+
+/* The header is intentionally a lightweight instrument panel, not a dashboard. */
+.sara-header {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: clamp(12px, 1.7vw, 24px);
+  flex: 0 0 auto;
+}
+
+.sara-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 142px;
+  color: #f4f7fb;
+}
+
+.sara-brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid rgba(213, 185, 130, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(213, 185, 130, 0.16), rgba(19, 29, 45, 0.64));
+  color: var(--sara-gold);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 5px 24px rgba(0, 0, 0, 0.22);
+}
+
+.sara-brand-mark svg {
+  filter: drop-shadow(0 0 8px rgba(213, 185, 130, 0.36));
+}
+
+.sara-brand-copy,
+.sara-status-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.sara-wordmark {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.27em;
+}
+
+.sara-brand-caption,
+.sara-status-caption {
+  margin-top: 5px;
+  color: rgba(177, 191, 210, 0.58);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+
+.sara-nav-shell {
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid rgba(206, 222, 238, 0.13);
+  border-radius: 19px;
+  background: linear-gradient(135deg, rgba(11, 17, 30, 0.8), rgba(6, 10, 19, 0.66));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+.sara-nav-scroll {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 5px;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.sara-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.sara-nav-group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.sara-nav-divider {
+  width: 1px;
+  height: 19px;
+  flex: 0 0 1px;
+  margin: 0 3px;
+  background: linear-gradient(180deg, transparent, rgba(214, 226, 240, 0.2), transparent);
+}
+
+.sara-nav-button {
+  display: inline-flex;
+  min-width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(211, 222, 237, 0.73);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.105em;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.sara-nav-button svg {
+  flex: 0 0 auto;
+  color: rgba(171, 190, 211, 0.72);
+  transition: color 160ms ease, filter 160ms ease;
+}
+
+.sara-nav-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(221, 232, 244, 0.13);
+  background: rgba(216, 229, 241, 0.07);
+  color: #fff;
+}
+
+.sara-nav-button:hover svg,
+.sara-nav-button.is-active svg {
+  color: var(--sara-cyan);
+  filter: drop-shadow(0 0 6px rgba(167, 240, 242, 0.28));
+}
+
+.sara-nav-button.is-active {
+  border-color: rgba(167, 240, 242, 0.2);
+  background: linear-gradient(145deg, rgba(103, 198, 207, 0.13), rgba(115, 143, 179, 0.07));
+  color: #e9ffff;
+  box-shadow: inset 0 0 15px rgba(99, 216, 224, 0.035);
+}
+
+.sara-nav-button.is-warning-active {
+  border-color: rgba(213, 185, 130, 0.28);
+  background: rgba(213, 185, 130, 0.11);
+  color: #f2dfb9;
+}
+
+.sara-nav-button.is-warning-active svg {
+  color: var(--sara-gold);
+}
+
+.sara-nav-button-icon {
+  width: 36px;
+  padding: 0;
+}
+
+.sara-nav-button:focus-visible,
+.sara-voice-button:focus-visible,
+.sara-reset-button:focus-visible {
+  outline: 2px solid rgba(167, 240, 242, 0.8);
+  outline-offset: 3px;
+}
+
+.sara-connection-status {
+  display: flex;
+  min-width: 108px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid rgba(206, 222, 238, 0.12);
+  border-radius: 15px;
+  background: rgba(7, 12, 22, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.sara-status-light {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #778396;
+  box-shadow: 0 0 0 4px rgba(119, 131, 150, 0.09);
+}
+
+.sara-connection-status[data-state="connecting"] .sara-status-light,
+.sara-dialogue-signal[data-state="connecting"] {
+  background: #e7bc70;
+  box-shadow: 0 0 12px rgba(231, 188, 112, 0.75);
+  animation: sara-signal-pulse 1.2s ease-in-out infinite;
+}
+
+.sara-connection-status[data-state="listening"] .sara-status-light,
+.sara-dialogue-signal[data-state="listening"] {
+  background: #84e4d1;
+  box-shadow: 0 0 12px rgba(132, 228, 209, 0.72);
+}
+
+.sara-connection-status[data-state="speaking"] .sara-status-light,
+.sara-dialogue-signal[data-state="speaking"] {
+  background: #a6ccff;
+  box-shadow: 0 0 12px rgba(138, 181, 255, 0.72);
+}
+
+.sara-status-value {
+  color: #e1e8f1;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sara-stage {
+  position: relative;
+  width: 100%;
+  max-width: 1320px;
+  min-height: 0;
+  margin: 0 auto;
+  isolation: isolate;
+}
+
+.sara-dialogue-card {
+  position: absolute;
+  z-index: 25;
+  bottom: clamp(28px, 5vh, 48px);
+  left: 0;
+  width: min(350px, calc(100% - 24px));
+  min-height: 86px;
+  overflow: hidden;
+  padding: 15px 17px 16px 19px;
+  border: 1px solid rgba(210, 225, 239, 0.15);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(8, 14, 26, 0.8), rgba(8, 13, 24, 0.57));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  text-align: left;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+.sara-dialogue-card::before {
+  position: absolute;
+  top: 13px;
+  bottom: 13px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, transparent, var(--sara-gold), rgba(167, 240, 242, 0.75), transparent);
+  box-shadow: 0 0 13px rgba(213, 185, 130, 0.25);
+  content: "";
+}
+
+.sara-dialogue-topline,
+.sara-dialogue-eyebrow {
+  display: flex;
+  align-items: center;
+}
+
+.sara-dialogue-topline {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sara-dialogue-eyebrow {
+  gap: 8px;
+  color: rgba(203, 216, 231, 0.67);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.sara-dialogue-signal {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #778396;
+  box-shadow: 0 0 0 3px rgba(119, 131, 150, 0.1);
+}
+
+.sara-dialogue-mode {
+  color: rgba(213, 185, 130, 0.78);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.sara-dialogue-copy {
+  margin-top: 10px;
+}
+
+.sara-dialogue-text {
+  max-height: 7.2em;
+  margin: 0;
+  overflow: auto;
+  color: #f1f5fa;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 240, 242, 0.24) transparent;
+  overflow-wrap: anywhere;
+}
+
+.sara-dialogue-text.is-assistant {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.005em;
+}
+
+.sara-dialogue-text.is-user {
+  color: #a8e9ef;
+}
+
+.sara-dialogue-text.is-user span {
+  color: var(--sara-gold);
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 0;
+}
+
+.sara-dialogue-text.is-status {
+  color: rgba(229, 236, 245, 0.88);
+}
+
+.sara-footer {
+  position: absolute;
+  z-index: 35;
+  right: clamp(18px, 3.4vw, 48px);
+  bottom: clamp(16px, 2.8vh, 28px);
+  width: min(310px, calc(100vw - 32px));
+  margin: 0;
+}
+
+.sara-voice-dock {
+  position: relative;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 11px 10px 16px;
+  border: 1px solid rgba(210, 225, 239, 0.15);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(12, 20, 34, 0.88), rgba(7, 12, 22, 0.8));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+  backdrop-filter: blur(26px) saturate(145%);
+}
+
+.sara-voice-dock::before {
+  position: absolute;
+  top: 17px;
+  bottom: 17px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, transparent, var(--sara-cyan), transparent);
+  box-shadow: 0 0 12px rgba(167, 240, 242, 0.25);
+  content: "";
+}
+
+.sara-audio-meter {
+  display: flex;
+  width: 42px;
+  height: 32px;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.sara-audio-bar {
+  width: 3px;
+  min-height: 4px;
+  border-radius: 999px;
+  background: rgba(164, 179, 198, 0.42);
+  transition: height 240ms ease, background-color 240ms ease;
+}
+
+.sara-audio-meter.is-listening .sara-audio-bar {
+  background: rgba(132, 228, 209, 0.78);
+  animation: sara-audio-breathe 820ms ease-in-out infinite alternate;
+}
+
+.sara-audio-meter.is-speaking .sara-audio-bar {
+  background: rgba(166, 204, 255, 0.9);
+  animation: sara-audio-breathe 560ms ease-in-out infinite alternate;
+}
+
+.sara-audio-bar:nth-child(2n) { animation-delay: 110ms; }
+.sara-audio-bar:nth-child(3n) { animation-delay: 220ms; }
+
+.sara-voice-divider {
+  width: 1px;
+  height: 30px;
+  flex: 0 0 1px;
+  background: linear-gradient(180deg, transparent, rgba(213, 225, 238, 0.2), transparent);
+}
+
+.sara-voice-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sara-voice-kicker {
+  color: rgba(213, 185, 130, 0.82);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sara-voice-state {
+  overflow: hidden;
+  color: rgba(231, 237, 245, 0.91);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sara-voice-button {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  place-items: center;
+  border: 1px solid rgba(220, 232, 244, 0.22);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(93, 121, 158, 0.5), rgba(34, 50, 73, 0.84));
+  color: #f8fbff;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 7px 22px rgba(0, 0, 0, 0.24);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.sara-voice-button::before {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(203, 221, 238, 0.11);
+  border-radius: 21px;
+  content: "";
+  pointer-events: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.sara-voice-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(224, 239, 250, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.19), 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+
+.sara-voice-button.is-listening {
+  border-color: rgba(132, 228, 209, 0.54);
+  background: linear-gradient(145deg, rgba(43, 125, 122, 0.54), rgba(18, 44, 57, 0.92));
+  color: #a8f0df;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 24px rgba(78, 208, 187, 0.13);
+}
+
+.sara-voice-button.is-listening::before {
+  border-color: rgba(132, 228, 209, 0.19);
+  box-shadow: 0 0 19px rgba(78, 208, 187, 0.13);
+}
+
+.sara-voice-button.is-speaking {
+  border-color: rgba(166, 204, 255, 0.56);
+  background: linear-gradient(145deg, rgba(74, 98, 148, 0.68), rgba(34, 42, 72, 0.94));
+  color: #d6e7ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 25px rgba(110, 151, 230, 0.16);
+}
+
+.sara-voice-button.is-connecting {
+  border-color: rgba(231, 188, 112, 0.56);
+  color: #f3d9a7;
+}
+
+.sara-voice-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sara-spin 760ms linear infinite;
+}
+
+.sara-reset-button {
+  position: absolute;
+  top: 50%;
+  right: -40px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 1px solid rgba(210, 225, 239, 0.12);
+  border-radius: 11px;
+  background: rgba(8, 13, 23, 0.68);
+  color: rgba(202, 214, 228, 0.68);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.sara-reset-button:hover {
+  border-color: rgba(236, 142, 149, 0.35);
+  background: rgba(77, 27, 37, 0.65);
+  color: #ffd2d2;
+}
+
+.sara-guide-panel {
+  top: 78px;
+  left: 0;
+  width: min(410px, calc(100vw - 32px));
+  margin: 0;
+  border-color: rgba(211, 225, 239, 0.16);
+  background: linear-gradient(145deg, rgba(12, 19, 33, 0.94), rgba(7, 12, 23, 0.94));
+  box-shadow: 0 22px 65px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.sara-error-banner {
+  position: absolute;
+  top: 78px;
+  right: 0;
+  z-index: 45;
+  width: min(410px, calc(100vw - 32px));
+  margin: 0;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
+@keyframes sara-signal-pulse {
+  50% { opacity: 0.55; }
+}
+
+@keyframes sara-audio-breathe {
+  from { transform: scaleY(0.52); opacity: 0.62; }
+  to { transform: scaleY(1.08); opacity: 1; }
+}
+
+@keyframes sara-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1180px) {
+  .sara-header {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    row-gap: 10px;
+  }
+
+  .sara-nav-shell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .sara-nav-scroll {
+    justify-content: center;
+  }
+
+  .sara-nav-label {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  #sara-holographic-desktop {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .sara-header {
+    column-gap: 10px;
+    row-gap: 9px;
+  }
+
+  .sara-brand {
+    min-width: 0;
+  }
+
+  .sara-brand-caption,
+  .sara-status-caption {
+    display: none;
+  }
+
+  .sara-connection-status {
+    min-width: 0;
+    padding: 8px 10px;
+  }
+
+  .sara-status-value {
+    font-size: 8px;
+  }
+
+  .sara-nav-shell {
+    border-radius: 15px;
+  }
+
+  .sara-nav-scroll {
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .sara-nav-group {
+    gap: 1px;
+  }
+
+  .sara-nav-divider {
+    margin: 0 2px;
+  }
+
+  .sara-nav-button,
+  .sara-nav-button-icon {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 11px;
+  }
+
+  .sara-stage {
+    margin-top: 2px;
+  }
+
+  .sara-dialogue-card {
+    bottom: clamp(88px, 15vh, 116px);
+    left: 50%;
+    width: min(370px, calc(100vw - 28px));
+    padding: 12px 14px 13px 16px;
+    transform: translateX(-50%);
+  }
+
+  .sara-dialogue-copy {
+    margin-top: 7px;
+  }
+
+  .sara-dialogue-text {
+    max-height: 4.8em;
+    font-size: 12px;
+  }
+
+  .sara-footer {
+    right: auto;
+    bottom: max(13px, env(safe-area-inset-bottom));
+    left: 50%;
+    width: min(330px, calc(100vw - 28px));
+    transform: translateX(-50%);
+  }
+
+  .sara-voice-dock {
+    min-height: 68px;
+    gap: 10px;
+    padding: 8px 9px 8px 13px;
+    border-radius: 19px;
+  }
+
+  .sara-voice-button {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+    border-radius: 15px;
+  }
+
+  .sara-voice-button::before {
+    border-radius: 19px;
+  }
+
+  .sara-reset-button {
+    right: 8px;
+    top: auto;
+    bottom: calc(100% + 8px);
+    transform: none;
+  }
+
+  .sara-guide-panel {
+    top: 70px;
+    left: 0;
+  }
+
+  .sara-error-banner {
+    top: 70px;
+    right: 0;
+  }
+}
+
+@media (max-height: 640px) and (min-width: 761px) {
+  #sara-holographic-desktop {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+
+  .sara-dialogue-card {
+    bottom: 18px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .sara-footer {
+    bottom: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sara-nav-button,
+  .sara-voice-button,
+  .sara-audio-bar {
+    transition-duration: 0.01ms;
+  }
+
+  .sara-audio-meter.is-listening .sara-audio-bar,
+  .sara-audio-meter.is-speaking .sara-audio-bar,
+  .sara-connection-status[data-state="connecting"] .sara-status-light,
+  .sara-dialogue-signal[data-state="connecting"] {
+    animation: none;
+  }
+}

@@ -1,138 +1,108 @@
-﻿import React, { useEffect, useRef, useState } from "react";
-import { SaraAudioSession, LiveState } from "../lib/audio";
-import { Sparkles } from "lucide-react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { RotateCcw, Sparkles } from "lucide-react";
+import type { SaraAudioSession, LiveState } from "../lib/audio";
+const SaraAvatar3D = lazy(() => import("./SaraAvatar3D").then((module) => ({ default: module.SaraAvatar3D })));
+import {
+  resolveAvatarPresentation,
+  type AvatarExpression,
+  type AvatarExpressionChoice,
+  type AvatarGesture,
+  type AvatarGestureChoice,
+  type SaraEmotion,
+} from "../avatar/avatarState";
 
-export type SaraEmotion = 
-  | "idle" 
-  | "happy" 
-  | "excited" 
-  | "curious" 
-  | "thinking" 
-  | "proud" 
-  | "sad" 
-  | "confused" 
-  | "surprised" 
-  | "embarrassed" 
-  | "playful";
+export type { SaraEmotion } from "../avatar/avatarState";
 
 interface SaraCoreVisualizerProps {
   session: SaraAudioSession | null;
   state: LiveState;
-  themeColor: string; // Violet, crimson, emerald, celestial, gold, rose, charcoal
+  themeColor: string;
   activeEmotion?: SaraEmotion;
   characterState: "idle" | "thinking" | "talking";
 }
+
+type VisualizerMode = "3d" | "video";
+
+const expressionOptions: Array<{ value: AvatarExpression; label: string }> = [
+  { value: "neutral", label: "Neutral" },
+  { value: "smile", label: "Smile" },
+  { value: "happy", label: "Happy" },
+  { value: "laugh", label: "Laugh" },
+  { value: "curious", label: "Curious" },
+  { value: "thinking", label: "Thinking" },
+  { value: "surprised", label: "Surprised" },
+  { value: "concerned", label: "Concerned" },
+  { value: "confused", label: "Confused" },
+  { value: "reassuring", label: "Reassuring" },
+  { value: "listening", label: "Listening" },
+  { value: "sleepy", label: "Sleepy" },
+  { value: "greeting", label: "Greeting" },
+];
+
+const gestureOptions: Array<{ value: AvatarGesture; label: string }> = [
+  { value: "rest", label: "Rest" },
+  { value: "wave", label: "Wave" },
+  { value: "explain", label: "Explain" },
+  { value: "point", label: "Point" },
+  { value: "think", label: "Think" },
+  { value: "listen", label: "Listen" },
+  { value: "celebrate", label: "Celebrate" },
+  { value: "nod", label: "Nod" },
+];
 
 export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
   session,
   state,
   themeColor,
   activeEmotion = "idle",
-  characterState
+  characterState,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
-  
-  // Video element refs for character state machine
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const idleVideoRef = useRef<HTMLVideoElement | null>(null);
   const thinkingVideoRef = useRef<HTMLVideoElement | null>(null);
   const talkingVideoRef = useRef<HTMLVideoElement | null>(null);
-  const [hasError, setHasError] = useState<boolean>(false);
-
-  const handleVideoError = (videoName: string) => {
-    console.warn(`[Sara Web Video] Failed to load video source for: ${videoName}`);
-    setHasError(true);
-  };
-
-  // Interaction and tracking references
+  const [mode, setMode] = useState<VisualizerMode>("3d");
+  const [expressionChoice, setExpressionChoice] = useState<AvatarExpressionChoice>("auto");
+  const [gestureChoice, setGestureChoice] = useState<AvatarGestureChoice>("auto");
+  const [rendererError, setRendererError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [resetCameraToken, setResetCameraToken] = useState(0);
+  const [showControls, setShowControls] = useState(true);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.4 });
   const targetMouseRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.4 });
-  
-  // Physics & Animation states
   const speechVolumeRef = useRef<number>(0);
+  const particlesRef = useRef<Array<{ x: number; y: number; speed: number; size: number; opacity: number }>>([]);
 
-  // Floating sci-fi background particle arrays
-  const particlesRef = useRef<Array<{
-    x: number;
-    y: number;
-    speed: number;
-    size: number;
-    opacity: number;
-  }>>([]);
+  const presentation = resolveAvatarPresentation(state, characterState, activeEmotion as SaraEmotion, expressionChoice, gestureChoice);
 
-  // Synchronized video playback state manager (highly polished and flicker-free)
   useEffect(() => {
-    const playVideo = (videoEl: HTMLVideoElement | null) => {
-      if (!videoEl) return;
-      try {
-        videoEl.currentTime = 0;
-        const playPromise = videoEl.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((error) => {
-            console.warn("Autoplay block detected, retrying muted play:", error);
-          });
-        }
-      } catch (err) {}
-    };
+    if (mode !== "video") return;
+    const selectedVideo = presentation.state === "speaking"
+      ? talkingVideoRef.current
+      : presentation.state === "thinking"
+        ? thinkingVideoRef.current
+        : idleVideoRef.current;
+    const videos = [idleVideoRef.current, thinkingVideoRef.current, talkingVideoRef.current];
+    videos.forEach((video) => {
+      if (!video) return;
+      if (video === selectedVideo) {
+        void video.play().catch(() => undefined);
+      } else {
+        video.pause();
+      }
+    });
+  }, [mode, presentation.state]);
 
-    const pauseVideo = (videoEl: HTMLVideoElement | null) => {
-      if (!videoEl) return;
-      try {
-        videoEl.pause();
-      } catch (err) {}
-    };
-
-    if (characterState === "idle") {
-      playVideo(idleVideoRef.current);
-      pauseVideo(thinkingVideoRef.current);
-      pauseVideo(talkingVideoRef.current);
-    } else if (characterState === "thinking") {
-      playVideo(thinkingVideoRef.current);
-      pauseVideo(idleVideoRef.current);
-      pauseVideo(talkingVideoRef.current);
-    } else if (characterState === "talking") {
-      playVideo(talkingVideoRef.current);
-      pauseVideo(idleVideoRef.current);
-      pauseVideo(thinkingVideoRef.current);
-    }
-  }, [characterState]);
-
-  // Cursor position tracking hook
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      targetMouseRef.current = {
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      };
+    const handleMouseMove = (event: MouseEvent) => {
+      targetMouseRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight };
     };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-    };
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Theme matching mapping function (extremely beautiful cinematic color tones)
-  const getGlowColors = () => {
-    switch (themeColor) {
-      case "violet":
-        return { primary: "rgba(147, 51, 234, 1)", secondary: "rgba(192, 38, 211, 0.8)", glow: "rgba(168, 85, 247, 0.7)" };
-      case "crimson":
-        return { primary: "rgba(225, 29, 72, 1)", secondary: "rgba(234, 88, 12, 0.8)", glow: "rgba(244, 63, 94, 0.7)" };
-      case "emerald":
-        return { primary: "rgba(5, 150, 105, 1)", secondary: "rgba(13, 148, 136, 0.8)", glow: "rgba(16, 185, 129, 0.7)" };
-      case "celestial":
-        return { primary: "rgba(2, 132, 199, 1)", secondary: "rgba(8, 145, 178, 0.8)", glow: "rgba(14, 165, 233, 0.7)" };
-      case "gold":
-        return { primary: "rgba(202, 138, 4, 1)", secondary: "rgba(217, 119, 6, 0.8)", glow: "rgba(234, 179, 8, 0.7)" };
-      case "rose":
-        return { primary: "rgba(219, 39, 119, 1)", secondary: "rgba(220, 38, 38, 0.8)", glow: "rgba(236, 72, 153, 0.7)" };
-      default:
-        return { primary: "rgba(34, 211, 238, 1)", secondary: "rgba(79, 70, 229, 0.8)", glow: "rgba(6, 182, 212, 0.7)" };
-    }
-  };
-
-  // Main high speed Canvas graphics rendering loop
+  // Keep the existing lightweight ambient particles; only the character rendering is switched to real 3D.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -141,253 +111,204 @@ export const SaraCoreVisualizer: React.FC<SaraCoreVisualizerProps> = ({
 
     let width = canvas.width = canvas.offsetWidth;
     let height = canvas.height = canvas.offsetHeight;
-
-    // Generate responsive background floating stars
-    const generateParticles = () => {
+    const resize = () => {
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
       const count = Math.min(60, Math.floor(width / 24));
       particlesRef.current = Array.from({ length: count }, () => ({
         x: Math.random() * width,
-        y: Math.random() * height + height * 0.1,
-        speed: Math.random() * 0.35 + 0.12,
-        size: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.6 + 0.2,
+        y: Math.random() * height,
+        speed: Math.random() * 0.32 + 0.12,
+        size: Math.random() * 1.4 + 0.5,
+        opacity: Math.random() * 0.48 + 0.12,
       }));
     };
+    resize();
+    window.addEventListener("resize", resize);
 
-    generateParticles();
-
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = canvas.offsetWidth;
-      height = canvas.height = canvas.offsetHeight;
-      generateParticles();
+    const getColor = () => {
+      switch (themeColor) {
+        case "violet": return "147,51,234";
+        case "crimson": return "225,29,72";
+        case "emerald": return "5,150,105";
+        case "celestial": return "2,132,199";
+        case "gold": return "202,138,4";
+        case "rose": return "219,39,119";
+        default: return "34,211,238";
+      }
     };
-
-    window.addEventListener("resize", handleResize);
-
+    const color = getColor();
+    let audioData: Uint8Array<ArrayBuffer> | null = null;
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-
-      const systemTime = performance.now();
-      const colors = getGlowColors();
-
-      // Dynamic Audio analysis fetching from real voice session
+      const activeAnalyser = state === "speaking" ? session?.outputAnalyser : state === "listening" ? session?.inputAnalyser : null;
       let audioLevel = 0;
-      let bufferLength = 64;
-      const dataArray = new Uint8Array(bufferLength);
-      let activeAnalyser = null;
-
-      if (state === "speaking" && session?.outputAnalyser) {
-        activeAnalyser = session.outputAnalyser;
-      } else if (state === "listening" && session?.inputAnalyser) {
-        activeAnalyser = session.inputAnalyser;
-      }
-
       if (activeAnalyser) {
+        if (!audioData || audioData.length !== activeAnalyser.frequencyBinCount) {
+          audioData = new Uint8Array(new ArrayBuffer(activeAnalyser.frequencyBinCount));
+        }
         try {
-          activeAnalyser.getByteFrequencyData(dataArray);
+          activeAnalyser.getByteFrequencyData(audioData);
           let sum = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
-          }
-          audioLevel = sum / bufferLength; // 0 to 255
-        } catch (e) {}
+          for (let index = 0; index < audioData.length; index += 1) sum += audioData[index];
+          audioLevel = sum / Math.max(1, audioData.length) / 255;
+        } catch { audioLevel = 0; }
       }
-
-      // Smooth amplitude tracking for real-time particle excitation
-      speechVolumeRef.current += (audioLevel / 255 - speechVolumeRef.current) * 0.2;
-
-      // Cinematic ambient stardust sizing
-      const baseScale = height / 440;
-      const s = Math.max(0.95, Math.min(1.85, baseScale)); // scale multiplier
-
-      // Smooth cursor mouse tracking lag
+      speechVolumeRef.current += (audioLevel - speechVolumeRef.current) * 0.18;
       mouseRef.current.x += (targetMouseRef.current.x - mouseRef.current.x) * 0.05;
       mouseRef.current.y += (targetMouseRef.current.y - mouseRef.current.y) * 0.05;
+      const scale = Math.max(0.85, Math.min(1.55, height / 560));
 
-      const centerX = width / 2;
+      const glow = ctx.createRadialGradient(width / 2, height * 0.56, 0, width / 2, height * 0.56, Math.max(width, height) * 0.56);
+      glow.addColorStop(0, `rgba(${color},${0.035 + speechVolumeRef.current * 0.05})`);
+      glow.addColorStop(0.55, `rgba(${color},0.012)`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, width, height);
 
-      // ==========================================
-      // 1. DRAW GRAND STAGE VOLUMETRIC PROJECTOR BEAM (Cinematic Glow Backlight)
-      // ==========================================
-      ctx.save();
-      const projectorCenterY = height + 40;
-      const baseDiameterX = 280 * s;
-
-      // Volumetric light beams shooting up from projector base
-      const conicalBeamGrad = ctx.createLinearGradient(centerX, height * 0.25, centerX, height);
-      conicalBeamGrad.addColorStop(0, "rgba(0,0,0,0)");
-      conicalBeamGrad.addColorStop(0.4, colors.primary.replace("1)", "0.03)"));
-      conicalBeamGrad.addColorStop(0.75, colors.primary.replace("1)", "0.08)"));
-      conicalBeamGrad.addColorStop(1, colors.secondary.replace("0.8)", "0.18)"));
-
-      ctx.fillStyle = conicalBeamGrad;
-      ctx.beginPath();
-      ctx.moveTo(centerX - baseDiameterX * 0.35, projectorCenterY - 145);
-      ctx.lineTo(centerX + baseDiameterX * 0.35, projectorCenterY - 145);
-      ctx.lineTo(centerX + baseDiameterX * 1.5, height);
-      ctx.lineTo(centerX - baseDiameterX * 1.5, height);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-
-      // ==========================================
-      // 2. MINIMALIST ATMOSPHERE NEURAL FIELDS (SUBTLE GLITCH)
-      // ==========================================
-      const applyGlitch = (state === "connecting" && Math.random() < 0.1) || (Math.random() < 0.005);
-      if (applyGlitch) {
-        ctx.save();
-        ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 2);
-        ctx.fillStyle = Math.random() < 0.5 ? "rgba(236,72,153,0.03)" : "rgba(34,211,238,0.03)";
-        ctx.fillRect(0, 0, width, height);
-      }
-
-      // ==========================================
-      // 3. UPDATE AND DRAW HOLOGRAM NEURAL PARTICLES RISING (Cinematic Stardust)
-      // ==========================================
-      particlesRef.current.forEach((p) => {
-        const riseSpeed = p.speed * (1 + speechVolumeRef.current * 1.8);
-        p.y -= riseSpeed;
-        
-        // Horizontal drift sway
-        p.x += Math.sin(p.y * 0.015 + p.size) * 0.4;
-        
-        // Transparency matches base lift height
-        const currentOpacity = p.opacity * Math.max(0, p.y / height);
-
-        // Recirculate particle if it reaches up too high near her crown
-        if (p.y < height * 0.12) {
-          p.y = height + Math.random() * 30;
-          p.x = Math.random() * width;
+      particlesRef.current.forEach((particle) => {
+        particle.y -= particle.speed * (1 + speechVolumeRef.current * 1.5);
+        particle.x += Math.sin(particle.y * 0.015 + particle.size + mouseRef.current.x) * 0.24;
+        if (particle.y < height * 0.10) {
+          particle.y = height + Math.random() * 24;
+          particle.x = Math.random() * width;
         }
-
-        ctx.fillStyle = colors.primary.replace("1)", `${currentOpacity * 0.45})`);
+        const alpha = particle.opacity * Math.max(0, particle.y / Math.max(1, height)) * 0.55;
+        ctx.fillStyle = `rgba(${color},${alpha})`;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * s, 0, Math.PI * 2);
+        ctx.arc(particle.x, particle.y, particle.size * scale, 0, Math.PI * 2);
         ctx.fill();
       });
-
-      if (applyGlitch) {
-        ctx.restore();
-      }
-
-      animationRef.current = requestAnimationFrame(render);
+      animationRef.current = window.requestAnimationFrame(render);
     };
-
-    render();
+    animationRef.current = window.requestAnimationFrame(render);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      window.removeEventListener("resize", resize);
+      if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
     };
-  }, [session, state, themeColor, activeEmotion, characterState]);
+  }, [session, state, themeColor]);
+
+  const handleVideoError = (videoName: string) => {
+    console.warn(`[SARA video fallback] Failed to load ${videoName}.mp4.`);
+    setVideoError(`Could not load ${videoName}.mp4. The existing videos remain an optional fallback, not the 3D avatar.`);
+  };
+
+  const selectClass = "rounded-lg border border-white/15 bg-slate-950/85 px-2 py-1.5 text-[10px] font-medium text-slate-100 outline-none transition focus:border-cyan-300/60 focus:ring-1 focus:ring-cyan-300/30";
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      {/* 1. Behind Overlay / Atmospheric Backlight Glow (Z-index 0) */}
-      <div className="absolute inset-0 bg-transparent flex items-center justify-center pointer-events-none z-0">
-        <div className={`w-[500px] h-[500px] rounded-full blur-[140px] opacity-25 bg-gradient-to-tr transition-all duration-1000 ${
-          themeColor === "violet" ? "from-purple-600/30 to-fuchsia-600/5" :
-          themeColor === "crimson" ? "from-rose-600/30 to-orange-600/5" :
-          themeColor === "emerald" ? "from-emerald-600/30 to-teal-600/5" :
-          themeColor === "celestial" ? "from-sky-600/30 to-cyan-600/5" :
-          themeColor === "gold" ? "from-amber-600/30 to-yellow-600/5" :
-          themeColor === "rose" ? "from-rose-600/30 to-pink-600/5" :
-          "from-indigo-600/30 to-cyan-600/5"
-        }`} />
+    <div className="pointer-events-none relative flex h-full min-h-[360px] w-full items-center justify-center overflow-hidden">
+      <div className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-b ${
+        themeColor === "violet" ? "from-violet-950/10 via-transparent to-fuchsia-950/15" :
+        themeColor === "crimson" ? "from-rose-950/10 via-transparent to-orange-950/15" :
+        themeColor === "emerald" ? "from-emerald-950/10 via-transparent to-teal-950/15" :
+        themeColor === "celestial" ? "from-sky-950/10 via-transparent to-cyan-950/15" :
+        themeColor === "gold" ? "from-amber-950/10 via-transparent to-yellow-950/15" :
+        themeColor === "rose" ? "from-rose-950/10 via-transparent to-pink-950/15" :
+        "from-indigo-950/10 via-transparent to-cyan-950/15"
+      }`} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent" />
+
+      <div id="sara-animated-presence" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        {mode === "3d" ? (
+          <div className="pointer-events-auto relative h-full max-h-[88vh] w-full max-w-[920px] overflow-hidden">
+            <Suspense fallback={<div role="status" className="absolute inset-0 flex items-center justify-center text-xs text-cyan-100/70">Preparing the procedural 3D companion…</div>}>
+              <SaraAvatar3D
+                presentation={presentation}
+                outputAnalyser={session?.outputAnalyser ?? null}
+                resetCameraToken={resetCameraToken}
+                onRendererError={setRendererError}
+              />
+            </Suspense>
+            {rendererError && (
+              <div role="alert" className="pointer-events-auto absolute inset-x-4 bottom-16 mx-auto max-w-sm rounded-xl border border-amber-300/25 bg-slate-950/90 p-3 text-center text-xs text-amber-100 shadow-2xl backdrop-blur">
+                {rendererError} Use “Existing video fallback” above to view the legacy clips.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pointer-events-auto relative flex h-full max-h-[72vh] w-full max-w-4xl items-center justify-center px-5">
+            <div className="pointer-events-none absolute inset-8 rounded-[2.5rem] bg-cyan-500/10 blur-[55px]" />
+            <video ref={idleVideoRef} src="/assets/idle.mp4" loop muted playsInline className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${presentation.state === "idle" || presentation.state === "listening" ? "opacity-100" : "opacity-0"}`} onError={() => handleVideoError("idle")} />
+            <video ref={thinkingVideoRef} src="/assets/thinking.mp4" loop muted playsInline className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${presentation.state === "thinking" ? "opacity-100" : "opacity-0"}`} onError={() => handleVideoError("thinking")} />
+            <video ref={talkingVideoRef} src="/assets/talking.mp4" loop muted playsInline className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${presentation.state === "speaking" ? "opacity-100" : "opacity-0"}`} onError={() => handleVideoError("talking")} />
+            {videoError && (
+              <div role="status" className="pointer-events-auto absolute inset-x-4 bottom-16 mx-auto max-w-sm rounded-xl border border-slate-300/15 bg-slate-950/90 p-3 text-center text-xs text-slate-300 shadow-xl backdrop-blur">
+                {videoError}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 2. Character Videos state crossfade manager (Z-index 10) */}
-      <div 
-        id="sara-animated-presence"
-        className="absolute z-10 w-full h-full flex items-center justify-center pointer-events-auto transition-all duration-700"
-      >
-        <div className="relative w-full max-w-4xl aspect-[16/9] flex items-center justify-center scale-[0.95] sm:scale-110 select-none pointer-events-none md:max-h-[72vh] max-h-[62vh]">
-          {/* Subtle Outer Ambient Shadow Cast */}
-          <div className="absolute inset-0 rounded-[2.5rem] blur-[30px] opacity-20 bg-cyan-600/15 pointer-events-none mix-blend-screen" />
-
-          {/* IDLE VIDEO */}
-          <video
-            ref={idleVideoRef}
-            src="/assets/idle.mp4"
-            loop
-            muted
-            playsInline
-            autoPlay
-            className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
-              characterState === "idle" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
-            }`}
-            style={{
-              maskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-              WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-            }}
-            onError={() => handleVideoError("idle")}
-          />
-
-          {/* THINKING VIDEO */}
-          <video
-            ref={thinkingVideoRef}
-            src="/assets/thinking.mp4"
-            loop
-            muted
-            playsInline
-            className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
-              characterState === "thinking" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
-            }`}
-            style={{
-              maskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-              WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-            }}
-            onError={() => handleVideoError("thinking")}
-          />
-
-          {/* TALKING VIDEO */}
-          <video
-            ref={talkingVideoRef}
-            src="/assets/talking.mp4"
-            loop
-            muted
-            playsInline
-            className={`absolute inset-0 w-full h-full object-cover rounded-[2.5rem] transition-opacity duration-700 ease-in-out ${
-              characterState === "talking" ? "opacity-100 z-10 animate-fade-in" : "opacity-0 z-0"
-            }`}
-            style={{
-              maskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-              WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 80%)",
-            }}
-            onError={() => handleVideoError("talking")}
-          />
-
-          {/* Faint cybernetic visual edge grid guard */}
-          <div className="absolute inset-0 rounded-[2.5rem] border border-white/5 pointer-events-none bg-radial-gradient from-transparent to-black/35" />
-
-          {/* Video Placeholder/Fallback Tutorial Overlay if asset files are absent */}
-          {hasError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#05060f]/90 backdrop-blur-md rounded-3xl p-6 text-center z-50 pointer-events-auto border border-white/5 shadow-2xl animate-fade-in">
-              <Sparkles className="text-cyan-400 mb-2 animate-pulse" size={32} />
-              <h3 className="text-sm font-bold tracking-widest font-mono text-white select-none">AWAITING VIDEOS CORES</h3>
-              <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed font-sans">
-                Please place your character video assets inside the <code className="text-cyan-300 font-mono">/assets</code> directory of your workspace named exactly:
-              </p>
-              <div className="mt-3 space-y-1.5 text-left font-mono text-[10px] text-cyan-200 bg-white/5 px-4 py-2.5 rounded-xl border border-white/5">
-                <div>â€¢ idle.mp4 (State: Idle)</div>
-                <div>â€¢ thinking.mp4 (State: Thinking)</div>
-                <div>â€¢ talking.mp4 (State: Talking)</div>
-              </div>
+      <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-start gap-2 sm:left-6 sm:top-6">
+        <div className="pointer-events-none flex items-center gap-2 rounded-xl border border-cyan-200/15 bg-slate-950/60 px-3 py-2 shadow-lg shadow-cyan-950/20 backdrop-blur-md">
+          <Sparkles className="text-cyan-200" size={15} aria-hidden="true" />
+          <div className="leading-tight">
+            <div className="text-[10px] font-semibold tracking-[0.16em] text-cyan-50">SARA · {mode === "3d" ? "3D COMPANION" : "VIDEO FALLBACK"}</div>
+            <div className="mt-1 text-[8px] font-mono tracking-wide text-slate-400">
+              {presentation.state.toUpperCase()} · {presentation.expression.toUpperCase()} · {presentation.gesture.toUpperCase()}
             </div>
-          )}
+          </div>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/65 p-1.5 shadow-lg backdrop-blur-md">
+          <button type="button" onClick={() => { setMode(mode === "3d" ? "video" : "3d"); setVideoError(null); }} className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[9px] font-semibold tracking-wide text-slate-100 transition hover:border-cyan-200/40 hover:bg-cyan-300/10" aria-label={mode === "3d" ? "Switch to existing video fallback" : "Switch to interactive 3D companion"}>
+            {mode === "3d" ? "Existing video fallback" : "Interactive 3D"}
+          </button>
         </div>
       </div>
 
-      {/* 3. Foreground Hover-Responsive Canvas for glowing particles (Holographic Overlay Z-index 20) */}
-      <canvas
-        id="sara-hologram-living-canvas"
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none z-20"
-      />
+      {mode === "3d" && (
+        <div className="pointer-events-auto absolute bottom-4 left-3 z-30 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/72 p-2 shadow-xl shadow-black/25 backdrop-blur-xl sm:bottom-6 sm:left-6 sm:max-w-none">
+          <button type="button" onClick={() => setShowControls((visible) => !visible)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[9px] font-semibold text-slate-200 hover:border-cyan-200/35" aria-expanded={showControls}>
+            {showControls ? "Hide controls" : "Avatar controls"}
+          </button>
+          {showControls && <>
+            <label className="flex items-center gap-1.5 text-[9px] text-slate-300">
+              Expression
+              <select aria-label="SARA expression" className={selectClass} value={expressionChoice} onChange={(event) => setExpressionChoice(event.target.value as AvatarExpressionChoice)}>
+                <option value="auto">Auto</option>
+                {expressionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5 text-[9px] text-slate-300">
+              Gesture
+              <select aria-label="SARA gesture" className={selectClass} value={gestureChoice} onChange={(event) => setGestureChoice(event.target.value as AvatarGestureChoice)}>
+                <option value="auto">Auto</option>
+                {gestureOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={() => setResetCameraToken((token) => token + 1)} className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[9px] text-slate-200 transition hover:border-cyan-200/35" aria-label="Reset 3D camera">
+              <RotateCcw size={12} /> Reset view
+            </button>
+            <span className="hidden text-[8px] text-slate-500 lg:inline">Drag to rotate · scroll/pinch to zoom</span>
+          </>}
+        </div>
+      )}
+
+      <div
+        className="pointer-events-none absolute right-3 top-14 z-30 flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-slate-950/55 px-2.5 py-2 shadow-lg shadow-cyan-950/20 backdrop-blur-md sm:right-6 sm:top-16"
+        aria-label="SARA: fictional adult AI persona, age 20"
+        title="SARA — fictional adult AI persona, age 20"
+      >
+        <img
+          src="/assets/sara-persona-avatar.png"
+          alt="Fictional portrait of SARA, an adult AI persona aged 20"
+          className="h-10 w-10 rounded-full border border-cyan-200/30 object-cover object-center"
+          loading="lazy"
+        />
+        <div className="pr-1 leading-tight">
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-cyan-100">SARA</div>
+          <div className="mt-1 text-[8px] font-mono tracking-[0.08em] text-slate-400">FICTIONAL AI · 20</div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-4 right-3 z-30 max-w-[170px] text-right text-[8px] leading-relaxed text-slate-400/85 sm:bottom-6 sm:right-6 sm:max-w-[220px]">
+        {mode === "3d" ? "Procedural 3D · audio-energy mouth motion is approximate · avatar does not start camera/mic" : "Legacy MP4 fallback · not a rigged 3D model"}
+      </div>
+
+      <canvas id="sara-hologram-living-canvas" ref={canvasRef} className="pointer-events-none absolute inset-0 z-20 h-full w-full" aria-hidden="true" />
     </div>
   );
 };
-

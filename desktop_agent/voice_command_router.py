@@ -32,6 +32,15 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
     if any(phrase in low for phrase in ("shut yourself down", "shutdown yourself", "close sara", "exit sara", "stop yourself")):
         return ParsedCommand("sara.self_shutdown", "saraSelfShutdown", {}, 0.99, response="I will shut SARA down without shutting down the computer.")
 
+    emergency_stop_phrases = (
+        "emergency stop", "kill switch", "stop sara", "sara stop", "wait, don't click",
+        "wait don't click", "wait, do not click", "wait do not click", "don't click that",
+        "do not click that", "cancel current action", "cancel that action", "stop current action",
+        "stop the current action", "stop the current task", "cancel the current task",
+    )
+    if any(phrase in low for phrase in emergency_stop_phrases):
+        return ParsedCommand("safety.emergency_stop", "saraAgentEmergencyStop", {}, 0.99, response="Stop requested. Queued work will be cancelled; an in-flight tool call may finish, so I will preserve its state for review.")
+
     if low in {"shutdown", "shut down", "close", "stop", "exit"}:
         return ParsedCommand("power.ambiguous", "saraShutdownClarification", {}, 0.99, response="Do you want me to shut down SARA or the computer?")
 
@@ -59,10 +68,6 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
         return ParsedCommand("desktop.restart_explorer", "restartExplorer", {}, 0.95, response="Restarting File Explorer.")
     if "turn off the display" in low or "turn off monitor" in low:
         return ParsedCommand("desktop.display_off", "turnOffDisplay", {}, 0.95, response="Turning off the display.")
-    if "task manager" in low:
-        return ParsedCommand("app.open", "openApplication", {"name": "task manager"}, 0.91, response="Opening Task Manager.")
-    if "settings" in low:
-        return ParsedCommand("app.open", "openApplication", {"name": "settings"}, 0.88, response="Opening Settings.")
     if any(term in low for term in ("close all applications", "close every app", "close all apps", "close background applications")):
         return ParsedCommand("system.close_all_apps", "closeAllApplications", {}, 0.94, requires_confirmation=True, response="I need confirmation before closing all applications.")
     if any(term in low for term in ("memory sync", "sync memory", "save memory", "flush memory")):
@@ -208,7 +213,7 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
         return ParsedCommand("browser.search", "desktopBrowserSearch", {"engine": "youtube", "query": query}, 0.9, response=f"Searching YouTube for {query}.")
     if "youtube" in low and any(word in low for word in ("play", "watch")):
         query = _after(raw, ["play youtube ", "watch youtube ", "play ", "watch "]) or "popular videos"
-        return ParsedCommand("youtube.play", "youtube_play", {"query": query}, 0.92, response=f"Playing {query} on YouTube.")
+        return ParsedCommand("youtube.play", "youtube_play", {"query": query}, 0.92, response=f"Opening YouTube results for {query}. Playback may need a video selection in your default browser.")
     if low.startswith(("open youtube", "open google", "open github", "open gmail", "open chatgpt")):
         return ParsedCommand("browser.open", "desktopBrowserOpen", {"url": _site_url(low)}, 0.91, response="Opening it in the browser.")
     if low.startswith(("open instagram", "open insta")):
@@ -251,8 +256,6 @@ def parse_voice_command(text: str, context: Optional[Dict[str, Any]] = None) -> 
         return ParsedCommand("screen.monitor_status", "saraScreenMonitorStatus", {}, 0.9, response="Checking screen monitor status.")
     if any(term in low for term in ("sample screen", "screen sample", "check the screen now")):
         return ParsedCommand("screen.monitor_sample", "saraScreenMonitorSample", {}, 0.89, response="Sampling the current screen.")
-    if any(term in low for term in ("stop sara", "emergency stop", "kill switch")):
-        return ParsedCommand("safety.emergency_stop", "saraAgentEmergencyStop", {}, 0.98, requires_confirmation=True, response="Emergency stop requested.")
     if low in {"sara stop", "stop speaking", "stop talking", "interrupt", "quiet"} or low.startswith("sara, stop"):
         return ParsedCommand("voice.interrupt", "saraVoiceStopSpeaking", {}, 0.99, response="Stopping speech.")
     if "screenshot" in low:
@@ -290,6 +293,8 @@ def _extract_app(text: str) -> str:
         "command prompt": "command prompt",
         "spotify": "spotify",
         "vlc": "vlc",
+        "task manager": "task manager",
+        "settings": "settings",
         "file explorer": "file explorer",
         "explorer": "file explorer",
     }

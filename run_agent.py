@@ -1,4 +1,4 @@
-﻿"""
+"""
 SARA Desktop Control Agent â€” frozen entrypoint.
 
 This is the script PyInstaller freezes into `sara-agent.exe`. It runs the
@@ -12,6 +12,8 @@ Environment:
     SARA_AGENT_HOST   default 127.0.0.1
     SARA_AGENT_PORT   default 8765
     SARA_DATA_DIR     where logs/ is written (default: cwd)
+    SARA_AGENT_INTERNAL_TOKEN  shared 32+ byte secret required for control routes;
+                               without it, only local /health liveness is available
 """
 
 from __future__ import annotations

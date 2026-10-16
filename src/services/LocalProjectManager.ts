@@ -38,10 +38,38 @@ export interface GeneralProjectDetail {
   tasks: GeneralTask[];
 }
 
+export interface ProjectWorkflowTaskDraft {
+  title?: unknown;
+  description?: unknown;
+  priority?: unknown;
+  dueDate?: unknown;
+}
+
+export interface ProjectWorkflowDraft {
+  workflowId?: unknown;
+  project?: { title?: unknown; description?: unknown; dueDate?: unknown };
+  tasks?: unknown;
+}
+
+export interface AppliedProjectWorkflow {
+  workflowId: string;
+  digest: string;
+  projectId: string;
+  taskIds: string[];
+  appliedAt: string;
+}
+
+export interface AppliedProjectWorkflowResult {
+  project: GeneralProject;
+  tasks: GeneralTask[];
+  alreadyApplied: boolean;
+}
+
 interface ProjectDataFile {
   version: 1;
   projects: GeneralProject[];
   tasks: GeneralTask[];
+  workflowApplications: AppliedProjectWorkflow[];
 }
 
 const PROJECT_STATUSES = new Set<GeneralProjectStatus>(["active", "on_hold", "completed", "archived"]);
@@ -73,6 +101,47 @@ function normalizeStatus<T extends string>(value: unknown, allowed: Set<T>, fall
   return value as T;
 }
 
+export interface NormalizedProjectWorkflowDraft {
+  workflowId: string;
+  digest: string;
+  project: { title: string; description: string; dueDate?: string };
+  tasks: Array<{ title: string; description: string; priority: GeneralTaskPriority; dueDate?: string }>;
+}
+
+function normalizeProjectWorkflowDraft(input: ProjectWorkflowDraft): NormalizedProjectWorkflowDraft {
+  const workflowId = typeof input.workflowId === "string" ? input.workflowId.trim() : "";
+  if (!/^[A-Za-z0-9._:-]{1,128}$/.test(workflowId)) throw new Error("A valid workflowId is required.");
+  if (!input.project || typeof input.project !== "object" || Array.isArray(input.project)) {
+    throw new Error("A project draft is required.");
+  }
+  if (!Array.isArray(input.tasks) || input.tasks.length < 1 || input.tasks.length > 50) {
+    throw new Error("A workflow must contain between 1 and 50 tasks.");
+  }
+
+  const project = {
+    title: cleanText(input.project.title, 160),
+    description: cleanText(input.project.description, 2000),
+    dueDate: normalizeDueDate(input.project.dueDate),
+  };
+  if (!project.title) throw new Error("Project title is required.");
+  const tasks = input.tasks.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`Task ${index + 1} is invalid.`);
+    }
+    const task = value as ProjectWorkflowTaskDraft;
+    const title = cleanText(task.title, 200);
+    if (!title) throw new Error(`Task ${index + 1} needs a title.`);
+    return {
+      title,
+      description: cleanText(task.description, 4000),
+      priority: normalizeStatus(task.priority, TASK_PRIORITIES, "normal", `Task ${index + 1} priority`),
+      dueDate: normalizeDueDate(task.dueDate),
+    };
+  });
+  const digest = crypto.createHash("sha256").update(JSON.stringify({ project, tasks })).digest("hex");
+  return { workflowId, digest, project, tasks };
+}
+
 export class LocalProjectManager {
   constructor(private readonly storagePath: string) {}
 
@@ -82,7 +151,7 @@ export class LocalProjectManager {
       contents = fs.readFileSync(this.storagePath, "utf8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
-        return { version: 1, projects: [], tasks: [] };
+        return { version: 1, projects: [], tasks: [], workflowApplications: [] };
       }
       throw error;
     }
@@ -152,7 +221,50 @@ export class LocalProjectManager {
       taskIds.add(task.id);
     }
 
-    return { version: 1, projects: projects as GeneralProject[], tasks: tasks as GeneralTask[] };
+    const workflowApplicationsRaw = record.workflowApplications === undefined ? [] : record.workflowApplications;
+    if (!Array.isArray(workflowApplicationsRaw) || workflowApplicationsRaw.length > 1000) {
+      throw new Error("Project data file contains invalid workflow records; it was left unchanged.");
+    }
+    const workflowApplications: AppliedProjectWorkflow[] = [];
+    const workflowIds = new Set<string>();
+    for (const item of workflowApplicationsRaw) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        throw new Error("Project data file contains an invalid workflow record; it was left unchanged.");
+      }
+      const workflow = item as Record<string, unknown>;
+      if (typeof workflow.workflowId !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(workflow.workflowId)
+        || typeof workflow.digest !== "string" || !/^[a-f0-9]{64}$/.test(workflow.digest)
+        || typeof workflow.projectId !== "string" || !projectIds.has(workflow.projectId)
+        || !Array.isArray(workflow.taskIds) || workflow.taskIds.length < 1 || workflow.taskIds.length > 50
+        || typeof workflow.appliedAt !== "string" || !Number.isFinite(Date.parse(workflow.appliedAt))
+        || workflowIds.has(workflow.workflowId)) {
+        throw new Error("Project data file contains an invalid workflow record; it was left unchanged.");
+      }
+      const appliedTaskIds = new Set<string>();
+      for (const taskId of workflow.taskIds) {
+        const storedTask = tasks.find((candidate) => (candidate as Record<string, unknown>).id === taskId) as Record<string, unknown> | undefined;
+        if (typeof taskId !== "string" || !taskIds.has(taskId) || appliedTaskIds.has(taskId)
+          || storedTask?.projectId !== workflow.projectId) {
+          throw new Error("Project data file contains an invalid workflow task reference; it was left unchanged.");
+        }
+        appliedTaskIds.add(taskId);
+      }
+      workflowIds.add(workflow.workflowId);
+      workflowApplications.push({
+        workflowId: workflow.workflowId,
+        digest: workflow.digest,
+        projectId: workflow.projectId,
+        taskIds: workflow.taskIds as string[],
+        appliedAt: workflow.appliedAt,
+      });
+    }
+
+    return {
+      version: 1,
+      projects: projects as GeneralProject[],
+      tasks: tasks as GeneralTask[],
+      workflowApplications,
+    };
   }
 
   private write(data: ProjectDataFile): void {
@@ -193,6 +305,74 @@ export class LocalProjectManager {
       return priorityOrder[left.priority] - priorityOrder[right.priority] || right.updatedAt.localeCompare(left.updatedAt);
     });
     return { project, tasks };
+  }
+
+  previewProjectWorkflow(input: ProjectWorkflowDraft): NormalizedProjectWorkflowDraft {
+    return normalizeProjectWorkflowDraft(input);
+  }
+
+  applyProjectWorkflow(input: ProjectWorkflowDraft, approved: unknown): AppliedProjectWorkflowResult {
+    if (approved !== true) throw new Error("Explicit approval is required before applying a project workflow.");
+    const draft = normalizeProjectWorkflowDraft(input);
+    const data = this.read();
+    const prior = data.workflowApplications.find((workflow) => workflow.workflowId === draft.workflowId);
+    if (prior) {
+      if (prior.digest !== draft.digest) {
+        throw new Error("This workflowId was already used for a different plan. Create a new workflowId to apply a changed plan.");
+      }
+      const existingProject = data.projects.find((project) => project.id === prior.projectId);
+      const existingTasks = prior.taskIds.map((taskId) => data.tasks.find((task) => task.id === taskId));
+      if (!existingProject || existingTasks.some((task) => !task)) {
+        throw new Error("The prior workflow record is incomplete; it was not replayed.");
+      }
+      return { project: existingProject, tasks: existingTasks as GeneralTask[], alreadyApplied: true };
+    }
+
+    if (data.projects.length >= 1000) throw new Error("The local project list is full.");
+    if (data.tasks.length + draft.tasks.length > 20_000) throw new Error("The local task list is full.");
+    if (data.workflowApplications.length >= 1000) throw new Error("The local workflow history has reached its 1,000-record safety limit.");
+
+    const now = new Date().toISOString();
+    const project: GeneralProject = {
+      id: `project-${crypto.randomUUID()}`,
+      title: draft.project.title,
+      description: draft.project.description,
+      status: "active",
+      dueDate: draft.project.dueDate,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const tasks: GeneralTask[] = draft.tasks.map((task) => ({
+      id: `task-${crypto.randomUUID()}`,
+      projectId: project.id,
+      title: task.title,
+      description: task.description,
+      status: "todo",
+      priority: task.priority,
+      dueDate: task.dueDate,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+    data.projects.push(project);
+    data.tasks.push(...tasks);
+    data.workflowApplications.push({
+      workflowId: draft.workflowId,
+      digest: draft.digest,
+      projectId: project.id,
+      taskIds: tasks.map((task) => task.id),
+      appliedAt: now,
+    });
+    // Project, tasks, and idempotency receipt are committed together by one
+    // atomic rename, so a retry cannot create duplicate local work.
+    this.write(data);
+
+    const verified = this.getProject(project.id);
+    if (!verified || verified.tasks.length !== tasks.length
+      || !tasks.every((task) => verified.tasks.some((stored) => stored.id === task.id))) {
+      throw new Error("The workflow was written but its persisted project/task records could not be verified; retry with the same workflowId to inspect the saved result.");
+    }
+    return { project: verified.project, tasks: verified.tasks, alreadyApplied: false };
   }
 
   createProject(input: { title?: unknown; description?: unknown; dueDate?: unknown }): GeneralProject {

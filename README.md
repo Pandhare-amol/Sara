@@ -51,7 +51,7 @@ SARA (Smart Assistant for Real‑time Automation) is an extensible, agent‑driv
 | **Duplicate Process Guard** | Health-check before start; reuses existing healthy processes |
 | **Windows Auto-Start** | Task Scheduler registration via `npm run register-startup` |
 | **Local System Monitor** | CPU, RAM, system-disk, battery (when supported) and top-process snapshots; repeated high-use and low-battery alerts. Closing a high-use app requires admin verification and explicit confirmation; SARA requests a graceful close and never force-kills it. |
-| **General Projects & Tasks** | Local persistent projects, statuses, priorities, due dates and task progress in `general-projects.json`; separate from music production projects. |
+| **General Projects & Tasks** | Local persistent projects, statuses, priorities, due dates and task progress in `general-projects.json`; separate from music production projects. Includes a bounded verified workflow: preview a project/task plan, explicitly approve it, atomically apply it, and read back the saved records; retries are idempotent. |
 
 ---
 
@@ -125,12 +125,32 @@ Start the backend and Vite UI with one command:
 npm run dev
 ```
 
-Open **http://localhost:3000**. The backend probes for the local Python desktop agent and attempts to start it when the virtual environment is installed. If the startup log says the agent is unavailable, use a second PowerShell window:
+Open **http://localhost:3000**. This is the browser-based development mode; it uses `PORT` from `.env` (default `3000`). The backend probes for the local Python desktop agent and attempts to start it when the virtual environment is installed, passing a process-scoped internal token. If the startup log says the agent is unavailable, check that the selected Python environment has `desktop_agent/requirements.txt` installed and that `SARA_PYTHON` points to it. A manually started agent without the same `SARA_AGENT_INTERNAL_TOKEN` can answer only the local liveness probe; SARA will not send control requests to it. If you independently manage the Node and Python processes, configure the same 32+ byte token in both protected environments before starting them. See [the Desktop Agent setup](desktop_agent/README.md) for details.
+
+### Native Electron desktop window
+
+To launch SARA in its desktop window (instead of opening the development UI in a browser), run:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn desktop_agent.main:app --host 127.0.0.1 --port 8765 --reload
+npm run app
 ```
+
+This builds the app and starts Electron with its own backend on `127.0.0.1:3000`. Electron deliberately ignores `PORT` and `SARA_BIND_HOST` from `.env` so an old `PORT=3001` or wildcard bind cannot redirect the desktop backend. If port 3000 is already occupied, SARA will leave that process untouched and show a startup error. After identifying/closing the known service, or to use another free port:
+
+```powershell
+$env:SARA_ELECTRON_PORT = "3003"
+npm run app
+```
+
+For a port conflict on Windows, identify the listener before taking action:
+
+```powershell
+$listener = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+$listener | Select-Object LocalAddress, LocalPort, OwningProcess
+$listener | ForEach-Object { Get-Process -Id $_.OwningProcess }
+```
+
+Normal local service ports are backend `3000`, Playwright browser agent `3001`, and the optional mobile service `3002`. Keep these values distinct. The browser agent binds only to loopback and allows exact localhost UI origins; do not expose it to a LAN or the public internet.
 
 Keep the Node backend and desktop agent bound to loopback (`127.0.0.1`) for normal local use. Do not expose them to a LAN or the public internet by changing the bind address unless you also configure TLS, the remote access token, firewall restrictions, and allowed hosts/origins. The desktop agent's local port is not intended to be public. `DEVELOPMENT_MODE` does not enable integrity protection; the active backend reports integrity monitoring as disabled.
 
@@ -159,9 +179,10 @@ For a hosted preview, set `SARA_PREVIEW_HOST` to that preview's exact hostname a
 - **News and finance:** optional NewsAPI and Alpha Vantage adapters use `NEWSAPI_DEFAULT_API_KEY` and `ALPHAVANTAGE_DEFAULT_API_KEY` from the server environment. Never paste these values into chat or commit them. The server reports only whether a credential is configured, never its value. Provider catalog entries are metadata; importing the public-apis catalog does not create working integrations or supply credentials.
 - **Search:** the DuckDuckGo Instant Answer API needs no key but returns instant answers and related topics, not full search-result pages.
 - **Calendar:** SARA now has a local-only event calendar with ICS export. It does not connect to Google Calendar or Outlook; exporting an `.ics` file lets you import events there. Calendar records stay in SARA's private data directory.
+- **Verified workflow:** previewing a project workflow is read-only. Applying requires a separate explicit approval and only creates the reviewed project and task records in the local project store; SARA verifies them after writing and uses an idempotency receipt to prevent duplicate creation on retry. It does not act on the OS, other apps, websites, or external services.
 - **Camera:** the preview starts only after an explicit camera action. Vision analysis sends one frame to Gemini only when Analyze is requested; SARA does not continuously classify facial emotion. Use the camera controls to stop the stream. For conversational check-ins, ask SARA directly rather than relying on inferred facial emotion.
 
-Run `npm run test:api` for mocked integrations and local-calendar contract tests; `npm run test:security` covers request boundaries and admin auth. Focused system-monitor and local-project-manager tests are `npx tsx --test src/services/SystemResourceMonitor.test.ts src/services/LocalProjectManager.test.ts src/services/securityAlertPolling.test.ts src/security/securityAlertStore.test.ts`, plus `python -m unittest desktop_agent.test_system_monitor`. The real mouse/keyboard suite (`npm run test:real-desktop:mouse` / `:keyboard`) requires an opted-in interactive Windows desktop; unit tests only validate mocked input delivery and cleanup. The general-purpose `ClosedLoopExecutor` planner and authenticated action adapter are not implemented yet: it deliberately refuses execution, and `npm run test:closed-loop` checks that it fails closed rather than reporting a planning-only result as success.
+Run `npm run test:api` for mocked integrations and local-calendar contract tests; `npm run test:security` covers request boundaries and admin auth. `npm run test:agent-auth` covers Node transport headers, authenticated health/adoption, and verifier calls; `python -m unittest desktop_agent.test_agent_auth` exercises the Python route gate when FastAPI/TestClient dependencies are installed. Focused system-monitor and local-project-manager tests are `npx tsx --test src/services/SystemResourceMonitor.test.ts src/services/LocalProjectManager.test.ts src/services/securityAlertPolling.test.ts src/security/securityAlertStore.test.ts`, plus `python -m unittest desktop_agent.test_system_monitor`. The real mouse/keyboard suite (`npm run test:real-desktop:mouse` / `:keyboard`) requires an opted-in interactive Windows desktop; unit tests only validate mocked input delivery and cleanup. The general-purpose `ClosedLoopExecutor` planner and authenticated action adapter are not implemented yet: it deliberately refuses execution, and `npm run test:closed-loop` checks that it fails closed rather than reporting a planning-only result as success.
 
 ---
 
@@ -296,7 +317,8 @@ npm run test:e2e
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server (hot-reload) |
+| `npm run dev` | Start the browser-based development server (hot-reload) |
+| `npm run app` | Build and launch the native Electron desktop window |
 | `npm run start:prod` | Start production via Startup Manager |
 | `npm run build` | Compile frontend + backend |
 | `npm run build:prod` | Full production build pipeline |

@@ -1,4 +1,4 @@
-﻿"""High-level voice OS automation tools for SARA."""
+"""High-level voice OS automation tools for SARA."""
 
 from __future__ import annotations
 
@@ -43,9 +43,16 @@ def sara_voice_execute_command(args: Dict[str, Any]) -> Dict[str, Any]:
     if tool_name not in TOOLS:
         raise ToolError(f"Voice command resolved to unavailable tool '{tool_name}'.")
     tool_args = dict(parsed["args"] or {})
+    if tool_name == "saraAppExecuteGoal":
+        task_id = str(args.get("automation_task_id") or args.get("taskId") or "").strip()
+        if task_id:
+            tool_args["automation_task_id"] = task_id
     if parsed["requires_confirmation"] and args.get("confirmed"):
         tool_args["confirmed"] = True
-    run_background = bool(args.get("background", True)) and _should_run_background(parsed)
+    has_outer_task_id = bool(str(args.get("automation_task_id") or args.get("taskId") or "").strip())
+    run_background = bool(args.get("background", True)) and _should_run_background(parsed) and not (
+        tool_name == "saraAppExecuteGoal" and has_outer_task_id
+    )
     started = time.time()
     if run_background:
         from .tools_background import BACKGROUND_TASKS
@@ -72,12 +79,21 @@ def sara_voice_execute_command(args: Dict[str, Any]) -> Dict[str, Any]:
         ],
         metadata={"source": "voice"},
     )
-    return {
+    response = {
         "result": result,
         "parsed": parsed,
         "learning_record": record,
         "spoken_response": parsed["response"],
     }
+    if tool_name == "saraAppExecuteGoal" and not run_background and isinstance(result, dict):
+        # Bubble up verified app-goal evidence so the authoritative Node task
+        # runner can verify completion before attempting task-scoped cleanup.
+        response.update({
+            "ok": result.get("ok") is True,
+            "verified": result.get("verified") is True,
+            "auto_close_after_task": result.get("auto_close_after_task") is True,
+        })
+    return response
 
 
 @register("saraVoiceStopSpeaking")

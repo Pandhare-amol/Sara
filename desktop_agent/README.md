@@ -40,24 +40,28 @@ Set `SARA_PYTHON` if SARA should use a specific Python executable. Otherwise it 
 
 ## Run
 
-With the virtual environment active:
+For normal use, start SARA with its managed launcher (`npm run dev` for development or `npm run start:prod` for the production supervisor). The launcher creates a process-scoped internal token in memory and passes it to the Node backend and Python agent.
+
+With the virtual environment active, the agent can also be started manually:
 
 ```bash
 python -m uvicorn desktop_agent.main:app --host 127.0.0.1 --port 8765
 ```
 
-The Node backend can also start the agent automatically when `uvicorn` is available in the selected Python environment. Start the backend with `npm run dev`.
+A manually started agent will answer the local health probe, but control routes fail closed unless the backend and agent receive the same `SARA_AGENT_INTERNAL_TOKEN` (at least 32 UTF-8 bytes) through protected environment configuration. Do not put this value in browser code, UI storage, command arguments, or logs. For a remote agent, use HTTPS and `SARA_AGENT_ACCESS_TOKEN`; non-loopback binding also requires the configured TLS certificate and key.
 
 ## API
 
-- `GET /health` — process health, host platform, and registered tools.
-- `GET /capabilities` — platform-support indicators, registered tools, platform-limited tools, and runtime limitations.
-- `GET /tools` — registered tool names.
+- `GET /health` — minimal local liveness probe plus platform, registered-tool, and authenticated-protocol metadata. Non-loopback requests require HTTPS and the remote token.
+- `GET /auth/check` — protected proof that the caller has the configured agent token.
+- `GET /capabilities`, `GET /tools`, browser/task/status routes, companion routes, and `POST /execute` — require `X-SARA-Agent-Token` (or a bearer token). CORS preflight is not authorization; all control routes still require the token.
 - `POST /execute` — execute one registered tool, for example:
 
 ```json
 { "tool": "openApplication", "args": { "name": "notepad" } }
 ```
+
+The Node backend supplies the header automatically. When manually calling the endpoint, send `X-SARA-Agent-Token` from the protected environment that holds `SARA_AGENT_INTERNAL_TOKEN`; never paste it into a browser page or share it in logs.
 
 ## Platform notes
 

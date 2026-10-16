@@ -9,9 +9,11 @@ import { overallServiceState } from "../startup/startupState.ts";
 import { createTask, updateTask, upsertSession, getSessionRecoveryContext, type TaskRecord } from "../server_state.ts";
 import { buildStructuredExecutionResult, inferTaskToolCall } from "../server_task_manager.ts";
 import { createUserResponseFromResult } from "../src/types/AuthoritativeTaskResult.ts";
+import { ensureDesktopAgentInternalToken } from "../src/security/desktopAgentAuth.ts";
 
 test("Backend - startup, health, identity, and adoption", async () => {
-  const port = 3001; // use alternative port for test
+  const port = 39001; // keep test backend away from the browser-agent port
+  const browserAgentPort = 39002;
   
   // start backend using real startService
   const backend = await startService({
@@ -24,7 +26,8 @@ test("Backend - startup, health, identity, and adoption", async () => {
     cwd: process.cwd(),
     env: {
       NODE_ENV: "development",
-      PORT: String(port)
+      PORT: String(port),
+      SARA_BROWSER_AGENT_PORT: String(browserAgentPort),
     },
     waitMs: 15_000,
   });
@@ -46,7 +49,7 @@ test("Backend - startup, health, identity, and adoption", async () => {
     command: "npx",
     args: ["tsx", "server_full.ts"],
     cwd: process.cwd(),
-    env: { PORT: String(port) },
+    env: { PORT: String(port), SARA_BROWSER_AGENT_PORT: String(browserAgentPort) },
     waitMs: 5000,
   });
 
@@ -62,7 +65,7 @@ test("Backend - startup, health, identity, and adoption", async () => {
     command: "npx",
     args: ["tsx", "server_full.ts"],
     cwd: process.cwd(),
-    env: { PORT: String(port) },
+    env: { PORT: String(port), SARA_BROWSER_AGENT_PORT: String(browserAgentPort) },
     waitMs: 2000,
   });
 
@@ -71,16 +74,22 @@ test("Backend - startup, health, identity, and adoption", async () => {
   stopAll();
 });
 
-test("Desktop Agent - startup, health, identity, and adoption", async () => {
+test("Desktop Agent - authenticated startup, health, identity, and adoption", async () => {
   const port = 8766; // alternative port
+  const agentEnv: NodeJS.ProcessEnv = { ...process.env };
+  const token = ensureDesktopAgentInternalToken(agentEnv);
+  const authHeaders = { "X-SARA-Agent-Token": token };
   const agent = await startService({
     name: "TestAgent",
     port,
-    healthPath: "/health",
+    healthPath: "/auth/check",
+    healthHeaders: authHeaders,
+    requiredProtocol: { field: "agent_auth_protocol_version", version: 1 },
     expectedServiceId: "sara-desktop-agent",
     command: "python",
     args: ["-m", "uvicorn", "desktop_agent.main:app", "--host", "127.0.0.1", "--port", String(port)],
     cwd: process.cwd(),
+    env: agentEnv,
     waitMs: 25_000,
   });
 
@@ -88,7 +97,7 @@ test("Desktop Agent - startup, health, identity, and adoption", async () => {
   assert.equal(agent.adopted, false, "Should not be adopted initially");
 
   // check capability
-  const capRes = await isPortHealthy(port, "/capabilities");
+  const capRes = await isPortHealthy(port, "/capabilities", authHeaders);
   assert.equal(capRes.healthy, true, "Capabilities endpoint should respond");
   assert.equal(capRes.data?.status, "PROCESS_HEALTHY", "Should report PROCESS_HEALTHY");
 
@@ -96,11 +105,14 @@ test("Desktop Agent - startup, health, identity, and adoption", async () => {
   const adoptedAgent = await startService({
     name: "TestAgent",
     port,
-    healthPath: "/health",
+    healthPath: "/auth/check",
+    healthHeaders: authHeaders,
+    requiredProtocol: { field: "agent_auth_protocol_version", version: 1 },
     expectedServiceId: "sara-desktop-agent",
     command: "python",
     args: ["-m", "uvicorn", "desktop_agent.main:app", "--host", "127.0.0.1", "--port", String(port)],
     cwd: process.cwd(),
+    env: agentEnv,
     waitMs: 5000,
   });
   
@@ -176,7 +188,7 @@ test("Task execution must require verification before reporting success", () => 
   assert.equal(result.success, false);
   assert.equal(result.state, "FAILED");
   assert.equal(result.verified, false);
-  assert.equal(createUserResponseFromResult(result), "I couldn't complete the task. The file was not found after the tool call.");
+  assert.equal(createUserResponseFromResult(result), "I couldn't verify completion. Some effects may already have occurred; review them before retrying. The file was not found after the tool call.");
 });
 
 test("Session recovery restores the last active task context for a conversation", async () => {
@@ -204,14 +216,27 @@ test("Session recovery restores the last active task context for a conversation"
 
 test("Website tasks are routed to supported browser actions instead of the unsupported universal-command path", () => {
   const youtube = inferTaskToolCall({ description: "Open YouTube and play Believer by Imagine Dragons" } as any);
-  assert.equal(youtube.tool, "searchYouTube");
+  assert.equal(youtube.tool, "youtube_play");
   assert.match(String(youtube.args.query || ""), /Believer|Imagine Dragons/i);
+  const youtubeUrl = inferTaskToolCall({ description: "Play https://www.youtube.com/watch?v=abc123 on YouTube" } as any);
+  assert.equal(youtubeUrl.tool, "youtube_play");
+  assert.equal(String(youtubeUrl.args.url || ""), "https://www.youtube.com/watch?v=abc123");
 
   const google = inferTaskToolCall({ description: "Search Google for patch notes" } as any);
   assert.equal(google.tool, "searchGoogle");
   assert.equal(String(google.args.query || ""), "patch notes");
 
+  for (const description of ["Search YouTube for lo-fi study music", "Search for lo-fi study music on YouTube", "Search on YouTube for lo-fi study music"]) {
+    const youtubeSearch = inferTaskToolCall({ description } as any);
+    assert.equal(youtubeSearch.tool, "searchYouTube");
+    assert.equal(String(youtubeSearch.args.query || ""), "lo-fi study music");
+  }
+
   const generic = inferTaskToolCall({ description: "Open docs website" } as any);
   assert.equal(generic.tool, "openWebsite");
   assert.equal(String(generic.args.name || generic.args.url || ""), "docs");
+
+  assert.deepEqual(inferTaskToolCall({ description: "Open Chrome" } as any), { tool: "openApplication", args: { name: "chrome" } });
+  assert.deepEqual(inferTaskToolCall({ description: "Close Task Manager" } as any), { tool: "closeApplication", args: { name: "task manager" } });
+  assert.deepEqual(inferTaskToolCall({ description: "Close the current tab" } as any), { tool: "desktopBrowserCloseTab", args: {} });
 });

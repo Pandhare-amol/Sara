@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { getDesktopAgentAuthHeaders } from '../../src/security/desktopAgentAuth';
 
 interface TestResult {
   name: string;
@@ -29,7 +30,7 @@ async function callDesktopTool(tool: string, args: Record<string, unknown> = {},
   try {
     const response = await fetch(`${baseUrl}/execute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getDesktopAgentAuthHeaders(baseUrl, process.env, 'application/json'),
       body: JSON.stringify({ tool, args }),
       signal: controller.signal,
     });

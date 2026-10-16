@@ -90,6 +90,17 @@ export interface AuthoritativeTaskResult {
   completedAt?: string;
   durationMs?: number;
 
+  // Optional post-success cleanup outcome; this never changes the verified
+  // success state of the primary task.
+  autoClose?: {
+    ok: boolean;
+    verified: boolean;
+    status?: string;
+    closed?: Array<Record<string, unknown>>;
+    left_open?: Array<Record<string, unknown>>;
+    result?: string;
+  };
+
   // Optional metadata
   metadata?: Record<string, unknown>;
 }

@@ -45,5 +45,12 @@ test("restored automation tasks preserve checkpoints and stay paused until revie
   assert.equal((task.checkpoint?.recovery as any).automaticReplay, false);
   assert.deepEqual(task.context?.completed_actions, ["prepare_message"]);
   assert.ok(events.includes("RECOVERY_PAUSED"));
-  assert.equal(executions, 0, "restore must not replay an externally visible action");
+  const duplicate = orchestrator.submit({
+    task_id: "automation-recovery-1",
+    tool: "whatsapp_send",
+    args: { phone: "+919876543210", message: "hello" },
+    priority: "NORMAL",
+  });
+  assert.equal(duplicate.status, "PAUSED", "a restored request with the same id is not auto-replayed");
+  assert.equal(executions, 0, "restore and duplicate delivery must not replay an externally visible action");
 });

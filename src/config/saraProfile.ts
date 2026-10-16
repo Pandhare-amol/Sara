@@ -6,7 +6,8 @@ export const SARA_VOICE_PROFILE = {
   identity: "AI assistant",
   persona_style: "warm_feminine_companion",
   gender_style: "female",
-  age_style: "adult_voice_style",
+  age_style: "fictional_adult_persona",
+  fictional_persona_age: 20, // Styling only; SARA is an AI and has no literal human age.
   tone: "soft",
   warmth: "high",
   pitch: "stable",
